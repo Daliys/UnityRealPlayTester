@@ -1,6 +1,6 @@
 # RealPlayTester
 
-Drop-in, zero-config package for writing real human-like playtests in 3–8 lines of async/await C#. Works in Unity 2021.3+ (editor + development builds on PC/mobile/console). Inputs are injected via real pointer/keyboard events (EventSystem + raycasts), never direct invokes.
+Drop-in, zero-config package for writing real human-like playtests in 3–8 lines of async/await C#. Works in Unity 6000.2+ (editor + development builds on PC/mobile/console). Inputs are injected via real pointer/keyboard events (EventSystem + raycasts), never direct invokes.
 
 ## Quickstart
 1. Drop the `RealPlayTester/` folder into your project.
