@@ -1,8 +1,8 @@
 {
-  "name": "com.realplaytester",
+  "name": "com.daliys.realplaytester",
   "displayName": "RealPlayTester",
   "version": "1.0.0",
-  "unity": "2021.3",
+  "unity": "6000.2",
   "description": "Real, human-like automated playtesting via async/await and English-like APIs. Drop-in, zero-config, works in dev builds and editor.",
   "keywords": [
     "testing",
@@ -11,7 +11,7 @@
     "ui-testing"
   ],
   "author": {
-    "name": "Your Name"
+    "name": "Daliys"
   },
   "license": "MIT"
 }
