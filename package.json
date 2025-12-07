@@ -1,5 +1,5 @@
 {
-  "name": "com.daliys.realplaytester",
+  "name": "com.realplaytester",
   "displayName": "RealPlayTester",
   "version": "1.0.0",
   "unity": "6000.2",
@@ -11,7 +11,8 @@
     "ui-testing"
   ],
   "author": {
-    "name": "Daliys"
+    "name": "Daliys",
+    "url": "https://github.com/daliys"
   },
   "license": "MIT"
 }

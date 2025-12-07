@@ -2,22 +2,20 @@
   "name": "RealPlayTester.Tests.EditMode",
   "rootNamespace": "",
   "references": [
-    "RealPlayTester",
-    "UnityEngine.TestRunner"
+    "RealPlayTester"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
   ],
   "includePlatforms": [
     "Editor"
   ],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
-  "overrideReferences": true,
-  "precompiledReferences": [
-    "nunit.framework.dll"
-  ],
-  "autoReferenced": false,
-  "defineConstraints": [
-    "UNITY_INCLUDE_TESTS"
-  ],
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
   "versionDefines": [],
   "noEngineReferences": false
 }

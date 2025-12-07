@@ -3,6 +3,7 @@ using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 using RealPlayTester.Core;
 
@@ -151,6 +152,100 @@ namespace RealPlayTester.Await
             {
                 SceneManager.sceneLoaded -= OnLoaded;
             }
+        }
+
+        public static Task ForObject(string name, float? timeoutSeconds = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return Task.CompletedTask;
+            }
+
+            return Until(() => GameObject.Find(name) != null, timeoutSeconds);
+        }
+
+        public static Task ForComponent<T>(float? timeoutSeconds = null) where T : Component
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return Task.CompletedTask;
+            }
+
+            return Until(() => GameObject.FindObjectOfType<T>() != null, timeoutSeconds);
+        }
+
+        public static Task ForUIVisible(string name, float? timeoutSeconds = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return Task.CompletedTask;
+            }
+
+            return Until(() =>
+            {
+                var obj = GameObject.Find(name);
+                if (obj == null)
+                {
+                    return false;
+                }
+
+                if (!obj.activeInHierarchy)
+                {
+                    return false;
+                }
+
+                var cg = obj.GetComponent<CanvasGroup>();
+                return cg == null || cg.interactable;
+            }, timeoutSeconds);
+        }
+
+        public static Task ForAnimationState(Animator animator, string stateName, float? timeoutSeconds = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled || animator == null)
+            {
+                return Task.CompletedTask;
+            }
+
+            return Until(() => animator.GetCurrentAnimatorStateInfo(0).IsName(stateName), timeoutSeconds);
+        }
+
+        public static Task ForAudioComplete(AudioSource source, float? timeoutSeconds = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled || source == null)
+            {
+                return Task.CompletedTask;
+            }
+
+            return Until(() => !source.isPlaying, timeoutSeconds);
+        }
+
+        public static Task While(Func<bool> predicate, float? timeoutSeconds = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return Task.CompletedTask;
+            }
+
+            if (predicate == null)
+            {
+                return Task.CompletedTask;
+            }
+
+            return Until(() => !predicate(), timeoutSeconds);
+        }
+
+        public static Task ForLoadingComplete(string loadingObjectName = "LoadingScreen", float? timeoutSeconds = 30f)
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return Task.CompletedTask;
+            }
+
+            return Until(() =>
+            {
+                var obj = GameObject.Find(loadingObjectName);
+                return obj == null || obj.activeInHierarchy == false;
+            }, timeoutSeconds);
         }
     }
 }

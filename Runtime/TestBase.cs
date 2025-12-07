@@ -41,8 +41,14 @@ namespace RealPlayTester.Core
         internal async Task Execute()
         {
             await SetUp();
-            await Run();
-            await TearDown();
+            try
+            {
+                await Run();
+            }
+            finally
+            {
+                await TearDown();
+            }
         }
 
         protected RealPlayTesterHost Host

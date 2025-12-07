@@ -60,6 +60,111 @@ namespace RealPlayTester.Assert
 
             return (message ?? "Assertion failed.") + $" (Screenshot: {screenshotPath})";
         }
+
+        public static void IsFalse(bool condition, string message = null)
+        {
+            IsTrue(!condition, message ?? "Expected condition to be false.");
+        }
+
+        public static void IsNull(object value, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return;
+            }
+
+            if (value != null)
+            {
+                Fail(message ?? $"Expected null but was {value}");
+            }
+        }
+
+        public static void IsNotNull(object value, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return;
+            }
+
+            if (value == null)
+            {
+                Fail(message ?? "Expected non-null value");
+            }
+        }
+
+        public static void Greater<T>(T value, T threshold, string message = null) where T : IComparable<T>
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return;
+            }
+
+            if (value.CompareTo(threshold) <= 0)
+            {
+                Fail(message ?? $"Expected {value} > {threshold}");
+            }
+        }
+
+        public static void Less<T>(T value, T threshold, string message = null) where T : IComparable<T>
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return;
+            }
+
+            if (value.CompareTo(threshold) >= 0)
+            {
+                Fail(message ?? $"Expected {value} < {threshold}");
+            }
+        }
+
+        public static void Contains(string haystack, string needle, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return;
+            }
+
+            if (haystack == null || needle == null || !haystack.Contains(needle))
+            {
+                Fail(message ?? $"'{haystack}' does not contain '{needle}'");
+            }
+        }
+
+        public static void InRange<T>(T value, T min, T max, string message = null) where T : IComparable<T>
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return;
+            }
+
+            if (value.CompareTo(min) < 0 || value.CompareTo(max) > 0)
+            {
+                Fail(message ?? $"{value} not in range [{min}, {max}]");
+            }
+        }
+
+        public static void Throws<TException>(Action action, string message = null) where TException : Exception
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return;
+            }
+
+            try
+            {
+                action();
+                Fail(message ?? $"Expected {typeof(TException).Name} to be thrown");
+            }
+            catch (TException)
+            {
+                // Expected
+            }
+            catch (Exception ex)
+            {
+                Fail(message ?? $"Expected {typeof(TException).Name} but got {ex.GetType().Name}");
+            }
+        }
     }
 
     internal static class ScreenshotUtility
