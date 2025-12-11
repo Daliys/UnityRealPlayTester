@@ -26,7 +26,7 @@ namespace RealPlayTester.Assert
             if (_listening) return;
             _listening = true;
             _unexpectedErrors.Clear();
-            _expectedPatterns.Clear();
+            _expectedPatterns.Clear(); // Ensure clean slate
             Application.logMessageReceived += OnLogMessage;
         }
 

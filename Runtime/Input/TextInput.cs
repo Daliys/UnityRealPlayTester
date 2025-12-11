@@ -128,6 +128,11 @@ namespace RealPlayTester.Input
             var input = target.GetComponent<InputField>();
             if (input != null)
             {
+                if (input.characterLimit > 0 && input.text.Length >= input.characterLimit)
+                {
+                    return; // Respect character limit
+                }
+                
                 input.text += c;
                 input.ForceLabelUpdate();
                 input.onValueChanged?.Invoke(input.text);

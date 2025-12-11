@@ -68,6 +68,17 @@ namespace RealPlayTester.Input
             { KeyCode.PageUp, 80 }, { KeyCode.PageDown, 81 },
             { KeyCode.Insert, 77 },
             { KeyCode.CapsLock, 4 },
+            { KeyCode.Numlock, 83 }, { KeyCode.Print, 75 }, { KeyCode.ScrollLock, 84 }, { KeyCode.Pause, 85 },
+            { KeyCode.Keypad0, 86 }, { KeyCode.Keypad1, 87 }, { KeyCode.Keypad2, 88 },
+            { KeyCode.Keypad3, 89 }, { KeyCode.Keypad4, 90 }, { KeyCode.Keypad5, 91 },
+            { KeyCode.Keypad6, 92 }, { KeyCode.Keypad7, 93 }, { KeyCode.Keypad8, 94 },
+            { KeyCode.Keypad9, 95 }, { KeyCode.KeypadDivide, 96 }, { KeyCode.KeypadMultiply, 97 },
+            { KeyCode.KeypadMinus, 98 }, { KeyCode.KeypadPlus, 99 }, { KeyCode.KeypadPeriod, 100 },
+            { KeyCode.KeypadEquals, 101 },
+            { KeyCode.Quote, 52 }, { KeyCode.BackQuote, 53 }, { KeyCode.Comma, 54 },
+            { KeyCode.Period, 55 }, { KeyCode.Slash, 56 }, { KeyCode.Backslash, 57 },
+            { KeyCode.Semicolon, 58 }, { KeyCode.LeftBracket, 59 }, { KeyCode.RightBracket, 60 },
+            { KeyCode.Minus, 61 }, { KeyCode.Equals, 62 }
         };
 
         public static bool IsAvailable

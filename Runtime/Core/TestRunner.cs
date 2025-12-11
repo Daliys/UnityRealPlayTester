@@ -50,15 +50,27 @@ namespace RealPlayTester.Core
                 return;
             }
 
-            bool f12 = InputShim.IsAvailable ? InputShim.GetKeyDown(KeyCode.F12) : SafeLegacyKey(KeyCode.F12);
-            if (f12)
+            bool f9 = InputShim.IsAvailable ? InputShim.GetKeyDown(KeyCode.F9) : SafeLegacyKey(KeyCode.F9);
+            if (f9)
             {
-                _ = RunAll(false);
+                RunAllAsyncSafe();
+            }
+        }
+
+        private async void RunAllAsyncSafe()
+        {
+            try
+            {
+                await RunAll(false);
+            }
+            catch (Exception ex)
+            {
+                RealPlayLog.Error("TestRunner unhandled exception: " + ex);
             }
         }
 
 #if UNITY_EDITOR
-        [UnityEditor.MenuItem("RealPlayTester/Run All (F12)")]
+        [UnityEditor.MenuItem("RealPlayTester/Run All (F9)")]
         private static void RunAllMenu()
         {
             if (_instance == null)

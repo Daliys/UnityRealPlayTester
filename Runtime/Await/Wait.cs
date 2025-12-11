@@ -184,19 +184,64 @@ namespace RealPlayTester.Await
             return Until(() =>
             {
                 var obj = GameObject.Find(name);
-                if (obj == null)
-                {
-                    return false;
-                }
-
-                if (!obj.activeInHierarchy)
-                {
-                    return false;
-                }
-
-                var cg = obj.GetComponent<CanvasGroup>();
-                return cg == null || cg.interactable;
+                return IsFullyVisibleAndInteractable(obj);
             }, timeoutSeconds);
+        }
+
+        public static Task ForInteractable<T>(string textFilter = null, float? timeoutSeconds = null) where T : Component
+        {
+            if (!RealPlayEnvironment.IsEnabled) return Task.CompletedTask;
+
+            return Until(() =>
+            {
+                var candidates = GameObject.FindObjectsOfType<T>(true);
+                foreach (var c in candidates)
+                {
+                     if (!c.gameObject.activeInHierarchy) continue;
+                     if (!IsFullyVisibleAndInteractable(c.gameObject)) continue;
+                     
+                     if (!string.IsNullOrEmpty(textFilter))
+                     {
+                         // Basic text check for buttons/TMP
+                         var text = c.GetComponentInChildren<UnityEngine.UI.Text>();
+                         if (text != null && text.text.IndexOf(textFilter, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                         
+                         // TMP support via reflection
+                         var tmpType = System.Type.GetType("TMPro.TMP_Text, Unity.TextMeshPro");
+                         if (tmpType != null)
+                         {
+                             var tmp = c.GetComponentInChildren(tmpType);
+                             if (tmp != null)
+                             {
+                                 var prop = tmpType.GetProperty("text");
+                                 string val = prop?.GetValue(tmp) as string;
+                                 if (val != null && val.IndexOf(textFilter, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                             }
+                         }
+                     }
+                     else
+                     {
+                         return true;
+                     }
+                }
+                return false;
+            }, timeoutSeconds);
+        }
+
+        private static bool IsFullyVisibleAndInteractable(GameObject obj)
+        {
+            if (obj == null || !obj.activeInHierarchy) return false;
+
+            // Check upstream CanvasGroups
+            var groups = obj.GetComponentsInParent<CanvasGroup>();
+            foreach (var g in groups)
+            {
+                // 'IgnoreParentGroups' allows breaking the chain, but usually we care about the net result
+                if (g.ignoreParentGroups) break; 
+                
+                if (g.alpha <= 0f || !g.interactable) return false;
+            }
+            return true;
         }
 
         public static Task ForAnimationState(Animator animator, string stateName, float? timeoutSeconds = null)

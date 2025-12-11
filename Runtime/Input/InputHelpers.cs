@@ -26,22 +26,40 @@ namespace RealPlayTester.Input
 
         public static EventSystem EnsureEventSystem()
         {
-            var es = EventSystem.current;
-            if (es == null)
+            if (EventSystem.current != null)
             {
-                var go = new GameObject("RealPlayTester_EventSystem");
-                es = go.AddComponent<EventSystem>();
-                if (InputSystemUIModuleType != null)
-                {
-                    go.AddComponent(InputSystemUIModuleType);
-                }
-                else
-                {
-                    go.AddComponent<StandaloneInputModule>();
-                }
-                UnityEngine.Object.DontDestroyOnLoad(go);
+                return EventSystem.current;
             }
 
+            // aggressive search including inactive
+            var existing = UnityEngine.Object.FindObjectOfType<EventSystem>(true);
+            if (existing != null)
+            {
+                if (!existing.gameObject.activeInHierarchy)
+                {
+                    RealPlayLog.Warn("Found inactive EventSystem; activating it for tests.");
+                    existing.gameObject.SetActive(true);
+                }
+                if (!existing.enabled)
+                {
+                    existing.enabled = true;
+                }
+                EventSystem.current = existing;
+                return existing;
+            }
+
+            // Create new if absolutely none exist
+            var go = new GameObject("RealPlayTester_EventSystem");
+            var es = go.AddComponent<EventSystem>();
+            if (InputSystemUIModuleType != null)
+            {
+                go.AddComponent(InputSystemUIModuleType);
+            }
+            else
+            {
+                go.AddComponent<StandaloneInputModule>();
+            }
+            UnityEngine.Object.DontDestroyOnLoad(go);
             return es;
         }
 
@@ -70,6 +88,14 @@ namespace RealPlayTester.Input
         {
             Ray ray = camera.ScreenPointToRay(screenPosition);
             return Physics.Raycast(ray, out hit, camera.farClipPlane);
+        }
+
+        public static Vector2 ClampToScreen(Vector2 position)
+        {
+            return new Vector2(
+                Mathf.Clamp(position.x, 1f, Screen.width - 2f),
+                Mathf.Clamp(position.y, 1f, Screen.height - 2f)
+            );
         }
 
         private static void PanelRaycast(PointerEventData data, List<RaycastResult> results)

@@ -38,10 +38,10 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 ## Running Tests
 | Trigger | Description |
 |---------|-------------|
-| `F12` | Run all tests (Editor + Dev Builds) |
+| `F9` | Run all tests (Editor + Dev Builds) |
 | `-runRealTests` | CLI: Run all, then quit with exit code = failure count |
 | `--tags=smoke,ui` | CLI: Filter by tags |
-| Menu: `RealPlayTester/Run All (F12)` | Editor menu item |
+| Menu: `RealPlayTester/Run All (F9)` | Editor menu item |
 
 ---
 
@@ -53,8 +53,8 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | `Click.ScreenPercent(float x, float y)` | Click at screen position (0-1 range). |
 | `Click.ScreenPixels(float x, float y)` | Click at pixel position. |
 | `Click.WorldPosition(Vector3, Camera?)` | Click at world position. |
-| `Click.WorldObject(GameObject, Camera?)` | Click on a GameObject. |
-| `Click.ButtonWithText(string)` | Find and click a Button by label text. |
+| `Click.WorldObject(GameObject, Camera?)` | Click on a GameObject. **Auto-scrolls if in ScrollRect.** |
+| `Click.ButtonWithText(string)` | Find and click a Button by label text. **Auto-scrolls if needed.** |
 | `Click.ObjectNamed(string)` | Find and click a GameObject by name. |
 | `Click.Component<T>()` | Find and click the first component of type T. |
 | `Click.RightClick(Vector2)` | Right-click at position. |
@@ -62,6 +62,8 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | `Click.DoubleClick(Vector2, float?)` | Double-click at position. |
 | `Click.Hold(Vector2, float)` | Click and hold at position. |
 | `Click.RaycastFromCamera(Camera, Vector2)` | Raycast and return hit result. |
+
+> **Note**: World interactions are automatically clamped to screen bounds to prevent "No Target" errors.
 
 ### Press (Keyboard)
 | Method | Description |
@@ -85,7 +87,8 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | `Wait.SceneLoaded(string, float? timeout)` | Wait for scene to load. |
 | `Wait.ForObject(string, float? timeout)` | Wait for GameObject by name to exist. |
 | `Wait.ForComponent<T>(float? timeout)` | Wait for component to exist. |
-| `Wait.ForUIVisible(string, float? timeout)` | Wait for named UI to be active and interactable. |
+| `Wait.ForUIVisible(string, float? timeout)` | Wait for named UI to be active and interactable (checks parent CanvasGroups). |
+| `Wait.ForInteractable<T>(string text?, float? timeout)` | Wait for component T to be fully visible, enabled, and interactable. **Supports TMP.** |
 | `Wait.ForAnimationState(Animator, string, float?)` | Wait for Animator state. |
 | `Wait.ForAudioComplete(AudioSource, float?)` | Wait for audio to stop playing. |
 | `Wait.ForLoadingComplete(string?, float?)` | Wait for loading screen to disappear. |
@@ -125,7 +128,8 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | Method | Description |
 |--------|-------------|
 | `Scroll.ToBottom(ScrollRect, float duration=0.5f)` | Scroll to bottom. |
-| `Scroll.UntilVisible(ScrollRect, RectTransform, float timeout=5f)` | Scroll until element is visible. |
+| `Scroll.UntilVisible(ScrollRect, RectTransform, float timeout=5f)` | Scroll until element is visible (Vertical & Horizontal). |
+| `Scroll.EnsureVisible(GameObject)` | Helper to find parent ScrollRect and scroll target into view. |
 
 ### Capture
 | Method | Description |
@@ -142,6 +146,7 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | `DevTools.ShowClickMarker(Vector2, float dur=0.5f)` | Visual marker at position. |
 | `DevTools.SetSlowMotion(float timeScale=0.25f)` | Set Time.timeScale. |
 | `DevTools.Inspect<T>(string name, T value)` | Log value to console. |
+| `Tester.ResetCursor()` | Safely center the cursor. |
 
 ---
 
@@ -184,6 +189,7 @@ All API methods are also available via `Tester.*`:
 
 ## Behavior & Guarantees
 - **Real Inputs**: Uses `EventSystem`, `ExecuteEvents`, `PointerEventData`. Never calls `.onClick.Invoke()`.
+- **Auto-Scroll & Clamp**: Automatically scrolls targets into view and clamps clicks to screen valid area.
 - **Input System**: Supports both Legacy Input Manager (limited) and new Input System (full).
 - **Dev-Build Guard**: Package is auto-disabled in non-development builds.
 - **TearDown Safety**: `TearDown()` is always called, even on test failure.

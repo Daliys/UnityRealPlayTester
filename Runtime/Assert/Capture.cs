@@ -28,11 +28,25 @@ namespace RealPlayTester.Assert
                 : name + ".png";
 
             string dir = Path.Combine(Application.persistentDataPath, CaptureFolder);
-            Directory.CreateDirectory(dir);
+            try { Directory.CreateDirectory(dir); } catch { }
+
             string path = Path.Combine(dir, fileName);
-            ScreenCapture.CaptureScreenshot(path);
-            RealPlayLog.Info("Captured screenshot: " + path);
-            return path;
+
+            // Synchronous capture
+            var tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
+            try
+            {
+                tex.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
+                tex.Apply();
+                byte[] bytes = tex.EncodeToPNG();
+                File.WriteAllBytes(path, bytes);
+                RealPlayLog.Info("Captured screenshot: " + path);
+                return path;
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(tex);
+            }
         }
 
         /// <summary>

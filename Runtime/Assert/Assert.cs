@@ -212,18 +212,25 @@ namespace RealPlayTester.Assert
                 return;
             }
 
-            var host = RealPlayTesterHost.Instance;
-            if (host != null)
+            
+            // Check if we can dispatch to main thread if not already there
+            if (!IsMainThread())
             {
-                host.RunOnMainThread(() =>
-                {
-                    BuildOverlay(message, screenshotPath);
-                });
+                 var host = RealPlayTesterHost.Instance;
+                 if (host != null)
+                 {
+                     host.RunOnMainThread(() => BuildOverlay(message, screenshotPath));
+                     return;
+                 }
             }
-            else
-            {
-                BuildOverlay(message, screenshotPath);
-            }
+
+            // Fallback (might fail if not on main thread and Host is missing, but typically Host exists)
+            BuildOverlay(message, screenshotPath);
+        }
+
+        private static bool IsMainThread()
+        {
+            return RealPlayTesterHost.MainContext == System.Threading.SynchronizationContext.Current;
         }
 
         private static void BuildOverlay(string message, string screenshotPath)

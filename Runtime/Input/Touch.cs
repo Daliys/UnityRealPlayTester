@@ -76,13 +76,21 @@ namespace RealPlayTester.Input
             {
                 if (phase == TouchPhase.Began)
                 {
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerEnterHandler);
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerDownHandler);
+                    pointer.pointerPressRaycast = results[0];
+                    pointer.pointerCurrentRaycast = results[0];
+                    pointer.pointerPress = target;
+                    pointer.rawPointerPress = target;
+
+                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerEnterHandler);
+                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerDownHandler);
+                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.initializePotentialDragHandler);
+                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.beginDragHandler);
                 }
                 else if (phase == TouchPhase.Ended)
                 {
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerUpHandler);
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerClickHandler);
+                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.endDragHandler);
+                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerUpHandler);
+                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerClickHandler);
                 }
             }
 

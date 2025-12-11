@@ -23,9 +23,13 @@ namespace RealPlayTester.Utilities
             float original = Time.timeScale;
             Time.timeScale = 0f;
             RealPlayLog.Info($"Test paused. Press {resumeKey} to continue...");
+            RealPlayLog.Info($"Test paused. Press {resumeKey} to continue...");
             try
             {
-                await Wait.Until(() => IsKeyPressed(resumeKey));
+                while (!IsKeyPressed(resumeKey))
+                {
+                    await Wait.Seconds(0.1f, unscaled: true);
+                }
             }
             finally
             {

@@ -34,35 +34,60 @@ namespace RealPlayTester.Input
         /// <summary>Scroll until the target RectTransform is visible within the ScrollRect viewport.</summary>
         public static async Task UntilVisible(ScrollRect scrollRect, RectTransform target, float timeoutSeconds = 5f)
         {
-            if (!RealPlayEnvironment.IsEnabled || scrollRect == null || target == null)
+            if (!RealPlayEnvironment.IsEnabled || scrollRect == null || target == null) return;
+            
+            float startTime = Time.realtimeSinceStartup;
+            var token = RealPlayExecutionContext.Token;
+
+            // Simple viewport check
+            bool IsVisible()
             {
-                return;
+                var targetCorners = new Vector3[4];
+                target.GetWorldCorners(targetCorners);
+                
+                var viewCorners = new Vector3[4];
+                scrollRect.viewport.GetWorldCorners(viewCorners);
+                
+                Rect viewRect = new Rect(viewCorners[0].x, viewCorners[0].y, viewCorners[2].x - viewCorners[0].x, viewCorners[2].y - viewCorners[0].y);
+                return viewRect.Contains(targetCorners[0]) && viewRect.Contains(targetCorners[2]);
             }
 
-            float elapsed = 0f;
-            var viewport = scrollRect.viewport != null ? scrollRect.viewport : scrollRect.GetComponent<RectTransform>();
-
-            while (elapsed < timeoutSeconds)
+            // Heuristic scroll
+            while (!IsVisible())
             {
-                if (IsVisibleInViewport(viewport, target))
+                bool scrolled = false;
+                
+                if (scrollRect.vertical)
                 {
-                    return;
+                    Vector3 targetLocal = scrollRect.viewport.InverseTransformPoint(target.position);
+                    float shift = 0.05f * (Time.timeScale > 0 ? Time.deltaTime * 60f : 1f);
+                    if (targetLocal.y < 0) 
+                        scrollRect.verticalNormalizedPosition = Mathf.Max(0, scrollRect.verticalNormalizedPosition - shift);
+                    else 
+                        scrollRect.verticalNormalizedPosition = Mathf.Min(1, scrollRect.verticalNormalizedPosition + shift);
+                    scrolled = true;
+                }
+                
+                if (scrollRect.horizontal)
+                {
+                    Vector3 targetLocal = scrollRect.viewport.InverseTransformPoint(target.position);
+                    float shift = 0.05f * (Time.timeScale > 0 ? Time.deltaTime * 60f : 1f);
+                    if (targetLocal.x > 0) 
+                        scrollRect.horizontalNormalizedPosition = Mathf.Min(1, scrollRect.horizontalNormalizedPosition + shift);
+                    else 
+                        scrollRect.horizontalNormalizedPosition = Mathf.Max(0, scrollRect.horizontalNormalizedPosition - shift);
+                    scrolled = true;
                 }
 
-                // Nudge scroll toward target based on anchored position.
-                Vector3 localPos = viewport.InverseTransformPoint(target.position);
-                float viewportHeight = viewport.rect.height;
-                float targetY = localPos.y;
-
-                // Adjust normalized position heuristically.
-                float step = Mathf.Sign(targetY) * 0.1f;
-                scrollRect.verticalNormalizedPosition = Mathf.Clamp01(scrollRect.verticalNormalizedPosition + step);
+                if (!scrolled) break;
 
                 await Task.Yield();
-                elapsed += Time.deltaTime;
+                if (Time.realtimeSinceStartup - startTime > timeoutSeconds)
+                {
+                    RealPlayLog.Warn($"Scroll.UntilVisible timed out for {target.name}");
+                    break;
+                }
             }
-
-            RealPlayLog.Warn("Scroll.UntilVisible timed out.");
         }
 
         private static bool IsVisibleInViewport(RectTransform viewport, RectTransform target)
@@ -77,7 +102,26 @@ namespace RealPlayTester.Input
             float targetMinY = targetCorners[0].y;
             float targetMaxY = targetCorners[2].y;
 
+            // Simple Y-axis check for vertical lists, can be expanded for X
             return targetMaxY <= viewportMaxY && targetMinY >= viewportMinY;
+        }
+
+        /// <summary>
+        /// Checks if the target is inside a ScrollRect and scrolls it into view if needed.
+        /// </summary>
+        public static async Task EnsureVisible(GameObject target)
+        {
+            if (target == null) return;
+
+            var scrollRect = target.GetComponentInParent<ScrollRect>();
+            if (scrollRect != null)
+            {
+                var rt = target.transform as RectTransform;
+                if (rt != null)
+                {
+                    await UntilVisible(scrollRect, rt, 2f);
+                }
+            }
         }
     }
 }

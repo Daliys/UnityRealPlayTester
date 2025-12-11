@@ -87,6 +87,14 @@ namespace RealPlayTester.Core
         public static Task WaitForUIVisible(string name, float? timeoutSeconds = null) =>
             RealPlayEnvironment.IsEnabled ? Wait.ForUIVisible(name, timeoutSeconds) : Task.CompletedTask;
 
+        /// <summary>Wait for an interactable component (visible, enabled, interactable) with optional text filter.</summary>
+        public static Task WaitForInteractable<T>(string textFilter = null, float? timeoutSeconds = null) where T : Component =>
+            RealPlayEnvironment.IsEnabled ? Wait.ForInteractable<T>(textFilter, timeoutSeconds) : Task.CompletedTask;
+
+        /// <summary>Ensure a UI object is visible by scrolling to it.</summary>
+        public static Task EnsureVisible(GameObject target) =>
+            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Scroll.EnsureVisible(target) : Task.CompletedTask;
+
         /// <summary>Wait for an Animator to reach a specific state.</summary>
         public static Task WaitForAnimationState(Animator animator, string stateName, float? timeoutSeconds = null) =>
             RealPlayEnvironment.IsEnabled ? Wait.ForAnimationState(animator, stateName, timeoutSeconds) : Task.CompletedTask;
@@ -254,6 +262,11 @@ namespace RealPlayTester.Core
 
         public static Task ScrollUntilVisible(ScrollRect scrollRect, RectTransform target, float timeoutSeconds = 5f) =>
             RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Scroll.UntilVisible(scrollRect, target, timeoutSeconds) : Task.CompletedTask;
+
+        // ===== SAFETY HELPERS =====
+        public static Task ResetCursor() =>
+            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Click.ScreenPercent(0.5f, 0.5f) : Task.CompletedTask;
+
         // ===== DEBUGGING & LOGGING =====
 
         /// <summary>Returns a string dump of the active scene hierarchy for debugging.</summary>

@@ -40,6 +40,8 @@ namespace RealPlayTester.Input
                 string text = GetButtonLabel(btn);
                 if (!string.IsNullOrEmpty(text) && text.IndexOf(buttonText, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
+                    // Auto-scroll if necessary
+                    await Scroll.EnsureVisible(btn.gameObject);
                     await WorldObject(btn.gameObject);
                     return;
                 }
@@ -124,7 +126,7 @@ namespace RealPlayTester.Input
             return PerformClick(screen, cam);
         }
 
-        public static Task WorldObject(GameObject target, Camera camera = null)
+        public static async Task WorldObject(GameObject target, Camera camera = null)
         {
             if (!RealPlayEnvironment.IsEnabled || target == null)
             {
@@ -139,9 +141,23 @@ namespace RealPlayTester.Input
             }
 
             Vector3 screenPos = cam.WorldToScreenPoint(target.transform.position);
+
+            // Auto-scroll first
+            await Scroll.EnsureVisible(target);
+            
+            // Re-calculate after scroll
+            screenPos = cam.WorldToScreenPoint(target.transform.position);
+
+            // Safety clamp
+            if (screenPos.z > 0)
+            {
+                // Only clamp if it's generally in front of camera
+                screenPos = RealInputUtility.ClampToScreen(screenPos);
+            }
+
             if (screenPos.z < 0f || screenPos.x < 0f || screenPos.x > Screen.width || screenPos.y < 0f || screenPos.y > Screen.height)
             {
-                RealPlayLog.Warn($"WorldObject '{target.name}' is not visible on screen; skipping click.");
+                RealPlayLog.Warn($"WorldObject '{target.name}' is not visible on screen (Pos: {screenPos}); skipping click.");
                 return Task.CompletedTask;
             }
 
@@ -361,6 +377,10 @@ namespace RealPlayTester.Input
             }
 
             var token = RealPlayExecutionContext.Token;
+            // Clamp start/end to be safe
+            startScreenPos = RealInputUtility.ClampToScreen(startScreenPos);
+            endScreenPos = RealInputUtility.ClampToScreen(endScreenPos);
+            
             return RealPlayTesterHost.Instance.RunCoroutineTask(DragRoutine(startScreenPos, endScreenPos, durationSeconds), token);
         }
 

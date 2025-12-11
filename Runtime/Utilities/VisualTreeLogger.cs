@@ -21,7 +21,7 @@ namespace RealPlayTester.Utilities
                 var roots = scene.GetRootGameObjects();
                 foreach (var root in roots)
                 {
-                    DumpRecursive(root.transform, sb, 0);
+                    DumpRecursive(root.transform, sb, 0, 15); // limit depth to 15
                 }
             }
 
@@ -31,8 +31,13 @@ namespace RealPlayTester.Utilities
             return sb.ToString();
         }
 
-        private static void DumpRecursive(Transform t, StringBuilder sb, int depth)
+        private static void DumpRecursive(Transform t, StringBuilder sb, int depth, int maxDepth)
         {
+            if (depth > maxDepth)
+            {
+                sb.Append(' ', depth * 2).AppendLine("... (max depth reached)");
+                return;
+            }
             sb.Append(' ', depth * 2);
             sb.Append(t.gameObject.activeInHierarchy ? "[+] " : "[-] ");
             sb.Append(t.name);
@@ -70,7 +75,7 @@ namespace RealPlayTester.Utilities
             int childCount = t.childCount;
             for (int i = 0; i < childCount; i++)
             {
-                DumpRecursive(t.GetChild(i), sb, depth + 1);
+                DumpRecursive(t.GetChild(i), sb, depth + 1, maxDepth);
             }
         }
 
