@@ -206,8 +206,14 @@ RealPlayTester/
 │   ├── Await/       # Wait
 │   ├── Assert/      # Assert, Capture, LogAssert
 │   └── Utilities/   # DevTools, VisualTreeLogger, InteractionProbe
-├── Tests/           # Sample tests
 ├── Resources/       # Sample test assets
 ├── README.md
 └── package.json
 ```
+
+## Version History
+See [CHANGELOG-RealPlayTester.md](../CHANGELOG-RealPlayTester.md) in your project root for version history.
+
+---
+
+**Note**: For production verification, create test assets in your project's `Assets/Resources/RealPlayTests/` folder, not in the package itself.
