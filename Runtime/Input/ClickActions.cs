@@ -130,14 +130,14 @@ namespace RealPlayTester.Input
         {
             if (!RealPlayEnvironment.IsEnabled || target == null)
             {
-                return Task.CompletedTask;
+                return;
             }
 
             Camera cam = SelectCamera(camera);
             if (cam == null)
             {
                 RealPlayLog.Warn("WorldObject click: no camera available.");
-                return Task.CompletedTask;
+                return;
             }
 
             Vector3 screenPos = cam.WorldToScreenPoint(target.transform.position);
@@ -158,10 +158,10 @@ namespace RealPlayTester.Input
             if (screenPos.z < 0f || screenPos.x < 0f || screenPos.x > Screen.width || screenPos.y < 0f || screenPos.y > Screen.height)
             {
                 RealPlayLog.Warn($"WorldObject '{target.name}' is not visible on screen (Pos: {screenPos}); skipping click.");
-                return Task.CompletedTask;
+                return;
             }
 
-            return PerformClick(screenPos, cam, target);
+            await PerformClick(screenPos, cam, target);
         }
 
         public static RaycastResult RaycastFromCamera(Camera camera, Vector2 screenPosition)

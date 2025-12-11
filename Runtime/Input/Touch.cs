@@ -76,21 +76,21 @@ namespace RealPlayTester.Input
             {
                 if (phase == TouchPhase.Began)
                 {
-                    pointer.pointerPressRaycast = results[0];
-                    pointer.pointerCurrentRaycast = results[0];
-                    pointer.pointerPress = target;
-                    pointer.rawPointerPress = target;
+                    data.pointerPressRaycast = results[0];
+                    data.pointerCurrentRaycast = results[0];
+                    data.pointerPress = target;
+                    data.rawPointerPress = target;
 
-                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerEnterHandler);
-                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerDownHandler);
-                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.initializePotentialDragHandler);
-                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.beginDragHandler);
+                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerEnterHandler);
+                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerDownHandler);
+                    ExecuteEvents.Execute(target, data, ExecuteEvents.initializePotentialDrag);
+                    ExecuteEvents.Execute(target, data, ExecuteEvents.beginDragHandler);
                 }
                 else if (phase == TouchPhase.Ended)
                 {
-                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.endDragHandler);
-                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerUpHandler);
-                    ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerClickHandler);
+                    ExecuteEvents.Execute(target, data, ExecuteEvents.endDragHandler);
+                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerUpHandler);
+                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerClickHandler);
                 }
             }
 

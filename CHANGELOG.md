@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.2] - 2025-12-11
+
+### Fixed (Critical - Compilation)
+- **Async Syntax**: Fixed invalid return statements in `Click.WorldObject` async method (File: `Runtime/Input/ClickActions.cs`).
+- **Variable Name**: Fixed undefined variable `pointer` → `data` in `Touch.SimulateTouch` (File: `Runtime/Input/Touch.cs`).
+- **ExecuteEvents**: Corrected `initializePotentialDragHandler` → `initializePotentialDrag` (File: `Runtime/Input/Touch.cs`).
+
+### Added
+- **Meta Files**: Created Unity meta files for `CHANGELOG.md`, `Runtime/Tests/`, and `ProductionVerificationTest.cs`.
+
+---
+
 ## [1.0.1] - 2025-12-10
 
 ### Fixed (Critical)
