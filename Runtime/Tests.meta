@@ -1,8 +1,0 @@
-fileFormatVersion: 2
-guid: $(uuidgen | tr -d '-' | tr '[:upper:]' '[:lower:]' | head -c 32)
-folderAsset: yes
-DefaultImporter:
-  externalObjects: {}
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
