@@ -212,7 +212,7 @@ RealPlayTester/
 ```
 
 ## Version History
-See [CHANGELOG-RealPlayTester.md](../CHANGELOG-RealPlayTester.md) in your project root for version history.
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ---
 
