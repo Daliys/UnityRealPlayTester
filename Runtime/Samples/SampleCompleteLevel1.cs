@@ -16,7 +16,9 @@ namespace RealPlayTester.Samples
     {
         [SerializeField] private GameObject enemyBoss;
         [SerializeField] private GameObject player;
+#pragma warning disable CS0414 // Field is assigned but its value is never used
         [SerializeField] private int requiredScore = 50000;
+#pragma warning restore CS0414
 
         protected override async Task Run()
         {

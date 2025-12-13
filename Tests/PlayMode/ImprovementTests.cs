@@ -24,6 +24,8 @@ namespace RealPlayTester.Tests
     {
         protected override async Task Run()
         {
+            await Task.Yield(); // Ensure async execution
+            
             Log("Testing VisualTreeLogger...");
             // Create some temporary objects
             var root = new GameObject("Root_ImprovementTest");

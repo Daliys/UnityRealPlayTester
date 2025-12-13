@@ -233,6 +233,7 @@ All API methods are also available via `Tester.*`:
 - **Dev-Build Guard**: Package is auto-disabled in non-development builds.
 - **TearDown Safety**: `TearDown()` is always called, even on test failure.
 - **No Dependencies**: Self-contained, no external packages required.
+- **Modern Unity APIs**: Uses `FindFirstObjectByType` / `FindObjectsByType` (Unity 2022.1+) for optimal performance.
 
 ---
 

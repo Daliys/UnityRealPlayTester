@@ -32,7 +32,7 @@ namespace RealPlayTester.Input
             }
 
             // aggressive search including inactive
-            var existing = UnityEngine.Object.FindObjectOfType<EventSystem>(true);
+            var existing = UnityEngine.Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include);
             if (existing != null)
             {
                 if (!existing.gameObject.activeInHierarchy)
@@ -105,7 +105,7 @@ namespace RealPlayTester.Input
                 return;
             }
 
-            var panelRaycasters = UnityEngine.Object.FindObjectsOfType(PanelRaycasterType);
+            var panelRaycasters = UnityEngine.Object.FindObjectsByType(PanelRaycasterType, FindObjectsSortMode.None);
             foreach (var pr in panelRaycasters)
             {
                 var prResults = new List<RaycastResult>();

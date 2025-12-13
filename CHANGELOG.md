@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.2] - 2025-12-13
+
+### Fixed
+- **Deprecation Warnings**: Replaced all deprecated Unity `Object.FindObjectOfType` and `Object.FindObjectsOfType` calls with modern equivalents:
+  - `FindObjectOfType<T>()` → `FindFirstObjectByType<T>()` (Files: `Wait.cs`, `TextInput.cs`)
+  - `FindObjectOfType<T>(bool)` → `FindFirstObjectByType<T>(FindObjectsInactive.Include)` (Files: `ClickActions.cs`, `InputHelpers.cs`)
+  - `FindObjectsOfType<T>(bool)` → `FindObjectsByType<T>(FindObjectsSortMode.None)` (Files: `ClickActions.cs`, `Wait.cs`)
+  - `FindObjectsOfType(Type)` → `FindObjectsByType(Type, FindObjectsSortMode.None)` (File: `InputHelpers.cs`)
+- **CS0414 Warning**: Suppressed unused field warning for sample `requiredScore` field using pragma (File: `SampleCompleteLevel1.cs`).
+- **CS1998 Warning**: Added `await Task.Yield()` to async test method to ensure proper async execution (File: `ImprovementTests.cs`).
+
+### Changed
+- **Performance**: Using `FindObjectsSortMode.None` provides faster object lookups since results don't need to be sorted by InstanceID.
+
+---
+
 ## [1.1.0] - 2025-12-13
 
 ### Added

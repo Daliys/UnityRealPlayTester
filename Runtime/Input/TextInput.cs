@@ -99,7 +99,7 @@ namespace RealPlayTester.Input
             var target = es.currentSelectedGameObject ?? es.firstSelectedGameObject;
             if (target == null)
             {
-                var anyInput = UnityEngine.Object.FindObjectOfType<InputField>();
+                var anyInput = UnityEngine.Object.FindFirstObjectByType<InputField>();
                 if (anyInput != null)
                 {
                     target = anyInput.gameObject;
@@ -110,7 +110,7 @@ namespace RealPlayTester.Input
                     var tmpTypeFallback = GetTMPInputFieldType();
                     if (tmpTypeFallback != null)
                     {
-                        var tmpField = UnityEngine.Object.FindObjectOfType(tmpTypeFallback);
+                        var tmpField = UnityEngine.Object.FindFirstObjectByType(tmpTypeFallback);
                         if (tmpField != null)
                         {
                             target = ((Component)tmpField).gameObject;
@@ -176,7 +176,7 @@ namespace RealPlayTester.Input
 
         private static void ApplyFallbackCharacter(char c)
         {
-            var fallbackInput = UnityEngine.Object.FindObjectOfType<InputField>();
+            var fallbackInput = UnityEngine.Object.FindFirstObjectByType<InputField>();
             if (fallbackInput != null)
             {
                 fallbackInput.text += c;
@@ -188,7 +188,7 @@ namespace RealPlayTester.Input
             var tmpTypeFallback = GetTMPInputFieldType();
             if (tmpTypeFallback != null)
             {
-                var tmpField = UnityEngine.Object.FindObjectOfType(tmpTypeFallback);
+                var tmpField = UnityEngine.Object.FindFirstObjectByType(tmpTypeFallback);
                 if (tmpField != null)
                 {
                     string before = GetText(tmpField);

@@ -171,7 +171,7 @@ namespace RealPlayTester.Await
                 return Task.CompletedTask;
             }
 
-            return Until(() => GameObject.FindObjectOfType<T>() != null, timeoutSeconds);
+            return Until(() => GameObject.FindFirstObjectByType<T>() != null, timeoutSeconds);
         }
 
         public static Task ForUIVisible(string name, float? timeoutSeconds = null)
@@ -194,7 +194,7 @@ namespace RealPlayTester.Await
 
             return Until(() =>
             {
-                var candidates = GameObject.FindObjectsOfType<T>(true);
+                var candidates = GameObject.FindObjectsByType<T>(FindObjectsSortMode.None);
                 foreach (var c in candidates)
                 {
                      if (!c.gameObject.activeInHierarchy) continue;

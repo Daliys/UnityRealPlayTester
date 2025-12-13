@@ -29,7 +29,7 @@ namespace RealPlayTester.Input
                 return;
             }
 
-            var buttons = GameObject.FindObjectsOfType<Button>(true);
+            var buttons = GameObject.FindObjectsByType<Button>(FindObjectsSortMode.None);
             foreach (var btn in buttons)
             {
                 if (btn == null || !btn.isActiveAndEnabled)
@@ -75,7 +75,7 @@ namespace RealPlayTester.Input
                 return;
             }
 
-            var comp = GameObject.FindObjectOfType<T>(true);
+            var comp = GameObject.FindFirstObjectByType<T>(FindObjectsInactive.Include);
             if (comp != null)
             {
                 await WorldObject(comp.gameObject);
