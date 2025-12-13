@@ -1,4 +1,14 @@
-# RealPlayTester - Version History
+# Changelog
+
+## [1.1.0] - 2025-12-13
+
+### Added
+- **Feature**: Configurable report output path via `TestRunner.ReportOutputPath` (File: `Runtime/Core/TestRunner.cs`).
+- **Feature**: Report events `TestRunner.OnReportGenerated` and `TestRunner.OnAllTestsCompleted` for CI/CD integrations (File: `Runtime/Core/TestRunner.cs`).
+- **Feature**: Custom report handler via `TestRunner.CustomReportHandler` and `ITestReportHandler` interface (File: `Runtime/Core/ITestReportHandler.cs`).
+- **File**: New `ITestReportHandler.cs` interface for advanced report customization.
+
+---
 
 ## [1.0.2] - 2025-12-11
 

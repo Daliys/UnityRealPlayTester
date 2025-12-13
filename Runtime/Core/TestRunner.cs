@@ -28,7 +28,33 @@ namespace RealPlayTester.Core
         private void OnEnable() => RealPlayTester.Assert.LogAssert.StartListening();
         private void OnDisable() => RealPlayTester.Assert.LogAssert.StopListening();
 
+        /// <summary>Progress callback for each test completion.</summary>
         public event Action<TestProgressInfo> OnTestProgress;
+
+        // ===== REPORT CUSTOMIZATION API =====
+        
+        /// <summary>
+        /// Tier 1: Custom output path for the JSON report.
+        /// Set to null to use default (Application.persistentDataPath/test-results.json).
+        /// </summary>
+        public static string ReportOutputPath { get; set; } = null;
+
+        /// <summary>
+        /// Tier 2: Event fired after report is generated. Receives the TestReport object.
+        /// Use this for integrations (dashboards, CI/CD, notifications).
+        /// </summary>
+        public static event Action<TestReport> OnReportGenerated;
+
+        /// <summary>
+        /// Tier 2: Event fired with raw test results for custom processing.
+        /// </summary>
+        public static event Action<List<TestResult>> OnAllTestsCompleted;
+
+        /// <summary>
+        /// Tier 3: Set a custom handler to completely replace default report generation.
+        /// When set, the default JSON file is NOT written unless your handler does it.
+        /// </summary>
+        public static ITestReportHandler CustomReportHandler { get; set; } = null;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -347,17 +373,57 @@ namespace RealPlayTester.Core
 
         private void GenerateJSONReport(List<TestResult> results)
         {
+            // Build report object
+            var report = new TestReport
+            {
+                totalTests = results.Count,
+                passed = results.Count(r => r.Passed),
+                failed = results.Count(r => !r.Passed),
+                duration = results.Sum(r => r.DurationSeconds),
+                results = results
+            };
+
+            // Tier 2: Fire events first
             try
             {
-                var report = new TestReport
+                OnAllTestsCompleted?.Invoke(results);
+                OnReportGenerated?.Invoke(report);
+            }
+            catch (Exception ex)
+            {
+                RealPlayLog.Warn("Report event handler error: " + ex.Message);
+            }
+
+            // Tier 3: Custom handler completely replaces default
+            if (CustomReportHandler != null)
+            {
+                try
                 {
-                    totalTests = results.Count,
-                    passed = results.Count(r => r.Passed),
-                    failed = results.Count(r => !r.Passed),
-                    duration = results.Sum(r => r.DurationSeconds),
-                    results = results
-                };
-                string path = Path.Combine(Application.persistentDataPath, "test-results.json");
+                    CustomReportHandler.HandleReport(report, results);
+                    RealPlayLog.Info("Custom report handler executed.");
+                }
+                catch (Exception ex)
+                {
+                    RealPlayLog.Warn("Custom report handler error: " + ex.Message);
+                }
+                return; // Skip default JSON write
+            }
+
+            // Default: Write JSON to file
+            try
+            {
+                // Tier 1: Use custom path or default
+                string path = string.IsNullOrEmpty(ReportOutputPath)
+                    ? Path.Combine(Application.persistentDataPath, "test-results.json")
+                    : ReportOutputPath;
+
+                // Ensure directory exists
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
                 File.WriteAllText(path, JsonUtility.ToJson(report, true));
                 RealPlayLog.Info("Wrote test report to " + path);
             }

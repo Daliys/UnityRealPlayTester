@@ -172,6 +172,45 @@ These tools help AI agents diagnose test failures autonomously.
 
 ---
 
+## Report Customization
+
+By default, test results are saved to `Application.persistentDataPath/test-results.json`. You can customize this behavior:
+
+### Tier 1: Change Output Path
+```csharp
+TestRunner.ReportOutputPath = "/custom/path/my-results.json";
+```
+
+### Tier 2: Subscribe to Events
+```csharp
+// Receive the full report object
+TestRunner.OnReportGenerated += (report) => {
+    Debug.Log($"Tests: {report.totalTests}, Passed: {report.passed}");
+    MyDashboard.Upload(report);
+};
+
+// Receive raw results list
+TestRunner.OnAllTestsCompleted += (results) => {
+    foreach (var r in results) { /* process */ }
+};
+```
+
+### Tier 3: Custom Report Handler
+```csharp
+public class MyReporter : ITestReportHandler
+{
+    public void HandleReport(TestReport report, List<TestResult> results)
+    {
+        // Generate XML, send to Slack, store in DB, etc.
+        // Default JSON is NOT written when custom handler is set.
+    }
+}
+
+TestRunner.CustomReportHandler = new MyReporter();
+```
+
+---
+
 ## Runner Attributes
 | Attribute | Description |
 |-----------|-------------|
