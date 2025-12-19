@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.3] - 2025-12-19
+
+### Changed
+- **Performance**: Optimized `VisualTreeLogger.DumpHierarchy` to group repetitive "boring" sibling objects (like tiles) to save tokens and improve readability for AI analysis.
+
+---
+
 ## [1.1.2] - 2025-12-13
 
 ### Fixed
