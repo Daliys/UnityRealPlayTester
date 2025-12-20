@@ -35,7 +35,7 @@ namespace RealPlayTester.Core
         
         /// <summary>
         /// Tier 1: Custom output path for the JSON report.
-        /// Set to null to use default (Application.persistentDataPath/test-results.json).
+        /// Set to null to use default (TestReports/test-results.json).
         /// </summary>
         public static string ReportOutputPath { get; set; } = null;
 
@@ -414,7 +414,7 @@ namespace RealPlayTester.Core
             {
                 // Tier 1: Use custom path or default
                 string path = string.IsNullOrEmpty(ReportOutputPath)
-                    ? Path.Combine(Application.persistentDataPath, "test-results.json")
+                    ? Path.Combine(RealPlayEnvironment.TestReportsPath, "test-results.json")
                     : ReportOutputPath;
 
                 // Ensure directory exists

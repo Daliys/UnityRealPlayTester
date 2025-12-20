@@ -12,7 +12,7 @@ namespace RealPlayTester.Diagnostics
     /// </summary>
     public static class FailureBundleWriter
     {
-        private static readonly string BasePath = Path.Combine(Application.persistentDataPath, "TestReports", "FailureBundles");
+        private static string BasePath => Path.Combine(RealPlayEnvironment.TestReportsPath, "FailureBundles");
 
         /// <summary>
         /// Write a failure bundle for the given test.
@@ -53,12 +53,22 @@ namespace RealPlayTester.Diagnostics
                     File.WriteAllText(hierarchyPath, hierarchyDump);
                 }
 
-                // Copy test results if available
-                string testResultsSource = Path.Combine(Application.persistentDataPath, "TestReports", "test-results.json");
+                // Copy test results if available - check project root first
+                string testResultsSource = Path.Combine(RealPlayEnvironment.TestReportsPath, "test-results.json");
                 if (File.Exists(testResultsSource))
                 {
                     string testResultsDest = Path.Combine(bundlePath, "test-results.json");
                     File.Copy(testResultsSource, testResultsDest, true);
+                }
+                else
+                {
+                    // Fallback to persistent path if not in project root
+                    string fallbackSource = Path.Combine(Application.persistentDataPath, "TestReports", "test-results.json");
+                    if (File.Exists(fallbackSource))
+                    {
+                        string testResultsDest = Path.Combine(bundlePath, "test-results.json");
+                        File.Copy(fallbackSource, testResultsDest, true);
+                    }
                 }
 
                 // Copy game logs

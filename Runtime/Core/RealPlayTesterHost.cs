@@ -20,6 +20,20 @@ namespace RealPlayTester.Core
 #endif
             }
         }
+
+        public static string ProjectRoot
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return System.IO.Path.GetDirectoryName(Application.dataPath);
+#else
+                return Application.persistentDataPath;
+#endif
+            }
+        }
+
+        public static string TestReportsPath => System.IO.Path.Combine(ProjectRoot, "TestReports");
     }
 
     internal static class RealPlayLog

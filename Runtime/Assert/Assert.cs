@@ -169,11 +169,11 @@ namespace RealPlayTester.Assert
 
     internal static class ScreenshotUtility
     {
-        private const string FolderName = "RealPlayTester/Failures";
+        private const string FolderName = "Failures";
 
         public static string CaptureFailureScreenshot()
         {
-            string directory = Path.Combine(Application.persistentDataPath, FolderName);
+            string directory = Path.Combine(RealPlayEnvironment.TestReportsPath, FolderName);
             try
             {
                 Directory.CreateDirectory(directory);

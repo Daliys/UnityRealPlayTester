@@ -11,7 +11,7 @@ namespace RealPlayTester.Assert
     /// </summary>
     public static class Capture
     {
-        private const string CaptureFolder = "RealPlayTester/Captures";
+        private const string CaptureFolder = "Captures";
 
         /// <summary>
         /// Take a screenshot immediately and return the saved path.
@@ -27,7 +27,7 @@ namespace RealPlayTester.Assert
                 ? DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png"
                 : name + ".png";
 
-            string dir = Path.Combine(Application.persistentDataPath, CaptureFolder);
+            string dir = Path.Combine(RealPlayEnvironment.TestReportsPath, CaptureFolder);
             try { Directory.CreateDirectory(dir); } catch { }
 
             string path = Path.Combine(dir, fileName);
