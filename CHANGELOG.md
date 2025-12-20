@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.2.0] - 2025-12-20
+
+### Added
+- **Diagnostics Infrastructure**:
+  - `TestRunContext` class for tracking test execution context with JSON/Markdown export
+  - `FailureBundleWriter` for collecting comprehensive failure artifacts
+  - `TestLog` API with GameLogger/EventAggregator integration (falls back to Debug.Log)
+- **Enhanced Wait Utilities**:
+  - `Wait.UntilWithDiagnostics(predicate, timeout, context)` with enhanced timeout messages
+  - `Wait.Step(label)` for tracking test progress
+- **Input Stability**:
+  - `SimulatedInputGuard` class with input system readiness checks
+  - `InputSystemReady()` helper to detect input availability
+  - `IsPointerOverUI()` helper for UI overlap detection
+- **UI Panel Monitoring**:
+  - `PanelStateMonitor` class for structured panel state validation
+  - Panel state info: IsVisible, Alpha, Interactable, ActiveInHierarchy
+
+### Changed
+- Failure bundles now include: diagnostics.json, diagnostics.md, logs, screenshots, hierarchy dumps
+- All diagnostic features route through TestLog for centralized logging
+
+### Tests
+- Added `TestRunContextTests` (EditMode) for serialization validation
+- Added `TestLogTests` (EditMode) for logging API validation
+- Added `FailureBundleWriterTests` (PlayMode) for bundle generation verification
+- Added `PanelStateMonitorTests` (PlayMode) for panel state detection accuracy
+
+---
+
 ## [1.1.3] - 2025-12-19
 
 ### Changed

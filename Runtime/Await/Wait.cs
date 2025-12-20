@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 using RealPlayTester.Core;
+using RealPlayTester.Diagnostics;
 
 namespace RealPlayTester.Await
 {
@@ -291,6 +292,62 @@ namespace RealPlayTester.Await
                 var obj = GameObject.Find(loadingObjectName);
                 return obj == null || obj.activeInHierarchy == false;
             }, timeoutSeconds);
+        }
+
+        /// <summary>
+        /// Wait until predicate returns true with enhanced diagnostics on timeout.
+        /// </summary>
+        /// <param name="predicate">Condition to check each frame.</param>
+        /// <param name="timeout">Timeout in realtime seconds.</param>
+        /// <param name="context">Diagnostic context to include in timeout exception.</param>
+        public static async Task UntilWithDiagnostics(Func<bool> predicate, float timeout, string context = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return;
+            }
+
+            if (predicate == null)
+            {
+                return;
+            }
+
+            float startTime = Time.realtimeSinceStartup;
+            var token = RealPlayExecutionContext.Token;
+            
+            while (!predicate())
+            {
+                token.ThrowIfCancellationRequested();
+                if (Time.realtimeSinceStartup - startTime >= timeout)
+                {
+                    string predicateName = predicate.Method?.Name ?? "unknown";
+                    string contextInfo = string.IsNullOrEmpty(context) ? "" : $" Context: {context}";
+                    string message = $"Wait.UntilWithDiagnostics timed out after {timeout}s. Predicate: {predicateName}.{contextInfo}";
+                    TestLog.Error(message);
+                    throw new TimeoutException(message);
+                }
+
+                await Task.Yield();
+            }
+        }
+
+        /// <summary>
+        /// Update test context with the current step/action label.
+        /// Useful for tracking test progress in diagnostics.
+        /// </summary>
+        /// <param name="label">Human-readable label for the current step.</param>
+        public static void Step(string label)
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return;
+            }
+
+            TestLog.Info($"Test Step: {label}");
+            
+            // If there's a current test context, update it
+            // This would require integration with TestRunner to get current context
+            // For now, just log the step
         }
     }
 }

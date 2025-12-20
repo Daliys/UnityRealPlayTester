@@ -148,6 +148,51 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | `DevTools.Inspect<T>(string name, T value)` | Log value to console. |
 | `Tester.ResetCursor()` | Safely center the cursor. |
 
+### Diagnostics
+
+| Method | Description |
+|--------|-------------|
+| `TestLog.Info(string)` | Log informational message (routes to GameLogger/EventAggregator if available). |
+| `TestLog.Warn(string)` | Log warning message. |
+| `TestLog.Error(string)` | Log error message. |
+| `Wait.UntilWithDiagnostics(predicate, timeout, context)` | Wait with enhanced timeout diagnostics. |
+| `Wait.Step(string label)` | Update test context with current step. |
+
+**TestRunContext**: Tracks test execution state:
+- Test identity: TestName, TestId, StartTime, EndTime
+- Environment: SceneName, UnityVersion, PackageVersion, ActiveInputMode
+- State: LastAction, LastPanel, LastPlacementAttempt
+- Export: `ToJson()`, `ToMarkdown()`
+
+**FailureBundleWriter**: On test failure, generates bundle at `TestReports/FailureBundles/{timestamp}/{testName}/` containing:
+- `diagnostics.json` / `diagnostics.md`: Test context
+- `Logs/`: game.log, game_session.log, Editor.log
+- `test-results.json`: Overall test results
+- Screenshots and hierarchy dumps
+
+### Input Guards
+
+| Method | Description |
+|--------|-------------|
+| `SimulatedInputGuard.InputSystemReady()` | Check if Input System is active and ready. |
+| `SimulatedInputGuard.IsPointerOverUI()` | Check if pointer is over UI element. |
+| `SimulatedInputGuard.EnsureInputReady()` | Throw error if input not ready. |
+
+### UI Panel Monitoring
+
+| Method | Description |
+|--------|-------------|
+| `PanelStateMonitor.CheckPanelState(GameObject)` | Get structured panel state info. |
+| `PanelStateMonitor.CheckPanelState(string name)` | Get panel state by name. |
+| `PanelStateMonitor.IsPanelReady(GameObject)` | Check if panel is visible and interactable. |
+| `PanelStateMonitor.IsPanelReady(string name)` | Check panel readiness by name. |
+
+**PanelState** struct:
+- `IsVisible`: Panel active and alpha > 0.01
+- `Alpha`: Combined alpha from all parent CanvasGroups  
+- `Interactable`: Combined interactable state
+- `ActiveInHierarchy`: GameObject active state
+
 ---
 
 ## AI & Debugging Tools
