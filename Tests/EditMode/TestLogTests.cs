@@ -11,21 +11,21 @@ namespace RealPlayTester.Tests.EditMode
         public void Info_DoesNotThrow()
         {
             // Act & Assert
-            Assert.DoesNotThrow(() => TestLog.Info("Test info message"));
+            NUnit.Framework.Assert.DoesNotThrow(() => TestLog.Info("Test info message"));
         }
 
         [Test]
         public void Warn_DoesNotThrow()
         {
             // Act & Assert
-            Assert.DoesNotThrow(() => TestLog.Warn("Test warning message"));
+            NUnit.Framework.Assert.DoesNotThrow(() => TestLog.Warn("Test warning message"));
         }
 
         [Test]
         public void Error_DoesNotThrow()
         {
             // Act & Assert
-            Assert.DoesNotThrow(() => TestLog.Error("Test error message"));
+            NUnit.Framework.Assert.DoesNotThrow(() => TestLog.Error("Test error message"));
         }
 
         [Test]
@@ -38,7 +38,7 @@ namespace RealPlayTester.Tests.EditMode
             TestLog.Info("Fallback test");
 
             // Assert - if we reach here without exception, the fallback works
-            Assert.Pass("TestLog successfully fell back to Debug.Log");
+            NUnit.Framework.Assert.Pass("TestLog successfully fell back to Debug.Log");
         }
     }
 }

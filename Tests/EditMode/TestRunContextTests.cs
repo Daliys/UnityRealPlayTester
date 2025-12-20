@@ -24,7 +24,7 @@ namespace RealPlayTester.Tests.EditMode
             string json = context.ToJson();
 
             // Assert
-            Assert.IsNotNull(json);
+            NUnit.Framework.Assert.IsNotNull(json);
             StringAssert.Contains("\"testName\":", json);
             StringAssert.Contains("\"testId\":", json);
             StringAssert.Contains("\"startTime\":", json);
@@ -94,7 +94,7 @@ namespace RealPlayTester.Tests.EditMode
             string markdown = context.ToMarkdown();
 
             // Assert
-            Assert.IsNotNull(markdown);
+            NUnit.Framework.Assert.IsNotNull(markdown);
             StringAssert.Contains("# Test Run Context", markdown);
             StringAssert.Contains("## Test Information", markdown);
             StringAssert.Contains("## Environment", markdown);
@@ -120,7 +120,7 @@ namespace RealPlayTester.Tests.EditMode
             // Assert
             StringAssert.Contains("\\\"", json); // Escaped quotes
             StringAssert.Contains("\\n", json);  // Escaped newline
-            Assert.IsFalse(json.Contains("\"quotes\"")); // Not unescaped
+            NUnit.Framework.Assert.IsFalse(json.Contains("\"quotes\"")); // Not unescaped
         }
     }
 }

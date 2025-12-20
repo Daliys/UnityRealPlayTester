@@ -28,8 +28,8 @@ namespace RealPlayTester.Tests.PlayMode
             yield return null;
 
             // Assert
-            Assert.IsNotNull(bundlePath, "Bundle path should not be null");
-            Assert.IsTrue(Directory.Exists(bundlePath), $"Bundle directory should exist at: {bundlePath}");
+            NUnit.Framework.Assert.IsNotNull(bundlePath, "Bundle path should not be null");
+            NUnit.Framework.Assert.IsTrue(Directory.Exists(bundlePath), $"Bundle directory should exist at: {bundlePath}");
 
             // Cleanup
             if (Directory.Exists(bundlePath))
@@ -57,7 +57,7 @@ namespace RealPlayTester.Tests.PlayMode
 
             // Assert
             string diagnosticsPath = Path.Combine(bundlePath, "diagnostics.json");
-            Assert.IsTrue(File.Exists(diagnosticsPath), $"diagnostics.json should exist at: {diagnosticsPath}");
+            NUnit.Framework.Assert.IsTrue(File.Exists(diagnosticsPath), $"diagnostics.json should exist at: {diagnosticsPath}");
 
             string jsonContent = File.ReadAllText(diagnosticsPath);
             StringAssert.Contains("\"testName\":", jsonContent);
@@ -88,7 +88,7 @@ namespace RealPlayTester.Tests.PlayMode
 
             // Assert
             string markdownPath = Path.Combine(bundlePath, "diagnostics.md");
-            Assert.IsTrue(File.Exists(markdownPath), $"diagnostics.md should exist at: {markdownPath}");
+            NUnit.Framework.Assert.IsTrue(File.Exists(markdownPath), $"diagnostics.md should exist at: {markdownPath}");
 
             string mdContent = File.ReadAllText(markdownPath);
             StringAssert.Contains("# Test Run Context", mdContent);
@@ -117,7 +117,7 @@ namespace RealPlayTester.Tests.PlayMode
 
             // Assert
             string logsPath = Path.Combine(bundlePath, "Logs");
-            Assert.IsTrue(Directory.Exists(logsPath), $"Logs directory should exist at: {logsPath}");
+            NUnit.Framework.Assert.IsTrue(Directory.Exists(logsPath), $"Logs directory should exist at: {logsPath}");
 
             // Cleanup
             if (Directory.Exists(bundlePath))

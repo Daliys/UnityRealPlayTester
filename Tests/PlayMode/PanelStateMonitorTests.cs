@@ -40,7 +40,7 @@ namespace RealPlayTester.Tests.PlayMode
             var state = PanelStateMonitor.CheckPanelState(testPanel);
 
             // Assert
-            Assert.IsTrue(state.ActiveInHierarchy, "Panel should be active");
+            NUnit.Framework.Assert.IsTrue(state.ActiveInHierarchy, "Panel should be active");
         }
 
         [UnityTest]
@@ -55,8 +55,8 @@ namespace RealPlayTester.Tests.PlayMode
             var state = PanelStateMonitor.CheckPanelState(testPanel);
 
             // Assert
-            Assert.IsFalse(state.ActiveInHierarchy, "Panel should be inactive");
-            Assert.IsFalse(state.IsVisible, "Inactive panel should not be visible");
+            NUnit.Framework.Assert.IsFalse(state.ActiveInHierarchy, "Panel should be inactive");
+            NUnit.Framework.Assert.IsFalse(state.IsVisible, "Inactive panel should not be visible");
         }
 
         [UnityTest]
@@ -73,8 +73,8 @@ namespace RealPlayTester.Tests.PlayMode
             var state = PanelStateMonitor.CheckPanelState(testPanel);
 
             // Assert
-            Assert.AreEqual(0.5f, state.Alpha, 0.01f, "Alpha should match CanvasGroup");
-            Assert.IsTrue(state.HasCanvasGroup, "Should detect CanvasGroup");
+            NUnit.Framework.Assert.AreEqual(0.5f, state.Alpha, 0.01f, "Alpha should match CanvasGroup");
+            NUnit.Framework.Assert.IsTrue(state.HasCanvasGroup, "Should detect CanvasGroup");
         }
 
         [UnityTest]
@@ -91,7 +91,7 @@ namespace RealPlayTester.Tests.PlayMode
             var state = PanelStateMonitor.CheckPanelState(testPanel);
 
             // Assert
-            Assert.IsFalse(state.Interactable, "Panel should not be interactable");
+            NUnit.Framework.Assert.IsFalse(state.Interactable, "Panel should not be interactable");
         }
 
         [UnityTest]
@@ -103,9 +103,9 @@ namespace RealPlayTester.Tests.PlayMode
             var state = PanelStateMonitor.CheckPanelState((GameObject)null);
 
             // Assert
-            Assert.IsFalse(state.IsVisible);
-            Assert.IsFalse(state.ActiveInHierarchy);
-            Assert.IsFalse(state.Interactable);
+            NUnit.Framework.Assert.IsFalse(state.IsVisible);
+            NUnit.Framework.Assert.IsFalse(state.ActiveInHierarchy);
+            NUnit.Framework.Assert.IsFalse(state.Interactable);
         }
 
         [UnityTest]
@@ -123,7 +123,7 @@ namespace RealPlayTester.Tests.PlayMode
             bool isReady = PanelStateMonitor.IsPanelReady(testPanel);
 
             // Assert
-            Assert.IsTrue(isReady, "Panel should be ready");
+            NUnit.Framework.Assert.IsTrue(isReady, "Panel should be ready");
         }
 
         [UnityTest]
@@ -140,7 +140,7 @@ namespace RealPlayTester.Tests.PlayMode
             bool isReady = PanelStateMonitor.IsPanelReady(testPanel);
 
             // Assert
-            Assert.IsFalse(isReady, "Invisible panel should not be ready");
+            NUnit.Framework.Assert.IsFalse(isReady, "Invisible panel should not be ready");
         }
     }
 }
