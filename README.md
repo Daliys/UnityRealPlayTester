@@ -164,6 +164,10 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 - State: LastAction, LastPanel, LastPlacementAttempt
 - Export: `ToJson()`, `ToMarkdown()`
 
+**TestRunContextTracker**: Automatically tracks the active test and writes snapshots to:
+- `TestReports/current-test-context.json`
+- `TestReports/current-test-context.md`
+
 **FailureBundleWriter**: On test failure, generates bundle at `TestReports/FailureBundles/{timestamp}/{testName}/` containing:
 - `diagnostics.json` / `diagnostics.md`: Test context
 - `Logs/`: game.log, game_session.log, Editor.log

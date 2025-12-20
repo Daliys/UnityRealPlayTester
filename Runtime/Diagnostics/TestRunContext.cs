@@ -34,7 +34,7 @@ namespace RealPlayTester.Diagnostics
             TestId = Guid.NewGuid().ToString();
             StartTime = DateTime.Now;
             UnityVersion = Application.unityVersion;
-            PackageVersion = "1.2.0"; // Will be updated with package
+            PackageVersion = "1.2.1"; // Will be updated with package
             
             // Detect input mode
 #if ENABLE_INPUT_SYSTEM

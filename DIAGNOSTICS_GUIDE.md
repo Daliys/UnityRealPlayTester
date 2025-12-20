@@ -1,6 +1,6 @@
 # RealPlayTester Diagnostics - Usage Guide
 
-This document provides guidance on using the new diagnostics features added in v1.2.0.
+This document provides guidance on using the diagnostics features added in v1.2.x.
 
 ## Overview
 
@@ -41,6 +41,26 @@ string json = context.ToJson();
 string markdown = context.ToMarkdown();
 ```
 
+### TestRunContextTracker - Automatic Snapshots
+
+`TestRunContextTracker` automatically tracks the active test and writes snapshots to:
+- `TestReports/current-test-context.json`
+- `TestReports/current-test-context.md`
+
+This is updated whenever you call `Wait.Step`, update panels, or record placement attempts.
+
+```csharp
+using RealPlayTester.Diagnostics;
+
+// Start tracking (handled by TestRunner automatically)
+TestRunContextTracker.BeginTest("MyTest", SceneManager.GetActiveScene().name);
+
+// Update state
+TestRunContextTracker.UpdateAction("Opening main menu");
+TestRunContextTracker.UpdatePanel("MainMenuPanel");
+TestRunContextTracker.UpdatePlacementAttempt(new Vector2Int(2, 3), "iron_miner", "queued");
+```
+
 ### Tracking Placement Attempts
 
 ```csharp
@@ -54,6 +74,7 @@ context.LastPlacementAttempt = new PlacementAttempt(
 ## FailureBundleWriter - Automatic Artifact Collection
 
 When a test fails, call `FailureBundleWriter.WriteFailureBundle()` to collect all diagnostic artifacts.
+In v1.2.1+, `TestRunner` calls it automatically on timeouts and exceptions.
 
 ### Basic Usage
 

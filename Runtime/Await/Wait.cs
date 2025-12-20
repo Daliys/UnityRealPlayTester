@@ -344,10 +344,7 @@ namespace RealPlayTester.Await
             }
 
             TestLog.Info($"Test Step: {label}");
-            
-            // If there's a current test context, update it
-            // This would require integration with TestRunner to get current context
-            // For now, just log the step
+            TestRunContextTracker.UpdateAction(label);
         }
     }
 }

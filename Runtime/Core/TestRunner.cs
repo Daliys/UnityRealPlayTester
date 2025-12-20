@@ -7,7 +7,9 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using InputShim = RealPlayTester.Input.InputSystemShim;
+using RealPlayTester.Diagnostics;
 
 namespace RealPlayTester.Core
 {
@@ -261,6 +263,7 @@ namespace RealPlayTester.Core
             bool passed = false;
             string error = null;
             int attempt = 0;
+            var context = TestRunContextTracker.BeginTest(testCase.DisplayName, SceneManager.GetActiveScene().name);
 
             try
             {
@@ -289,6 +292,8 @@ namespace RealPlayTester.Core
             {
                 error = "Timeout";
                 RealPlayLog.Error("Failed (timeout): " + testCase.DisplayName);
+                var dump = RealPlayTester.Utilities.VisualTreeLogger.DumpHierarchy();
+                FailureBundleWriter.WriteFailureBundle(testCase.DisplayName, context, null, dump);
             }
             catch (Exception ex)
             {
@@ -302,10 +307,12 @@ namespace RealPlayTester.Core
                 }
 
                 RealPlayLog.Error("Failed: " + testCase.DisplayName + " -> " + ex);
+                FailureBundleWriter.WriteFailureBundle(testCase.DisplayName, context, null, dump);
             }
             finally
             {
                 sw.Stop();
+                TestRunContextTracker.EndTest();
                 OnTestProgress?.Invoke(new TestProgressInfo
                 {
                     TestName = testCase.DisplayName,

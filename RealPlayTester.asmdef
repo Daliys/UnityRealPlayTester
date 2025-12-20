@@ -3,7 +3,8 @@
   "rootNamespace": "RealPlayTester",
   "references": [
     "UnityEngine.CoreModule",
-    "UnityEngine.UI"
+    "UnityEngine.UI",
+    "Unity.InputSystem"
   ],
   "optionalUnityReferences": [],
   "includePlatforms": [],

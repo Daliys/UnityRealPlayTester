@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.1] - 2025-12-20
+
+### Added
+- **TestRunContextTracker**: automatic context tracking and snapshot output to `TestReports/current-test-context.json` and `.md`.
+- **TestRunner integration**: failure bundles now created automatically on timeouts and exceptions.
+
+### Changed
+- **Wait.Step** now updates the active test context action.
+- **Input System reference** added to RealPlayTester asmdef to resolve InputSystem types when enabled.
+
+### Tests
+- Added EditMode and PlayMode tests for TestRunContextTracker snapshots and Wait.Step updates.
+
 ## [1.2.0] - 2025-12-20
 
 ### Added
