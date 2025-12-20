@@ -40,7 +40,7 @@ namespace RealPlayTester.Input
         /// <summary>
         /// Check if the pointer is currently over any UI element.
         /// </summary>
-public static bool IsPointerOverUI()
+        public static bool IsPointerOverUI()
         {
             // Check if EventSystem exists
             if (EventSystem.current == null)
@@ -48,31 +48,7 @@ public static bool IsPointerOverUI()
                 return false;
             }
 
-#if ENABLE_INPUT_SYSTEM
-            // New Input System
-            var inputSystemType = System.Type.GetType("UnityEngine.InputSystem.InputSystem, Unity.InputSystem");
-            if (inputSystemType != null)
-            {
-                var mouseType = System.Type.GetType("UnityEngine.InputSystem.Mouse, Unity.InputSystem");
-                if (mouseType != null)
-                {
-                    var currentProp = mouseType.GetProperty("current", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-                    var currentMouse = currentProp?.GetValue(null);
-                    
-                    if (currentMouse != null)
-                    {
-                        var positionProp = currentMouse.GetType().GetProperty("position");
-                        if (positionProp != null)
-                        {
-                            var pointerPosition = (UnityEngine.InputSystem.InputControl<Vector2>)positionProp.GetValue(currentMouse);
-                            return EventSystem.current.IsPointerOverGameObject();
-                        }
-                    }
-                }
-            }
-#endif
-
-            // Legacy Input Manager fallback
+            // EventSystem.IsPointerOverGameObject() works with both Input Systems
             return EventSystem.current.IsPointerOverGameObject();
         }
 
