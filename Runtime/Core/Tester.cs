@@ -288,5 +288,54 @@ namespace RealPlayTester.Core
         /// <summary>Find a GameObject using fuzzy matching (Exact -> CaseInsensitive -> Contains).</summary>
         public static GameObject FindObject(string fuzzyName) =>
             RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.SmartFind.Object(fuzzyName) : null;
+
+        // ===== NESTED API GROUPS =====
+
+        /// <summary>
+        /// Comprehensive assertion library including Visual, Asset, and GameState validations.
+        /// </summary>
+        public static class Assert
+        {
+            // Standard Assertions
+            public static void IsTrue(bool condition, string message = null) => AssertLib.IsTrue(condition, message);
+            public static void IsFalse(bool condition, string message = null) => AssertLib.IsFalse(condition, message);
+            public static void AreEqual<T>(T expected, T actual, string message = null) => AssertLib.AreEqual(expected, actual, message);
+            public static void IsNull(object value, string message = null) => AssertLib.IsNull(value, message);
+            public static void IsNotNull(object value, string message = null) => AssertLib.IsNotNull(value, message);
+            public static void Fail(string message = null) => AssertLib.Fail(message);
+            public static void Greater<T>(T value, T threshold, string message = null) where T : IComparable<T> => AssertLib.Greater(value, threshold, message);
+            public static void Less<T>(T value, T threshold, string message = null) where T : IComparable<T> => AssertLib.Less(value, threshold, message);
+            public static void Contains(string haystack, string needle, string message = null) => AssertLib.Contains(haystack, needle, message);
+            public static void InRange<T>(T value, T min, T max, string message = null) where T : IComparable<T> => AssertLib.InRange(value, min, max, message);
+            public static void Throws<TException>(Action action, string message = null) where TException : Exception => AssertLib.Throws<TException>(action, message);
+
+            // Visual Assertions
+            public static void IsVisible(GameObject go, string message = null) => AssertLib.IsVisible(go, message);
+            public static void HasSprite(Component target, Sprite expected, string message = null) => AssertLib.HasSprite(target, expected, message);
+            public static void ScreenElementVisible(string elementName, string message = null) => AssertLib.ScreenElementVisible(elementName, message);
+            public static void VisualStateMatches(string expectedStateName, string message = null) => AssertLib.VisualStateMatches(expectedStateName, message);
+
+            // Asset Assertions
+            public static void AssetLoaded<T>(string assetPath, string message = null) where T : UnityEngine.Object => AssertLib.AssetLoaded<T>(assetPath, message);
+            public static void SceneConfigurationValid(string message = null) => AssertLib.SceneConfigurationValid(message);
+
+            // Game State Assertions
+            public static void GameStateMatches(Action expectedAction, string message = null) => AssertLib.GameStateMatches(expectedAction, message);
+            public static void VisualFeedbackCorrect(string message = null) => AssertLib.VisualFeedbackCorrect(message);
+        }
+
+        /// <summary>
+        /// Screenshot based testing tools.
+        /// </summary>
+        public static class Screenshot
+        {
+            public static void CaptureAndCompare(string testName)
+            {
+                if (RealPlayEnvironment.IsEnabled)
+                {
+                    RealPlayTester.Core.Screenshot.CaptureAndCompare(testName);
+                }
+            }
+        }
     }
 }

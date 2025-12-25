@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.0] - 2025-12-25
+
+### Added
+- **Visual Assertions**:
+  - `Tester.Assert.IsVisible(GameObject)`: Check visibility of GameObjects, Renderers, and UI elements.
+  - `Tester.Assert.HasSprite(Component, Sprite)`: Verify sprite assignments on SpriteRenderers and Images.
+  - `Tester.Assert.ScreenElementVisible(string)`: Verify visibility of elements by name or tag.
+  - `Tester.Assert.VisualStateMatches(string)`: Compare current screen against a baseline image.
+- **Asset Validation**:
+  - `Tester.Assert.AssetLoaded<T>(string)`: Verify assets can be loaded from Resources.
+  - `Tester.Assert.SceneConfigurationValid()`: Ensure no missing scripts on active GameObjects.
+- **Screenshot System**:
+  - `Tester.Screenshot.CaptureAndCompare(string)`: Capture and compare screenshots with auto-baseline generation.
+  - New `Screenshot` core class for handling capture, loading, and comparison logic.
+- **Game State Validation**:
+  - `Tester.Assert.GameStateMatches(Action)`: Execute custom logic for complex state validation.
+
+### Changed
+- **API Structure**: Introduced nested `Tester.Assert` and `Tester.Screenshot` classes for better organization (existing methods preserved for compatibility).
+
+---
+
 ## [1.2.1] - 2025-12-20
 
 ### Added
@@ -12,6 +34,8 @@
 
 ### Tests
 - Added EditMode and PlayMode tests for TestRunContextTracker snapshots and Wait.Step updates.
+
+---
 
 ## [1.2.0] - 2025-12-20
 

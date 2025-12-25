@@ -108,7 +108,28 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | `Assert.Throws<T>(Action, string?)` | Fail if exception T not thrown. |
 | `Assert.Fail(string?)` | Immediately fail. |
 
+**Visual Assertions**
+| Method | Description |
+|--------|-------------|
+| `Assert.IsVisible(GameObject)` | Fail if object/renderer/UI is not active and visible. |
+| `Assert.HasSprite(Component, Sprite)` | Fail if target (SpriteRenderer/Image) has wrong sprite. |
+| `Assert.ScreenElementVisible(string)` | Find object by name/tag and verify visibility. |
+| `Assert.VisualStateMatches(string)` | Fail if screen does not match baseline image. |
+
+**Asset & State Assertions**
+| Method | Description |
+|--------|-------------|
+| `Assert.AssetLoaded<T>(string path)` | Fail if asset cannot be loaded from Resources. |
+| `Assert.SceneConfigurationValid()` | Fail if any active GameObject has missing scripts. |
+| `Assert.GameStateMatches(Action)` | Execute custom validation logic. |
+| `Assert.VisualFeedbackCorrect()` | Placeholder for visual feedback verification. |
+
 **On Failure**: Screenshot saved to `persistentDataPath/RealPlayTester/Failures/<timestamp>.png`, `Time.timeScale = 0`, red overlay shown.
+
+### Screenshot
+| Method | Description |
+|--------|-------------|
+| `Screenshot.CaptureAndCompare(string)` | Capture screen and compare with baseline in `TestBaselines/`. |
 
 ### Text
 | Method | Description |

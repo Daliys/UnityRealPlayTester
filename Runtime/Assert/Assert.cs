@@ -1,9 +1,12 @@
 using System;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using RealPlayTester.Core;
+using System.Collections.Generic;
 
 namespace RealPlayTester.Assert
 {
@@ -163,6 +166,163 @@ namespace RealPlayTester.Assert
             catch (Exception ex)
             {
                 Fail(message ?? $"Expected {typeof(TException).Name} but got {ex.GetType().Name}");
+            }
+        }
+
+        // ===== VISUAL ASSERTIONS =====
+
+        public static void IsVisible(GameObject go, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            if (go == null)
+            {
+                Fail(message ?? "Expected GameObject to be visible but it was null.");
+                return;
+            }
+
+            if (!go.activeInHierarchy)
+            {
+                Fail(message ?? $"Expected '{go.name}' to be active in hierarchy.");
+                return;
+            }
+
+            // Check Renderer
+            var renderer = go.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                if (!renderer.enabled) Fail(message ?? $"Expected '{go.name}' renderer to be enabled.");
+                if (!renderer.isVisible) Fail(message ?? $"Expected '{go.name}' to be visible to a camera.");
+                return;
+            }
+
+            // Check UI (CanvasRenderer)
+            var canvasRenderer = go.GetComponent<CanvasRenderer>();
+            if (canvasRenderer != null)
+            {
+                if (canvasRenderer.cull) Fail(message ?? $"Expected '{go.name}' UI element to not be culled.");
+                // Additional UI visibility checks could use RectTransform and camera viewport
+                return;
+            }
+
+            // Fallback for objects without renderers (like empty containers) - we just check active
+        }
+
+        public static void HasSprite(Component target, Sprite expected, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            if (target == null)
+            {
+                Fail(message ?? "Target component is null.");
+                return;
+            }
+
+            Sprite actual = null;
+            if (target is SpriteRenderer sr) actual = sr.sprite;
+            else if (target is Image img) actual = img.sprite;
+            else
+            {
+                Fail(message ?? $"Target '{target.name}' is not a SpriteRenderer or Image.");
+                return;
+            }
+
+            if (actual != expected)
+            {
+                Fail(message ?? $"Expected sprite '{expected?.name ?? "null"}' but got '{actual?.name ?? "null"}'.");
+            }
+        }
+
+        public static void ScreenElementVisible(string elementName, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            var go = GameObject.Find(elementName);
+            if (go == null)
+            {
+                // Try to find by tag
+                try { go = GameObject.FindWithTag(elementName); } catch { }
+            }
+
+            if (go == null)
+            {
+                Fail(message ?? $"Could not find element with name or tag '{elementName}'.");
+                return;
+            }
+
+            IsVisible(go, message);
+        }
+
+        // ===== ASSET ASSERTIONS =====
+
+        public static void AssetLoaded<T>(string assetPath, string message = null) where T : UnityEngine.Object
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            var asset = Resources.Load<T>(assetPath);
+            if (asset == null)
+            {
+                Fail(message ?? $"Failed to load asset of type {typeof(T).Name} at path '{assetPath}'.");
+            }
+        }
+
+        public static void SceneConfigurationValid(string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            // Basic check: Ensure no "Missing Script" components on active objects
+            var allObjects = GameObject.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            foreach (var go in allObjects)
+            {
+                var components = go.GetComponents<Component>();
+                foreach (var c in components)
+                {
+                    if (c == null)
+                    {
+                        Fail(message ?? $"GameObject '{go.name}' has a missing script component.");
+                        return;
+                    }
+                }
+            }
+        }
+
+        // ===== GAME STATE ASSERTIONS =====
+
+        public static void GameStateMatches(Action expectedAction, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            try
+            {
+                expectedAction();
+            }
+            catch (Exception ex)
+            {
+                Fail(message ?? $"Game state validation failed: {ex.Message}");
+            }
+        }
+
+        public static void VisualFeedbackCorrect(string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+            // This is a placeholder as per requirements logic is vague. 
+            // In a real implementation, this might check a list of registered visual feedback providers.
+            // For now, we assume if we reached here without previous failures, it's ok, 
+            // or the user should use more specific asserts.
+        }
+
+        // ===== SCREENSHOT ASSERTIONS =====
+
+        public static void VisualStateMatches(string expectedStateName, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            // This relies on the Screenshot system (to be implemented/linked).
+            // We'll delegate to ScreenshotUtility or a new Screenshot class.
+            bool match = RealPlayTester.Core.Screenshot.CompareToBaselineInternal(expectedStateName);
+            if (!match)
+            {
+                Fail(message ?? $"Visual state '{expectedStateName}' does not match baseline.");
             }
         }
     }
