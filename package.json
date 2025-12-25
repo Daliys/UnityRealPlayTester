@@ -14,12 +14,5 @@
     "name": "Daliys",
     "url": "https://github.com/daliys"
   },
-  "license": "MIT",
-  "samples": [
-    {
-      "displayName": "Feature Verification Tests",
-      "description": "PlayMode tests verifying all library features (Visuals, Events, Monitoring, Assets). Import to verify installation.",
-      "path": "Samples/FeatureVerification"
-    }
-  ]
+  "license": "MIT"
 }
