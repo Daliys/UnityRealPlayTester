@@ -10,7 +10,7 @@ using Assert = RealPlayTester.Assert.Assert;
 using NAssert = NUnit.Framework.Assert;
 using UnityEngine.Assertions;
 
-namespace RealPlayTester.Tests.PlayMode
+namespace RealPlayTester.Samples.Verification
 {
     public class FeatureVerificationTests
     {
