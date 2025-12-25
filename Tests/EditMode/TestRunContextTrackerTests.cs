@@ -29,17 +29,17 @@ namespace RealPlayTester.Tests.EditMode
             TestRunContextTracker.UpdatePlacementAttempt(new Vector2Int(2, 3), "test_building", "queued");
             TestRunContextTracker.EndTest();
 
-            Assert.IsNotNull(context, "Context should be created.");
-            Assert.AreEqual("TrackerTest", context.TestName);
-            Assert.AreEqual("Panel_X", context.LastPanel);
-            Assert.IsNotNull(context.LastPlacementAttempt);
-            Assert.AreEqual("test_building", context.LastPlacementAttempt.DefinitionId);
+            NUnit.Framework.Assert.IsNotNull(context, "Context should be created.");
+            NUnit.Framework.Assert.AreEqual("TrackerTest", context.TestName);
+            NUnit.Framework.Assert.AreEqual("Panel_X", context.LastPanel);
+            NUnit.Framework.Assert.IsNotNull(context.LastPlacementAttempt);
+            NUnit.Framework.Assert.AreEqual("test_building", context.LastPlacementAttempt.DefinitionId);
 
-            Assert.IsTrue(File.Exists(jsonPath), "Snapshot JSON should exist in TestReports.");
-            Assert.IsTrue(File.Exists(mdPath), "Snapshot Markdown should exist in TestReports.");
+            NUnit.Framework.Assert.IsTrue(File.Exists(jsonPath), "Snapshot JSON should exist in TestReports.");
+            NUnit.Framework.Assert.IsTrue(File.Exists(mdPath), "Snapshot Markdown should exist in TestReports.");
 
             string json = File.ReadAllText(jsonPath);
-            StringAssert.Contains("TrackerTest", json);
+            NUnit.Framework.StringAssert.Contains("TrackerTest", json);
 
             File.Delete(jsonPath);
             File.Delete(mdPath);

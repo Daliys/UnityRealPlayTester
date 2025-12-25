@@ -18,12 +18,12 @@ namespace RealPlayTester.Tests.PlayMode
         public IEnumerator WaitStep_UpdatesContextAction()
         {
             var context = TestRunContextTracker.BeginTest("PlayModeTrackerTest", "PlayModeScene");
-            Assert.IsNotNull(context, "Context should be created in PlayMode.");
+            NUnit.Framework.Assert.IsNotNull(context, "Context should be created in PlayMode.");
 
             Wait.Step("PlayMode Step");
             yield return null;
 
-            Assert.AreEqual("PlayMode Step", TestRunContextTracker.Current.LastAction);
+            NUnit.Framework.Assert.AreEqual("PlayMode Step", TestRunContextTracker.Current.LastAction);
             TestRunContextTracker.EndTest();
         }
     }
