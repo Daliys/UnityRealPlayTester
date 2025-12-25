@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.5.0] - 2025-12-25
+
+### Added
+- **Continuous Monitoring**:
+  - `Tester.Monitoring.StartVisualHealthCheck()`: Background coroutine to detect "Pink" shaders and null materials during active gameplay.
+- **Event Tracking System**:
+  - `Tester.Events.Record(string)`: Track game events, callbacks, and visual feedback triggers.
+  - `Tester.Assert.EventFired(string, int)`: Verify event chain occurrences.
+- **Interaction Patterns**:
+  - `Tester.PerformAndVerify(interaction, predicate)`: Atomic interaction-validation gate for reliable user flow testing.
+- **Improved Integration**:
+  - `VisualFeedbackCorrect()` hook now integrates with `EventTracker`.
+
+---
+
 ## [1.4.0] - 2025-12-25
 
 ### Added

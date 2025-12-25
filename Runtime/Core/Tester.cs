@@ -325,6 +325,7 @@ namespace RealPlayTester.Core
             // Game State Assertions
             public static void GameStateMatches(Action expectedAction, string message = null) => AssertLib.GameStateMatches(expectedAction, message);
             public static void VisualFeedbackCorrect(string message = null) => AssertLib.VisualFeedbackCorrect(message);
+            public static void EventFired(string eventName, int minCount = 1, string message = null) => AssertLib.EventFired(eventName, minCount, message);
         }
 
         /// <summary>
@@ -346,6 +347,46 @@ namespace RealPlayTester.Core
                 {
                     RealPlayTester.Core.Screenshot.CaptureAndCompareRegion(testName, region);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Continuous health monitoring during test execution.
+        /// </summary>
+        public static class Monitoring
+        {
+            public static void StartVisualHealthCheck(float interval = 2.0f) => 
+                RealPlayTester.Utilities.VisualHealthMonitor.StartMonitoring(interval);
+
+            public static void StopVisualHealthCheck() => 
+                RealPlayTester.Utilities.VisualHealthMonitor.StopMonitoring();
+        }
+
+        /// <summary>
+        /// Game event tracking and verification.
+        /// </summary>
+        public static class Events
+        {
+            public static void Record(string eventName) => RealPlayTester.Core.EventTracker.Record(eventName);
+            public static void Clear() => RealPlayTester.Core.EventTracker.Clear();
+            public static bool WasFired(string eventName, int minCount = 1) => RealPlayTester.Core.EventTracker.WasFired(eventName, minCount);
+        }
+
+        // ===== INTERACTION PATTERNS =====
+
+        /// <summary>
+        /// Performs an interaction and immediately verifies the result with a predicate.
+        /// Implements the 'Input-Output Validation Gate' pattern.
+        /// </summary>
+        public static async Task PerformAndVerify(Func<Task> interaction, Func<bool> verification, string failMessage = null, float timeout = 5f)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            await interaction();
+            await Wait.Until(verification, timeout);
+            if (!verification())
+            {
+                AssertLib.Fail(failMessage ?? "Interaction failed verification after timeout.");
             }
         }
     }

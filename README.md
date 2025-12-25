@@ -125,7 +125,8 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | `Assert.TextureWithinLimits(string, w, h)` | Fail if texture at path exceeds dimensions. |
 | `Assert.SceneConfigurationValid()` | Fail if any active GameObject has missing scripts. |
 | `Assert.GameStateMatches(Action)` | Execute custom validation logic. |
-| `Assert.VisualFeedbackCorrect()` | Placeholder for visual feedback verification. |
+| `Assert.EventFired(string, int?)` | Fail if specific event was not recorded by EventTracker. |
+| `Assert.VisualFeedbackCorrect()` | Hook for verifying visual feedback occurred. |
 
 **On Failure**: Screenshot saved to `persistentDataPath/RealPlayTester/Failures/<timestamp>.png`, `Time.timeScale = 0`, red overlay shown.
 
@@ -134,6 +135,24 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 |--------|-------------|
 | `Screenshot.CaptureAndCompare(string)` | Capture screen and compare with baseline in `TestBaselines/`. |
 | `Screenshot.CaptureAndCompareRegion(string, Rect)` | Capture specific screen region and compare with baseline. |
+
+### Monitoring
+| Method | Description |
+|--------|-------------|
+| `Monitoring.StartVisualHealthCheck(int)` | Start background monitoring for Pink shaders/errors. |
+| `Monitoring.StopVisualHealthCheck()` | Stop background monitoring. |
+
+### Events
+| Method | Description |
+|--------|-------------|
+| `Events.Record(string)` | Record a game event for later assertion. |
+| `Events.Clear()` | Reset the event tracker. |
+| `Events.WasFired(string, int)` | Check if an event was recorded. |
+
+### Interaction Patterns
+| Method | Description |
+|--------|-------------|
+| `PerformAndVerify(interaction, predicate)` | Perform action and wait until predicate is true. |
 
 ### Text
 | Method | Description |

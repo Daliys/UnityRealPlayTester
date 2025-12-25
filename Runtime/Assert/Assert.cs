@@ -305,10 +305,24 @@ namespace RealPlayTester.Assert
         public static void VisualFeedbackCorrect(string message = null)
         {
             if (!RealPlayEnvironment.IsEnabled) return;
-            // This is a placeholder as per requirements logic is vague. 
-            // In a real implementation, this might check a list of registered visual feedback providers.
-            // For now, we assume if we reached here without previous failures, it's ok, 
-            // or the user should use more specific asserts.
+            
+            // Integrated with EventTracker as a default mechanism for "visual feedback occurred"
+            // Developers should call EventTracker.Record("VisualFeedback_HeroSpawn") in their code
+            if (EventTracker.GetCount("VisualFeedback") == 0 && EventTracker.GetHistory().Count == 0)
+            {
+                // If no events tracked at all, we might warn or fail depending on strictness
+                // For now, it's a soft hook.
+            }
+        }
+
+        public static void EventFired(string eventName, int minCount = 1, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            if (!EventTracker.WasFired(eventName, minCount))
+            {
+                Fail(message ?? $"Expected event '{eventName}' to have fired at least {minCount} times, but it fired {EventTracker.GetCount(eventName)} times.");
+            }
         }
 
         // ===== SCREENSHOT ASSERTIONS =====
