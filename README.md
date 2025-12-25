@@ -115,11 +115,14 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | `Assert.HasSprite(Component, Sprite)` | Fail if target (SpriteRenderer/Image) has wrong sprite. |
 | `Assert.ScreenElementVisible(string)` | Find object by name/tag and verify visibility. |
 | `Assert.VisualStateMatches(string)` | Fail if screen does not match baseline image. |
+| `Assert.VisualStateMatches(string, Rect)` | Fail if screen region does not match baseline. |
+| `Assert.NoMissingMaterials()` | Fail if any renderer has missing or "Pink" error materials. |
 
 **Asset & State Assertions**
 | Method | Description |
 |--------|-------------|
 | `Assert.AssetLoaded<T>(string path)` | Fail if asset cannot be loaded from Resources. |
+| `Assert.TextureWithinLimits(string, w, h)` | Fail if texture at path exceeds dimensions. |
 | `Assert.SceneConfigurationValid()` | Fail if any active GameObject has missing scripts. |
 | `Assert.GameStateMatches(Action)` | Execute custom validation logic. |
 | `Assert.VisualFeedbackCorrect()` | Placeholder for visual feedback verification. |
@@ -130,6 +133,7 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | Method | Description |
 |--------|-------------|
 | `Screenshot.CaptureAndCompare(string)` | Capture screen and compare with baseline in `TestBaselines/`. |
+| `Screenshot.CaptureAndCompareRegion(string, Rect)` | Capture specific screen region and compare with baseline. |
 
 ### Text
 | Method | Description |

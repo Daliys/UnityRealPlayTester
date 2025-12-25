@@ -314,10 +314,13 @@ namespace RealPlayTester.Core
             public static void HasSprite(Component target, Sprite expected, string message = null) => AssertLib.HasSprite(target, expected, message);
             public static void ScreenElementVisible(string elementName, string message = null) => AssertLib.ScreenElementVisible(elementName, message);
             public static void VisualStateMatches(string expectedStateName, string message = null) => AssertLib.VisualStateMatches(expectedStateName, message);
+            public static void VisualStateMatches(string expectedStateName, Rect region, string message = null) => AssertLib.VisualStateMatches(expectedStateName, region, message);
+            public static void NoMissingMaterials(string message = null) => AssertLib.NoMissingMaterials(message);
 
             // Asset Assertions
             public static void AssetLoaded<T>(string assetPath, string message = null) where T : UnityEngine.Object => AssertLib.AssetLoaded<T>(assetPath, message);
             public static void SceneConfigurationValid(string message = null) => AssertLib.SceneConfigurationValid(message);
+            public static void TextureWithinLimits(string assetPath, int maxWidth, int maxHeight, string message = null) => AssertLib.TextureWithinLimits(assetPath, maxWidth, maxHeight, message);
 
             // Game State Assertions
             public static void GameStateMatches(Action expectedAction, string message = null) => AssertLib.GameStateMatches(expectedAction, message);
@@ -334,6 +337,14 @@ namespace RealPlayTester.Core
                 if (RealPlayEnvironment.IsEnabled)
                 {
                     RealPlayTester.Core.Screenshot.CaptureAndCompare(testName);
+                }
+            }
+
+            public static void CaptureAndCompareRegion(string testName, Rect region)
+            {
+                if (RealPlayEnvironment.IsEnabled)
+                {
+                    RealPlayTester.Core.Screenshot.CaptureAndCompareRegion(testName, region);
                 }
             }
         }

@@ -14,24 +14,46 @@ namespace RealPlayTester.Core
         {
             if (!RealPlayEnvironment.IsEnabled) return;
 
-            bool matches = CompareToBaselineInternal(testName, tolerance);
+            bool matches = CompareToBaselineInternal(testName, null, tolerance);
             if (!matches)
             {
                 RealPlayTester.Assert.Assert.Fail($"Screenshot comparison failed for '{testName}'");
             }
         }
 
-        internal static bool CompareToBaselineInternal(string testName, float tolerance = DefaultTolerance)
+        public static void CaptureAndCompareRegion(string testName, Rect region, float tolerance = DefaultTolerance)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            bool matches = CompareToBaselineInternal(testName, region, tolerance);
+            if (!matches)
+            {
+                RealPlayTester.Assert.Assert.Fail($"Region screenshot comparison failed for '{testName}'");
+            }
+        }
+
+        internal static bool CompareToBaselineInternal(string testName, Rect? region = null, float tolerance = DefaultTolerance)
         {
             // 1. Capture current screen
-            Texture2D currentScreen = ScreenCapture.CaptureScreenshotAsTexture();
+            Texture2D fullScreen = ScreenCapture.CaptureScreenshotAsTexture();
+            Texture2D actual = fullScreen;
+
+            // Crop if region specified
+            if (region.HasValue)
+            {
+                actual = CropTexture(fullScreen, region.Value);
+                if (actual != fullScreen)
+                {
+                    UnityEngine.Object.Destroy(fullScreen);
+                }
+            }
             
             // 2. Load baseline
             string baselinePath = Path.Combine(RealPlayEnvironment.ProjectRoot, BaselineFolder, testName + ".png");
             if (!File.Exists(baselinePath))
             {
                 RealPlayLog.Warn($"Baseline not found for '{testName}' at {baselinePath}. Saving current as baseline.");
-                SaveTexture(currentScreen, baselinePath);
+                SaveTexture(actual, baselinePath);
                 return true;
             }
 
@@ -43,19 +65,34 @@ namespace RealPlayTester.Core
             }
 
             // 3. Compare
-            bool match = CompareTextures(baseline, currentScreen, tolerance, out float difference);
+            bool match = CompareTextures(baseline, actual, tolerance, out float difference);
 
             // 4. If fail, save diff/actual
             if (!match)
             {
                 string failureDir = Path.Combine(RealPlayEnvironment.TestReportsPath, FailureFolder);
                 Directory.CreateDirectory(failureDir);
-                SaveTexture(currentScreen, Path.Combine(failureDir, testName + "_Actual.png"));
-                // Ideally we'd save a diff image too
+                SaveTexture(actual, Path.Combine(failureDir, testName + "_Actual.png"));
                 RealPlayLog.Error($"Screenshot mismatch for '{testName}'. Difference: {difference:P2} (Tolerance: {tolerance:P2})");
             }
 
             return match;
+        }
+
+        private static Texture2D CropTexture(Texture2D source, Rect region)
+        {
+            int x = Mathf.Clamp((int)region.x, 0, source.width);
+            int y = Mathf.Clamp((int)region.y, 0, source.height);
+            int w = Mathf.Clamp((int)region.width, 0, source.width - x);
+            int h = Mathf.Clamp((int)region.height, 0, source.height - y);
+
+            if (w <= 0 || h <= 0) return source; // Invalid region returns full
+
+            Color[] pixels = source.GetPixels(x, y, w, h);
+            Texture2D cropped = new Texture2D(w, h);
+            cropped.SetPixels(pixels);
+            cropped.Apply();
+            return cropped;
         }
 
         private static bool CompareTextures(Texture2D baseline, Texture2D actual, float tolerance, out float difference)

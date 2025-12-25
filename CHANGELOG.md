@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0] - 2025-12-25
+
+### Added
+- **Region-Based Screenshots**:
+  - `Tester.Screenshot.CaptureAndCompareRegion(string, Rect)`: Compare specific screen regions.
+  - `Tester.Assert.VisualStateMatches(string, Rect)`: Assertion wrapper for region comparison.
+- **Visual Validation**:
+  - `Tester.Assert.NoMissingMaterials()`: Scan scene for null materials or "Pink" error shaders on Renderers and UI.
+- **Asset Performance**:
+  - `Tester.Assert.TextureWithinLimits(string, int, int)`: Verify texture assets do not exceed dimension budgets.
+
+---
+
 ## [1.3.0] - 2025-12-25
 
 ### Added

@@ -317,12 +317,74 @@ namespace RealPlayTester.Assert
         {
             if (!RealPlayEnvironment.IsEnabled) return;
 
-            // This relies on the Screenshot system (to be implemented/linked).
-            // We'll delegate to ScreenshotUtility or a new Screenshot class.
-            bool match = RealPlayTester.Core.Screenshot.CompareToBaselineInternal(expectedStateName);
+            bool match = RealPlayTester.Core.Screenshot.CompareToBaselineInternal(expectedStateName, null);
             if (!match)
             {
                 Fail(message ?? $"Visual state '{expectedStateName}' does not match baseline.");
+            }
+        }
+
+        public static void VisualStateMatches(string expectedStateName, Rect region, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            bool match = RealPlayTester.Core.Screenshot.CompareToBaselineInternal(expectedStateName, region);
+            if (!match)
+            {
+                Fail(message ?? $"Visual state '{expectedStateName}' in region {region} does not match baseline.");
+            }
+        }
+
+        public static void TextureWithinLimits(string assetPath, int maxWidth, int maxHeight, string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            var texture = Resources.Load<Texture>(assetPath);
+            if (texture == null)
+            {
+                Fail(message ?? $"Texture not found at path '{assetPath}'");
+                return;
+            }
+
+            if (texture.width > maxWidth || texture.height > maxHeight)
+            {
+                Fail(message ?? $"Texture '{assetPath}' dimensions ({texture.width}x{texture.height}) exceed limits ({maxWidth}x{maxHeight}).");
+            }
+        }
+
+        public static void NoMissingMaterials(string message = null)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
+            // Check Renderers
+            var renderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+            foreach (var r in renderers)
+            {
+                foreach (var mat in r.sharedMaterials)
+                {
+                    if (mat == null)
+                    {
+                        Fail(message ?? $"Renderer '{r.name}' has a null material.");
+                        return;
+                    }
+                    if (mat.shader.name == "Hidden/InternalErrorShader" || mat.name.Contains("Default-Material"))
+                    {
+                         Fail(message ?? $"Renderer '{r.name}' has a missing/error material.");
+                         return;
+                    }
+                }
+            }
+
+            // Check UI Graphics
+            var graphics = UnityEngine.Object.FindObjectsByType<Graphic>(FindObjectsSortMode.None);
+            foreach (var g in graphics)
+            {
+                if (g.material == null) continue; // UI often has null material (default)
+                if (g.material.shader.name == "Hidden/InternalErrorShader")
+                {
+                     Fail(message ?? $"UI Element '{g.name}' has a missing/error material.");
+                     return;
+                }
             }
         }
     }
