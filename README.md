@@ -243,6 +243,17 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 
 ---
 
+## Known Limitations & Batchmode
+### Visibility (The "X-Ray" Problem)
+`Assert.IsVisible(GameObject)` currently uses Unity's `renderer.isVisible`, which checks if an object is within the camera's **frustum**. It does **not** perform raycasting to check for physical occlusion (e.g., if the object is behind a wall).
+
+### Headless / Batchmode Execution
+When running tests via CLI (`-batchmode`):
+- `renderer.isVisible` is unreliable because cameras do not render. The library automatically skips this specific check in batchmode to prevent false failures.
+- `WaitForEndOfFrame` is not supported by Unity in batchmode. Use `yield return null` to wait for a frame instead.
+
+---
+
 ## AI & Debugging Tools
 
 These tools help AI agents diagnose test failures autonomously.

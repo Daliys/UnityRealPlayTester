@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.1] - 2025-12-25
+
+### Fixed
+- **Input System Compatibility**: Updated verification scenes to use `InputSystemUIInputModule`, preventing crashes in projects with the New Input System active.
+- **Batchmode Visibility**: `Assert.IsVisible` now bypasses the `renderer.isVisible` check when running in `-batchmode` (headless), as Unity cameras do not render in this mode.
+- **Async Test Stability**: Replaced `WaitForEndOfFrame` with `yield return null` in several verification tests to ensure compatibility with batchmode execution.
+- **Namespace Ambiguity**: Resolved conflicts between `UnityEngine.Assertions.AssertionException` and `NUnit.Framework.AssertionException` in test scripts.
+
+### Changed
+- **API Accessibility**: `RealPlayEnvironment` and `RealPlayLog` classes are now `public` to allow verification from external test assemblies.
+- **Assembly Definitions**: Updated `Project.VerificationTests.asmdef` to include required references for `InputSystem`, `TestRunner`, and `NUnit`.
+
+---
+
 ## [1.5.0] - 2025-12-25
 
 ### Added

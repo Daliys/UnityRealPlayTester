@@ -192,7 +192,7 @@ namespace RealPlayTester.Assert
             if (renderer != null)
             {
                 if (!renderer.enabled) Fail(message ?? $"Expected '{go.name}' renderer to be enabled.");
-                if (!renderer.isVisible) Fail(message ?? $"Expected '{go.name}' to be visible to a camera.");
+                if (!renderer.isVisible && !Application.isBatchMode) Fail(message ?? $"Expected '{go.name}' to be visible to a camera.");
                 return;
             }
 

@@ -7,7 +7,7 @@ using UnityEngine.EventSystems;
 
 namespace RealPlayTester.Core
 {
-    internal static class RealPlayEnvironment
+    public static class RealPlayEnvironment
     {
         public static bool IsEnabled
         {
@@ -36,7 +36,7 @@ namespace RealPlayTester.Core
         public static string TestReportsPath => System.IO.Path.Combine(ProjectRoot, "TestReports");
     }
 
-    internal static class RealPlayLog
+    public static class RealPlayLog
     {
         private const string Prefix = "[RealPlayTester] ";
 
