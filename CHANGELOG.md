@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.6.0] - 2025-12-30
+
+### Added
+- **Public Cancellation API**: `RealPlayExecutionContext` is now public, enabling advanced cancellation control for background tasks and custom test flows.
+- **Enhanced Wait.Seconds**: Added optional `CancellationToken` parameter to `Wait.Seconds()` with automatic token combining logic, allowing explicit cancellation control alongside context-based cancellation.
+- **Human-like Input Simulation**: 
+  - `InputSystemShim` now supports realistic mouse movement and click simulation via `QueueStateEvent` when New Input System is active.
+  - `SimulateMouseMove(Vector2)` and `SimulateMouseClick()` added to `InputHelpers` for low-level input injection.
+  - `Touch.Tap()` and `Touch.Swipe()` now use realistic input sequences: hover → delay → press → delay → release.
+- **SmartFind Enhancements**:
+  - Multi-scene search support: finds objects across all loaded scenes.
+  - Better error messages with scene information when objects aren't found.
+  - Depth-limited search to prevent infinite loops in complex hierarchies.
+- **Test Lifecycle Verification**: New `LifeCycleVerificationTests` demonstrating proper `CancellationTokenSource` usage patterns for background tasks.
+
+### Fixed
+- **Scroll Logic**: `Scroll.UntilVisible()` now uses intersection (`Rect.Overlaps`) instead of strict containment, properly handling elements larger than the viewport.
+- **Scroll Infinite Loop**: Added safety checks and improved heuristics to prevent infinite scrolling when target is unreachable.
+- **TestRunner Token Management**: Explicitly cancel per-test `CancellationTokenSource` in `finally` blocks to ensure background tasks are properly cleaned up between tests.
+- **Touch Input Reliability**: `Touch.Tap()` and `Touch.Swipe()` now use `ExecuteEvents.ExecuteHierarchy()` to properly bubble events up to parent handlers (e.g., Button components on parents of Text/Image children).
+- **Assert Occlusion Detection**: `Assert.IsVisible()` now performs raycast checks to detect physical occlusion (objects behind walls), not just frustum visibility.
+
+### Changed
+- **Input Architecture**: Prioritized New Input System simulation over legacy `ExecuteEvents` when available, providing more realistic input handling that triggers hovers, animations, and physics exactly as player input would.
+- **VisualTreeLogger Performance**: Optimized hierarchy dump output format for better AI analysis and token efficiency.
+
+### Tests
+- **100% Pass Rate**: All 22 verification tests passing, including new tests for:
+  - `AsyncVerificationTests`: Timeout handling, Wait.Until, Wait.UntilWithDiagnostics
+  - `ScrollVerificationTests`: Large elements, normal elements, nested scroll views
+  - `LifeCycleVerificationTests`: Proper cancellation patterns, background task cleanup
+
+---
+
 ## [1.5.1] - 2025-12-25
 
 ### Fixed

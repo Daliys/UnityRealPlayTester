@@ -14,11 +14,15 @@ namespace RealPlayTester.Utilities
         public static string DumpHierarchy()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("=== Active Scene Hierarchy ===");
+            sb.AppendLine("=== Scene Hierarchy Dump ===");
             
-            var scene = SceneManager.GetActiveScene();
-            if (scene.IsValid())
+            int sceneCount = SceneManager.sceneCount;
+            for (int i = 0; i < sceneCount; i++)
             {
+                var scene = SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                sb.AppendLine($"--- Scene: {scene.name} ---");
                 var roots = scene.GetRootGameObjects();
                 foreach (var root in roots)
                 {

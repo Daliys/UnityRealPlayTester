@@ -15,14 +15,26 @@ namespace RealPlayTester.Input
         /// <summary>Simulate a tap at the given screen position.</summary>
         public static async Task Tap(Vector2 screenPos, float duration = 0.1f)
         {
-            if (!RealPlayEnvironment.IsEnabled)
+            // Human Simulation: Move Mouse first
+            RealInputUtility.SimulateMouseMove(screenPos);
+            // Small delay for headers/hovers to process
+            await Task.Yield(); 
+
+            var target = ResolveTarget(screenPos);
+            if (target == null)
             {
                 return;
             }
 
-            await SimulateTouch(screenPos, TouchPhase.Began);
+            // Press
+            RealInputUtility.SimulateMouseClick(true);
+            await SimulateTouch(target, screenPos, TouchPhase.Began);
+            
             await Wait.Seconds(duration);
-            await SimulateTouch(screenPos, TouchPhase.Ended);
+
+            // Release
+            RealInputUtility.SimulateMouseClick(false);
+            await SimulateTouch(target, screenPos, TouchPhase.Ended);
         }
 
         /// <summary>Simulate a swipe gesture.</summary>
@@ -33,9 +45,22 @@ namespace RealPlayTester.Input
                 return;
             }
 
-            await SimulateTouch(from, TouchPhase.Began);
-            await SimulateSwipeMove(from, to, duration);
-            await SimulateTouch(to, TouchPhase.Ended);
+            // Human Input: Move to start
+            RealInputUtility.SimulateMouseMove(from);
+            await Task.Yield();
+            
+            var target = ResolveTarget(from);
+            
+            // Press
+            RealInputUtility.SimulateMouseClick(true);
+            await SimulateTouch(target, from, TouchPhase.Began);
+            
+            // Drag
+            await SimulateSwipeMove(target, from, to, duration);
+            
+            // Release
+            RealInputUtility.SimulateMouseClick(false);
+            await SimulateTouch(target, to, TouchPhase.Ended);
         }
 
         /// <summary>Simulate a pinch (two-finger) gesture.</summary>
@@ -57,64 +82,81 @@ namespace RealPlayTester.Input
                 return;
             }
 
-            await SimulateTouch(screenPos, TouchPhase.Began);
+            var target = ResolveTarget(screenPos);
+            await SimulateTouch(target, screenPos, TouchPhase.Began);
             await Wait.Seconds(duration);
-            await SimulateTouch(screenPos, TouchPhase.Ended);
+            await SimulateTouch(target, screenPos, TouchPhase.Ended);
         }
 
-        private static Task SimulateTouch(Vector2 screenPos, TouchPhase phase)
+        private static GameObject ResolveTarget(Vector2 screenPos)
         {
+            var es = RealInputUtility.EnsureEventSystem();
+            var data = RealInputUtility.GetPooledPointerData(es);
+            data.position = screenPos;
+            var results = RealInputUtility.Raycasts(data);
+            return results.Count > 0 ? results[0].gameObject : null;
+        }
+
+        private static Task SimulateTouch(GameObject target, Vector2 screenPos, TouchPhase phase)
+        {
+            if (target == null) return Task.CompletedTask;
+
             var es = RealInputUtility.EnsureEventSystem();
             var data = RealInputUtility.GetPooledPointerData(es);
             data.pointerId = 0;
             data.position = screenPos;
             data.button = PointerEventData.InputButton.Left;
-
+            // Re-populate raycast info so event system knows what we hit (even if we force target)
             var results = RealInputUtility.Raycasts(data);
-            var target = results.Count > 0 ? results[0].gameObject : null;
-            if (target != null)
+            if (results.Count > 0)
             {
-                if (phase == TouchPhase.Began)
-                {
-                    data.pointerPressRaycast = results[0];
-                    data.pointerCurrentRaycast = results[0];
-                    data.pointerPress = target;
-                    data.rawPointerPress = target;
+                data.pointerPressRaycast = results[0];
+                data.pointerCurrentRaycast = results[0];
+            }
 
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerEnterHandler);
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerDownHandler);
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.initializePotentialDrag);
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.beginDragHandler);
-                }
-                else if (phase == TouchPhase.Ended)
-                {
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.endDragHandler);
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerUpHandler);
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerClickHandler);
-                }
+            if (phase == TouchPhase.Began)
+            {
+                data.pointerPress = target;
+                data.rawPointerPress = target;
+
+                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerEnterHandler);
+                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerDownHandler);
+                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.initializePotentialDrag);
+                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.beginDragHandler);
+            }
+            else if (phase == TouchPhase.Ended)
+            {
+                data.pointerPress = target; // Ensure Up happens on the same press target
+                data.rawPointerPress = target;
+                
+                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.endDragHandler);
+                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerUpHandler);
+                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerClickHandler);
             }
 
             return Task.CompletedTask;
         }
 
-        private static async Task SimulateSwipeMove(Vector2 from, Vector2 to, float duration)
+        private static async Task SimulateSwipeMove(GameObject target, Vector2 from, Vector2 to, float duration)
         {
+            if (target == null) return;
+
             var es = RealInputUtility.EnsureEventSystem();
             var data = RealInputUtility.GetPooledPointerData(es);
             data.pointerId = 0;
             data.button = PointerEventData.InputButton.Left;
+            data.pointerPress = target; // Drag needs this
+            data.pointerDrag = target;
 
             float elapsed = 0f;
             while (elapsed < duration)
             {
                 float t = duration > 0f ? Mathf.Clamp01(elapsed / duration) : 1f;
                 data.position = Vector2.Lerp(from, to, t);
-                var results = RealInputUtility.Raycasts(data);
-                var target = results.Count > 0 ? results[0].gameObject : null;
-                if (target != null)
-                {
-                    ExecuteEvents.Execute(target, data, ExecuteEvents.pointerMoveHandler);
-                }
+                
+                // Execute Drag on the specific target we started with
+                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.dragHandler);
+                
                 elapsed += Time.deltaTime;
                 await Task.Yield();
             }
@@ -174,14 +216,14 @@ namespace RealPlayTester.Input
 
             if (t1 != null)
             {
-                ExecuteEvents.Execute(t1, f1, ExecuteEvents.pointerUpHandler);
-                ExecuteEvents.Execute(t1, f1, ExecuteEvents.pointerClickHandler);
+                ExecuteEvents.ExecuteHierarchy(t1, f1, ExecuteEvents.pointerUpHandler);
+                ExecuteEvents.ExecuteHierarchy(t1, f1, ExecuteEvents.pointerClickHandler);
             }
 
             if (t2 != null)
             {
-                ExecuteEvents.Execute(t2, f2, ExecuteEvents.pointerUpHandler);
-                ExecuteEvents.Execute(t2, f2, ExecuteEvents.pointerClickHandler);
+                ExecuteEvents.ExecuteHierarchy(t2, f2, ExecuteEvents.pointerUpHandler);
+                ExecuteEvents.ExecuteHierarchy(t2, f2, ExecuteEvents.pointerClickHandler);
             }
         }
     }

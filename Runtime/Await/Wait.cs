@@ -21,35 +21,55 @@ namespace RealPlayTester.Await
         /// </summary>
         /// <param name="seconds">Duration to wait in seconds.</param>
         /// <param name="unscaled">If true, uses realtime (unaffected by Time.timeScale).</param>
-        public static async Task Seconds(float seconds, bool unscaled = false)
+        public static async Task Seconds(float seconds, bool unscaled = false, CancellationToken token = default)
         {
             if (!RealPlayEnvironment.IsEnabled || seconds <= 0f)
             {
                 return;
             }
 
-            var token = RealPlayExecutionContext.Token;
-            
-            if (unscaled)
+            var ctxToken = RealPlayExecutionContext.Token;
+            // Create linked token if both exist and are different, otherwise use whichever is valid
+            CancellationToken effectiveToken;
+            CancellationTokenSource linkedCts = null;
+
+            if (token != default && ctxToken != default && token != ctxToken)
             {
-                float startTime = Time.realtimeSinceStartup;
-                while (Time.realtimeSinceStartup - startTime < seconds)
-                {
-                    token.ThrowIfCancellationRequested();
-                    await Task.Yield();
-                }
+                linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, ctxToken);
+                effectiveToken = linkedCts.Token;
             }
             else
             {
-                // Use scaled time - handles timeScale changes gracefully
-                float elapsed = 0f;
-                while (elapsed < seconds)
+                effectiveToken = token != default ? token : ctxToken;
+            }
+
+            try
+            {
+                if (unscaled)
                 {
-                    token.ThrowIfCancellationRequested();
-                    await Task.Yield();
-                    // Use deltaTime for scaled, but fall back to unscaledDeltaTime if timeScale is 0
-                    elapsed += Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
+                    float startTime = Time.realtimeSinceStartup;
+                    while (Time.realtimeSinceStartup - startTime < seconds)
+                    {
+                        effectiveToken.ThrowIfCancellationRequested();
+                        await Task.Yield();
+                    }
                 }
+                else
+                {
+                    // Use scaled time - handles timeScale changes gracefully
+                    float elapsed = 0f;
+                    while (elapsed < seconds)
+                    {
+                        effectiveToken.ThrowIfCancellationRequested();
+                        await Task.Yield();
+                        // Use deltaTime for scaled, but fall back to unscaledDeltaTime if timeScale is 0
+                        elapsed += Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
+                    }
+                }
+            }
+            finally
+            {
+                linkedCts?.Dispose();
             }
         }
 

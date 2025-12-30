@@ -66,6 +66,10 @@ namespace RealPlayTester.Core
                 return;
             }
 
+            // Ensure consistent environment for testing
+            Application.runInBackground = true;
+            Application.targetFrameRate = 60;
+
             var host = RealPlayTesterHost.Instance;
             _instance = host.gameObject.AddComponent<TestRunner>();
             _instance.HandleCommandLine();
@@ -176,11 +180,18 @@ namespace RealPlayTester.Core
                         break;
                     }
 
-                    var result = await RunSingleTest(testCase, perTestCts.Token);
-                    results.Add(result);
-                    if (!result.Passed)
+                    try
                     {
-                        failures++;
+                        var result = await RunSingleTest(testCase, perTestCts.Token);
+                        results.Add(result);
+                        if (!result.Passed)
+                        {
+                            failures++;
+                        }
+                    }
+                    finally
+                    {
+                        perTestCts.Cancel();
                     }
                 }
             }
@@ -236,11 +247,18 @@ namespace RealPlayTester.Core
                     perTestCts.CancelAfter(TimeSpan.FromSeconds(DefaultTimeoutSeconds));
                     RealPlayExecutionContext.SetToken(perTestCts.Token);
 
-                    var result = await RunSingleTest(testCase, perTestCts.Token);
-                    results.Add(result);
-                    if (!result.Passed)
+                    try
                     {
-                        failures++;
+                        var result = await RunSingleTest(testCase, perTestCts.Token);
+                        results.Add(result);
+                        if (!result.Passed)
+                        {
+                            failures++;
+                        }
+                    }
+                    finally
+                    {
+                        perTestCts.Cancel();
                     }
                 }
             }
@@ -322,7 +340,7 @@ namespace RealPlayTester.Core
                 });
 
                 ScriptableObject.Destroy(instance);
-                RealPlayExecutionContext.SetToken(_cts.Token);
+                // RealPlayExecutionContext.SetToken(_cts.Token); // Removed to prevent leaks attaching to global token
             }
 
             return new TestResult

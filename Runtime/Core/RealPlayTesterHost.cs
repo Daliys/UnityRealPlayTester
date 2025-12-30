@@ -174,7 +174,7 @@ namespace RealPlayTester.Core
         }
     }
 
-    internal static class RealPlayExecutionContext
+    public static class RealPlayExecutionContext
     {
         private static readonly AsyncLocal<CancellationToken> _token = new AsyncLocal<CancellationToken>();
 

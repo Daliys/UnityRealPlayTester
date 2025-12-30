@@ -193,6 +193,22 @@ namespace RealPlayTester.Assert
             {
                 if (!renderer.enabled) Fail(message ?? $"Expected '{go.name}' renderer to be enabled.");
                 if (!renderer.isVisible && !Application.isBatchMode) Fail(message ?? $"Expected '{go.name}' to be visible to a camera.");
+                
+                // Occlusion Check (Raycast)
+                Camera cam = Camera.main;
+                if (cam != null)
+                {
+                    Vector3 direction = renderer.bounds.center - cam.transform.position;
+                    float distance = direction.magnitude;
+                    if (Physics.Raycast(cam.transform.position, direction, out RaycastHit hit, distance))
+                    {
+                        // Check if we hit something else that is NOT the object or its children
+                        if (hit.transform != go.transform && !hit.transform.IsChildOf(go.transform))
+                        {
+                            Fail(message ?? $"Expected '{go.name}' to be visible, but it is occluded by '{hit.transform.name}'.");
+                        }
+                    }
+                }
                 return;
             }
 
@@ -201,7 +217,7 @@ namespace RealPlayTester.Assert
             if (canvasRenderer != null)
             {
                 if (canvasRenderer.cull) Fail(message ?? $"Expected '{go.name}' UI element to not be culled.");
-                // Additional UI visibility checks could use RectTransform and camera viewport
+                // UI Raycast check could be added here similar to Physics but using GraphicRaycaster
                 return;
             }
 

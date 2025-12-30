@@ -39,7 +39,7 @@ namespace RealPlayTester.Input
             float startTime = Time.realtimeSinceStartup;
             var token = RealPlayExecutionContext.Token;
 
-            // Simple viewport check
+            // Simple viewport check (Intersection)
             bool IsVisible()
             {
                 var targetCorners = new Vector3[4];
@@ -48,8 +48,26 @@ namespace RealPlayTester.Input
                 var viewCorners = new Vector3[4];
                 scrollRect.viewport.GetWorldCorners(viewCorners);
                 
-                Rect viewRect = new Rect(viewCorners[0].x, viewCorners[0].y, viewCorners[2].x - viewCorners[0].x, viewCorners[2].y - viewCorners[0].y);
-                return viewRect.Contains(targetCorners[0]) && viewRect.Contains(targetCorners[2]);
+                // Create Rects in World Space (assuming 2D overlay generally works aligned)
+                // For a more robust check we might need local conversion, but WorldCorners handles rotation usually
+                
+                float vMinX = Mathf.Min(viewCorners[0].x, viewCorners[2].x);
+                float vMaxX = Mathf.Max(viewCorners[0].x, viewCorners[2].x);
+                float vMinY = Mathf.Min(viewCorners[0].y, viewCorners[2].y);
+                float vMaxY = Mathf.Max(viewCorners[0].y, viewCorners[2].y);
+                Rect viewRect = new Rect(vMinX, vMinY, vMaxX - vMinX, vMaxY - vMinY);
+
+                float tMinX = Mathf.Min(targetCorners[0].x, targetCorners[2].x);
+                float tMaxX = Mathf.Max(targetCorners[0].x, targetCorners[2].x);
+                float tMinY = Mathf.Min(targetCorners[0].y, targetCorners[2].y);
+                float tMaxY = Mathf.Max(targetCorners[0].y, targetCorners[2].y);
+                Rect targetRect = new Rect(tMinX, tMinY, tMaxX - tMinX, tMaxY - tMinY);
+
+                // Use Overlaps to allow large elements to be considered "visible" even if clipped
+                // But we must also ensure *enough* is visible? 
+                // For now, strict overlap is better than "Contains" which fails for large objects.
+                // We also check if target fully contains view (e.g. huge background) which Overlaps covers.
+                return viewRect.Overlaps(targetRect);
             }
 
             // Heuristic scroll
@@ -60,7 +78,12 @@ namespace RealPlayTester.Input
                 if (scrollRect.vertical)
                 {
                     Vector3 targetLocal = scrollRect.viewport.InverseTransformPoint(target.position);
-                    float shift = 0.05f * (Time.timeScale > 0 ? Time.deltaTime * 60f : 1f);
+                    // Use a slightly larger step or proportional step
+                    float shift = 0.1f * (Time.timeScale > 0 ? Time.deltaTime * 60f : 1f); 
+
+                    // Check if we are "close enough" to avoid jitter if overlap is barely failing?
+                    // Actually, Overlaps should be stable.
+                    
                     if (targetLocal.y < 0) 
                         scrollRect.verticalNormalizedPosition = Mathf.Max(0, scrollRect.verticalNormalizedPosition - shift);
                     else 

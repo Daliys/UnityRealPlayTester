@@ -19,27 +19,41 @@ namespace RealPlayTester.Input
             var exact = GameObject.Find(fuzzyName);
             if (exact != null) return exact;
 
-            // 2. Scan all active objects for case-insensitive match
-            // Iterate roots to be efficient
-             var roots = SceneManager.GetActiveScene().GetRootGameObjects();
-             foreach (var root in roots)
-             {
-                 var match = FindRecursive(root.transform, fuzzyName, false);
-                 if (match != null) return match.gameObject;
-             }
+            // 2. Scan all active objects in ALL loaded scenes
+            int sceneCount = SceneManager.sceneCount;
+            for (int i = 0; i < sceneCount; i++)
+            {
+                var scene = SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
 
-             // 3. Scan for contains match
-             foreach (var root in roots)
-             {
-                 var match = FindRecursive(root.transform, fuzzyName, true);
-                 if (match != null)
-                 {
-                     RealPlayLog.Warn($"SmartFind: Exact match for '{fuzzyName}' not found. Using partial match: '{match.name}'");
-                     return match.gameObject;
-                 }
-             }
+                var roots = scene.GetRootGameObjects();
+                foreach (var root in roots)
+                {
+                    // Case-insensitive match first (more likely what user wants)
+                    var match = FindRecursive(root.transform, fuzzyName, false);
+                    if (match != null) return match.gameObject;
+                }
+            }
 
-             return null;
+            // 3. Scan for contains match (fuzzy)
+            for (int i = 0; i < sceneCount; i++)
+            {
+                var scene = SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                var roots = scene.GetRootGameObjects();
+                foreach (var root in roots)
+                {
+                    var match = FindRecursive(root.transform, fuzzyName, true);
+                    if (match != null)
+                    {
+                        RealPlayLog.Warn($"SmartFind: Exact match for '{fuzzyName}' not found. Using partial match: '{match.name}'");
+                        return match.gameObject;
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static Transform FindRecursive(Transform t, string target, bool contains)

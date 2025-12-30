@@ -60,6 +60,9 @@ namespace RealPlayTester.Input
                 go.AddComponent<StandaloneInputModule>();
             }
             UnityEngine.Object.DontDestroyOnLoad(go);
+            
+            // Force an update to ensure modules initialize
+            es.UpdateModules();
             return es;
         }
 
@@ -112,6 +115,25 @@ namespace RealPlayTester.Input
                 PanelRaycastMethod.Invoke(pr, new object[] { data, prResults });
                 results.AddRange(prResults);
             }
+        }
+
+        // ===== HUMAN INPUT HELPERS =====
+        public static void SimulateMouseMove(Vector2 screenPos)
+        {
+            // Update Input System if available (triggers hovers etc)
+            if (InputSystemShim.IsAvailable)
+            {
+                InputSystemShim.MouseMove(screenPos);
+            }
+        }
+        
+        public static void SimulateMouseClick(bool down)
+        {
+             if (InputSystemShim.IsAvailable)
+             {
+                 // 0 = Left Button
+                 InputSystemShim.MouseButton(0, down);
+             }
         }
     }
 

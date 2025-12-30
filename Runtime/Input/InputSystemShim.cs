@@ -81,6 +81,12 @@ namespace RealPlayTester.Input
             { KeyCode.Minus, 61 }, { KeyCode.Equals, 62 }
         };
 
+        private static readonly MethodInfo AddDeviceMethod = InputSystemType != null
+            ? InputSystemType.GetMethod("AddDevice", new[] { typeof(Type) })
+            : null;
+
+        private static object _virtualKeyboard;
+
         public static bool IsAvailable
         {
             get { return KeyboardType != null && KeyboardStateType != null && KeyEnumType != null && InputSystemType != null && KeyboardCurrentProperty != null && QueueStateEventGeneric != null; }
@@ -103,7 +109,7 @@ namespace RealPlayTester.Input
                 return false;
             }
 
-            object keyboard = KeyboardCurrentProperty.GetValue(null);
+            object keyboard = GetKeyboard();
             if (keyboard == null || KeyboardItemProperty == null || WasPressedThisFrameProperty == null)
             {
                 return false;
@@ -126,6 +132,50 @@ namespace RealPlayTester.Input
             return wasPressed is bool pressed && pressed;
         }
 
+        private static object GetKeyboard()
+        {
+            object keyboard = KeyboardCurrentProperty.GetValue(null);
+            if (keyboard != null)
+            {
+                return keyboard;
+            }
+
+            // In batchmode or if no hardware keyboard, Keyboard.current is null.
+            // We return the cached virtual keyboard if we made one.
+            if (_virtualKeyboard != null)
+            {
+                return _virtualKeyboard;
+            }
+
+            return null;
+        }
+
+        private static object EnsureKeyboard()
+        {
+            object keyboard = GetKeyboard();
+            if (keyboard != null)
+            {
+                return keyboard;
+            }
+
+            // Create virtual keyboard
+            if (AddDeviceMethod != null && KeyboardType != null)
+            {
+                try
+                {
+                    _virtualKeyboard = AddDeviceMethod.Invoke(null, new[] { KeyboardType });
+                    RealPlayLog.Info("Created virtual Keyboard device for Input System simulation (batchmode/headless compatibility).");
+                    return _virtualKeyboard;
+                }
+                catch (Exception ex)
+                {
+                    RealPlayLog.Warn("Failed to create virtual Keyboard: " + ex.Message);
+                }
+            }
+
+            return null;
+        }
+
         private static void QueueKeyState(KeyCode key, bool pressed)
         {
             if (!IsAvailable)
@@ -139,9 +189,10 @@ namespace RealPlayTester.Input
                 return;
             }
 
-            object keyboard = KeyboardCurrentProperty.GetValue(null);
+            object keyboard = EnsureKeyboard();
             if (keyboard == null)
             {
+                RealPlayLog.Warn("InputSystemShim: No keyboard available and failed to create virtual one. Key press ignored.");
                 return;
             }
 
@@ -151,34 +202,122 @@ namespace RealPlayTester.Input
             QueueStateEventGeneric.Invoke(null, new[] { keyboard, state, -1d });
         }
 
-        private static MethodInfo GetQueueStateEventGeneric()
+        // ===== MOUSE SIMULATION SUPPORT =====
+        private static readonly Type MouseType = Type.GetType("UnityEngine.InputSystem.Mouse, Unity.InputSystem");
+        private static readonly Type MouseStateType = Type.GetType("UnityEngine.InputSystem.LowLevel.MouseState, Unity.InputSystem");
+        private static readonly PropertyInfo MouseCurrentProperty = MouseType != null
+            ? MouseType.GetProperty("current", BindingFlags.Public | BindingFlags.Static)
+            : null;
+
+        private static object _virtualMouse;
+        private static MethodInfo _queueStateEventMouse;
+
+        public static void MouseMove(Vector2 position)
         {
-            if (InputSystemType == null || KeyboardStateType == null)
+            if (!IsAvailable || MouseType == null) return;
+
+            object mouse = EnsureMouse();
+            if (mouse == null) return;
+
+            // Create MouseState
+            object state = Activator.CreateInstance(MouseStateType);
+            
+            // Set position (MouseState.position is Vector2)
+            var posField = MouseStateType.GetField("position");
+            if (posField != null) posField.SetValue(state, position);
+            
+            // Queue Event
+            if (_queueStateEventMouse == null) _queueStateEventMouse = GetQueueStateEventGeneric(MouseStateType);
+            if (_queueStateEventMouse != null)
+                _queueStateEventMouse.Invoke(null, new[] { mouse, state, -1d });
+        }
+
+        public static void MouseButton(int buttonId, bool pressed)
+        {
+             if (!IsAvailable || MouseType == null) return;
+             
+             object mouse = EnsureMouse();
+             if (mouse == null) return;
+             
+             object state = Activator.CreateInstance(MouseStateType);
+             
+             // Set button. MouseState has buttons as fields or array? 
+             // In low-level state struct, it's often a bitfield or specific fields.
+             // Reflection on struct layout is tricky. Easier: Use "WithButton" if available or assume standard layout?
+             // Actually, InputSystem.QueueDeltaStateEvent might be safer for buttons if we can't construct full state easily.
+             // BUT: We want strict control. Let's try to find "WithButton" on MouseState or property "buttons".
+             
+             // Fallback: QueueStateEvent with just that button? 
+             // The MouseState struct usually has 'buttons' field (ushort).
+             // Left=0, Right=1, Middle=2.
+             
+             var buttonsField = MouseStateType.GetField("buttons");
+             if (buttonsField != null)
+             {
+                 // We need to preserve OTHER buttons? For now assume isolated press/release pairs.
+                 // If we want complex multi-button, we need to read current state. Too complex for Shim?
+                 // Let's just set the bit for this event.
+                 ushort mask = (ushort)(1 << buttonId);
+                 ushort currentVal = pressed ? mask : (ushort)0; 
+                 // Wait, if we send state with 0, InputSystem might verify change.
+                 // Better: If we can't perfectly reflect, assume single button ops.
+                 
+                 buttonsField.SetValue(state, currentVal); 
+             }
+             
+             if (_queueStateEventMouse == null) _queueStateEventMouse = GetQueueStateEventGeneric(MouseStateType);
+             if (_queueStateEventMouse != null)
+                _queueStateEventMouse.Invoke(null, new[] { mouse, state, -1d });
+        }
+        
+        private static object EnsureMouse()
+        {
+            if (MouseCurrentProperty != null)
+            {
+                object mouse = MouseCurrentProperty.GetValue(null);
+                if (mouse != null) return mouse;
+            }
+            
+            if (_virtualMouse != null) return _virtualMouse;
+
+            if (AddDeviceMethod != null && MouseType != null)
+            {
+                try
+                {
+                    _virtualMouse = AddDeviceMethod.Invoke(null, new[] { MouseType });
+                    RealPlayLog.Info("Created virtual Mouse device for Input System simulation.");
+                    return _virtualMouse;
+                }
+                catch (Exception ex)
+                {
+                    RealPlayLog.Warn("Failed to create virtual Mouse: " + ex.Message);
+                }
+            }
+            return null;
+        }
+
+        private static MethodInfo GetQueueStateEventGeneric(Type stateType)
+        {
+            if (InputSystemType == null || stateType == null)
             {
                 return null;
             }
 
             foreach (var method in InputSystemType.GetMethods(BindingFlags.Public | BindingFlags.Static))
             {
-                if (!method.IsGenericMethodDefinition)
-                {
-                    continue;
-                }
-
-                if (method.Name != "QueueStateEvent")
-                {
-                    continue;
-                }
+                if (!method.IsGenericMethodDefinition) continue;
+                if (method.Name != "QueueStateEvent") continue;
 
                 var parameters = method.GetParameters();
                 if (parameters.Length >= 2)
                 {
-                    return method.MakeGenericMethod(KeyboardStateType);
+                    return method.MakeGenericMethod(stateType);
                 }
             }
-
             return null;
         }
+
+        private static MethodInfo GetQueueStateEventGeneric() => GetQueueStateEventGeneric(KeyboardStateType);
 
         private static bool TryMapKeyCode(KeyCode key, out int inputSystemKeyValue)
         {
