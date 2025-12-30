@@ -209,6 +209,7 @@ namespace RealPlayTester.Input
             ? MouseType.GetProperty("current", BindingFlags.Public | BindingFlags.Static)
             : null;
 
+        private static object _lastMouseState;
         private static object _virtualMouse;
         private static MethodInfo _queueStateEventMouse;
 
@@ -219,12 +220,15 @@ namespace RealPlayTester.Input
             object mouse = EnsureMouse();
             if (mouse == null) return;
 
-            // Create MouseState
-            object state = Activator.CreateInstance(MouseStateType);
+            // Use cached state or create fresh if none
+            object state = _lastMouseState ?? Activator.CreateInstance(MouseStateType);
             
             // Set position (MouseState.position is Vector2)
             var posField = MouseStateType.GetField("position");
             if (posField != null) posField.SetValue(state, position);
+            
+            // Cache it
+            _lastMouseState = state;
             
             // Queue Event
             if (_queueStateEventMouse == null) _queueStateEventMouse = GetQueueStateEventGeneric(MouseStateType);
@@ -239,31 +243,27 @@ namespace RealPlayTester.Input
              object mouse = EnsureMouse();
              if (mouse == null) return;
              
-             object state = Activator.CreateInstance(MouseStateType);
-             
-             // Set button. MouseState has buttons as fields or array? 
-             // In low-level state struct, it's often a bitfield or specific fields.
-             // Reflection on struct layout is tricky. Easier: Use "WithButton" if available or assume standard layout?
-             // Actually, InputSystem.QueueDeltaStateEvent might be safer for buttons if we can't construct full state easily.
-             // BUT: We want strict control. Let's try to find "WithButton" on MouseState or property "buttons".
-             
-             // Fallback: QueueStateEvent with just that button? 
-             // The MouseState struct usually has 'buttons' field (ushort).
-             // Left=0, Right=1, Middle=2.
+             // Use cached state or create fresh if none
+             object state = _lastMouseState ?? Activator.CreateInstance(MouseStateType);
              
              var buttonsField = MouseStateType.GetField("buttons");
              if (buttonsField != null)
              {
-                 // We need to preserve OTHER buttons? For now assume isolated press/release pairs.
-                 // If we want complex multi-button, we need to read current state. Too complex for Shim?
-                 // Let's just set the bit for this event.
+                 // Get current buttons from cached state to preserve others
+                 // Assuming 'buttons' is a ushort bitmask
+                 ushort currentButtons = (ushort)buttonsField.GetValue(state);
                  ushort mask = (ushort)(1 << buttonId);
-                 ushort currentVal = pressed ? mask : (ushort)0; 
-                 // Wait, if we send state with 0, InputSystem might verify change.
-                 // Better: If we can't perfectly reflect, assume single button ops.
                  
-                 buttonsField.SetValue(state, currentVal); 
+                 if (pressed)
+                     currentButtons |= mask;
+                 else
+                     currentButtons &= (ushort)~mask;
+                 
+                 buttonsField.SetValue(state, currentButtons); 
              }
+             
+             // Cache it
+             _lastMouseState = state;
              
              if (_queueStateEventMouse == null) _queueStateEventMouse = GetQueueStateEventGeneric(MouseStateType);
              if (_queueStateEventMouse != null)

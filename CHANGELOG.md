@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.1] - 2025-12-30
+
+### Fixed
+- **Input Simulation Critical Fix**: Fixed `InputSystemShim` resetting device state on every event. Now caches and merges state, allowing complex interactions like "Drag" (Move-While-Holding) or multi-button presses to work correctly with New Input System.
+- **SmartFind Performance**: Optimized object search from double-pass full-scene recursion to a single-pass hybrid scan, significantly improving performance in large scenes.
+
 ## [1.6.0] - 2025-12-30
 
 ### Added
