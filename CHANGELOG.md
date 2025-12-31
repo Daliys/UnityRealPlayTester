@@ -25,6 +25,7 @@
 
 ### Changed
 - **AI-Agent Awareness**: Documentation updated to clarify that this package is optimized for autonomous AI agents to probe and control the game state.
+- **Internal Cleanup**: Relocated all internal library verification tests and sample assets outside of the package folder into a centralized `Assets/Tests/` hierarchy. The package now only contains core tools and logic, keeping it "lean" for distribution.
 
 ---
 

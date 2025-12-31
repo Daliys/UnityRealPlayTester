@@ -418,6 +418,9 @@ namespace RealPlayTester.Input
             RealInputUtility.SimulateDragging(true);
             ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerDownHandler);
             ExecuteEvents.Execute(target, pointer, ExecuteEvents.beginDragHandler);
+            
+            // Give Unity a frame to process the drag initiation
+            yield return null;
 
             float elapsed = 0f;
             while (elapsed < duration)

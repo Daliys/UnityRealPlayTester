@@ -368,16 +368,13 @@ All API methods are also available via `Tester.*`:
 ## File Structure
 ```
 RealPlayTester/
-├── Runtime/
-│   ├── Core/        # Tester, TestRunner, RealPlayTesterHost, TestBase
-│   ├── Input/       # Click, Press, Drag, Text, Touch, Scroll, SmartFind
-│   ├── Await/       # Wait
-│   ├── Assert/      # Assert, Capture, LogAssert
-│   └── Utilities/   # DevTools, VisualTreeLogger, InteractionProbe
-├── Resources/       # Sample test assets
-├── README.md
-└── package.json
+├── Runtime/          # Core Tools, Input (Click, Press, Drag, Text, Touch, Scroll, SmartFind)
+├── Editor/           # Build & Scene Setup Helpers
+├── Await/            # Wait Utilities
+├── Assert/           # Assertion Library, Capture, LogAssert
+└── Utilities/        # DevTools, VisualTreeLogger, InteractionProbe
 ```
+*Note: This package is a **Tools-Only** library. All internal verification tests and sample assets are kept external to ensure a lean distribution.*
 
 ## Version History
 See [CHANGELOG.md](CHANGELOG.md) for version history.
