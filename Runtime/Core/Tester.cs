@@ -15,6 +15,12 @@ namespace RealPlayTester.Core
     /// </summary>
     public static class Tester
     {
+        public static class Settings
+        {
+            /// <summary>Set to true to show a red dot representing the simulated mouse cursor.</summary>
+            public static bool ShowVisualPointer = true;
+        }
+
         // ===== CLICK HELPERS =====
 
         /// <summary>Click at screen position as percentage (0-1 range).</summary>
@@ -36,6 +42,26 @@ namespace RealPlayTester.Core
         /// <summary>Raycast from camera and return hit result.</summary>
         public static RaycastResult RaycastFromCamera(Camera camera, Vector2 screenPosition) =>
             RealPlayEnvironment.IsEnabled ? Click.RaycastFromCamera(camera, screenPosition) : default;
+
+        /// <summary>Move mouse smoothly to screen position over duration.</summary>
+        public static Task MouseMoveTo(Vector2 screenPos, float durationSeconds) =>
+            RealPlayEnvironment.IsEnabled ? MouseMove.To(screenPos, durationSeconds) : Task.CompletedTask;
+
+        /// <summary>Move mouse smoothly to the center of a GameObject.</summary>
+        public static Task MouseMoveToCenter(GameObject target, float durationSeconds) =>
+            RealPlayEnvironment.IsEnabled ? MouseMove.To(RealInputUtility.GetScreenCenter(target), durationSeconds) : Task.CompletedTask;
+
+        /// <summary>Calculates the screen center of a given GameObject (UI or World).</summary>
+        public static Vector2 GetScreenCenter(GameObject go, Camera camera = null) =>
+            RealPlayEnvironment.IsEnabled ? RealInputUtility.GetScreenCenter(go, camera) : Vector2.zero;
+
+        /// <summary>Find an object by name and move mouse smoothly to its center.</summary>
+        public static async Task MouseMoveToCenter(string fuzzyName, float durationSeconds)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+            var go = FindObject(fuzzyName);
+            if (go != null) await MouseMoveToCenter(go, durationSeconds);
+        }
 
         // ===== PRESS HELPERS =====
 

@@ -153,6 +153,7 @@ namespace RealPlayTester.Input
             {
                 float t = duration > 0f ? Mathf.Clamp01(elapsed / duration) : 1f;
                 data.position = Vector2.Lerp(from, to, t);
+                RealInputUtility.SimulateMouseMove(data.position);
                 
                 // Execute Drag on the specific target we started with
                 ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.dragHandler);
@@ -160,6 +161,7 @@ namespace RealPlayTester.Input
                 elapsed += Time.deltaTime;
                 await Task.Yield();
             }
+            RealInputUtility.SimulateMouseMove(to);
         }
 
         private static IEnumerator PinchRoutine(Vector2 center, float startDistance, float endDistance, float duration)
@@ -193,6 +195,10 @@ namespace RealPlayTester.Input
                 ExecuteEvents.Execute(t2, f2, ExecuteEvents.pointerDownHandler);
             }
 
+            RealInputUtility.SimulateMouseMove(center);
+            RealInputUtility.SimulateMouseClick(true);
+            RealInputUtility.SimulateDragging(true);
+
             float elapsed = 0f;
             while (elapsed < duration)
             {
@@ -211,8 +217,12 @@ namespace RealPlayTester.Input
                     ExecuteEvents.Execute(t2, f2, ExecuteEvents.dragHandler);
                 }
 
+                RealInputUtility.SimulateMouseMove(center);
                 yield return null;
             }
+
+            RealInputUtility.SimulateMouseClick(false);
+            RealInputUtility.SimulateDragging(false);
 
             if (t1 != null)
             {

@@ -110,6 +110,10 @@ namespace RealPlayTester.Core
                 if (Application.isPlaying)
                 {
                     DontDestroyOnLoad(go);
+                    
+                    // Initialize built-in visual aids
+                    var pointer = go.AddComponent<RealPlayTester.Input.VisualPointer>();
+                    pointer.Initialize();
                 }
             }
 

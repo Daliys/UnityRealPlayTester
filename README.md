@@ -1,16 +1,38 @@
 # RealPlayTester
 
 ## Overview
-A zero-config Unity package for writing automated playtests using real human-like inputs (EventSystem + raycasts). Tests are authored as async/await C# ScriptableObjects.
+A zero-config Unity package for writing automated playtests using real human-like inputs (EventSystem + raycasts). This library is specifically designed to be controlled by **Autonomous AI Agents**, providing them with "eyes" (probes) and "hands" (realistic simulation) to test games exactly as a human would.
 
-**Compatibility**: Unity 6000.2+ | Editor | Development Builds (PC, Mobile, Console)
+**Compatibility**: Unity 6000.2+ | URP / Built-in | Editor | Development Builds (PC, Mobile, Console)
 **License**: MIT
+
+---
+
+## Design for AI Agents
+Unlike traditional testing frameworks, RealPlayTester focuses on **discoverability** and **realism**:
+- **SmartFind**: Allows agents to find objects by fuzzy names (e.g., `Click.ObjectNamed("Login")` finds `Button_Login`).
+- **Interaction Probes**: Agents can call `Tester.ProbeScreen(pos)` to understand what UI or world object is under the "cursor".
+- **Hierarchy Dumps**: `Tester.DumpHierarchy()` provides a token-optimized view of the scene for LLM processing.
+- **Visual Feedback**: The built-in pointer ensures that recorded failures are visually diagnostic for both humans and AI vision models.
 
 ---
 
 ## Installation
 1. Copy the `RealPlayTester/` folder into your project's `Assets/`.
 2. No configuration required.
+
+---
+
+## Features Highligths (v1.7.0)
+
+### Visual Pointer & Simulation
+- **Visual Cursor**: A virtual red dot tracks all simulated movements, providing real-time feedback on hovers and clicks.
+- **Realistic Demo**: Press **`P`** in Play Mode to see an automated demonstration of realistic UI interactions (Button, Scroll, Slider, etc.).
+- **Continuity**: Simulated mouse movements are continuous. The cursor persists between actions, avoiding unrealistic "teleports".
+
+### URP & Modern Unity
+- **Auto-Fix URP**: Automatically handles `UniversalAdditionalCameraData` for URP projects.
+- **Smart Targeting**: Automatically calculates precision screen centers for UI elements (even in Overlay mode) and World objects.
 
 ---
 
@@ -25,7 +47,8 @@ public class MyTest : RealPlayTest
 {
     protected override async Task Run()
     {
-        await Click.ScreenPercent(0.5f, 0.5f);
+        // Smoothly move to a button and click
+        await Click.ObjectNamed("StartGame"); 
         await Wait.Seconds(1f);
         Assert.IsTrue(true, "Success");
     }
@@ -38,7 +61,8 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 ## Running Tests
 | Trigger | Description |
 |---------|-------------|
-| `F9` | Run all tests (Editor + Dev Builds) |
+| `F9` | Run all authored tests (Editor + Dev Builds) |
+| `P` | Run **Realistic UI Demo** (visual verification) |
 | `-runRealTests` | CLI: Run all, then quit with exit code = failure count |
 | `--tags=smoke,ui` | CLI: Filter by tags |
 | Menu: `RealPlayTester/Run All (F9)` | Editor menu item |
@@ -47,15 +71,15 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 
 ## API Reference
 
-### Click
+### Click & Move
 | Method | Description |
 |--------|-------------|
-| `Click.ScreenPercent(float x, float y)` | Click at screen position (0-1 range). |
-| `Click.ScreenPixels(float x, float y)` | Click at pixel position. |
-| `Click.WorldPosition(Vector3, Camera?)` | Click at world position. |
-| `Click.WorldObject(GameObject, Camera?)` | Click on a GameObject. **Auto-scrolls if in ScrollRect.** |
-| `Click.ButtonWithText(string)` | Find and click a Button by label text. **Auto-scrolls if needed.** |
-| `Click.ObjectNamed(string)` | Find and click a GameObject by name. |
+| `Tester.MouseMoveTo(Vector2, float)` | Move mouse smoothly over duration. |
+| `Tester.MouseMoveToCenter(GameObject, float)` | Move mouse to precision center of an object. |
+| `Tester.GetScreenCenter(GameObject)` | **[New]** Calculate the screen coordinate for any object. |
+| `Click.ObjectNamed(string)` | Find and click a GameObject by fuzzy name. |
+| `Click.WorldObject(GameObject)` | Click on a specific object. **Auto-scrolls if in ScrollRect.** |
+| `Click.ButtonWithText(string)` | Find and click a Button by label text. |
 | `Click.Component<T>()` | Find and click the first component of type T. |
 | `Click.RightClick(Vector2)` | Right-click at position. |
 | `Click.MiddleClick(Vector2)` | Middle-click at position. |

@@ -1,7 +1,6 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using RealPlayTester.Core;
 
 namespace RealPlayTester.Input
@@ -15,73 +14,61 @@ namespace RealPlayTester.Input
         {
             if (string.IsNullOrEmpty(fuzzyName)) return null;
 
-            // 1. Precise match (fastest)
+            // 1. Precise match (fastest) - only matches active objects by default
             var exact = GameObject.Find(fuzzyName);
             if (exact != null) return exact;
 
-            // 2. Single-pass scan for both case-insensitive exact and partial matches
-            Transform bestPartial = null;
-            int sceneCount = SceneManager.sceneCount;
+            // 2. Scan all objects, prioritizing active scene objects
+            var all = Resources.FindObjectsOfTypeAll<GameObject>();
+            GameObject partialMatch = null;
 
-            for (int i = 0; i < sceneCount; i++)
+            foreach (var go in all)
             {
-                var scene = SceneManager.GetSceneAt(i);
-                if (!scene.isLoaded) continue;
+                // Skip internal Unity objects and persistent assets (prefabs)
+                if (go.hideFlags != HideFlags.None) continue;
+                if (!go.scene.IsValid()) continue; 
 
-                var roots = scene.GetRootGameObjects();
-                foreach (var root in roots)
+                string name = go.name;
+                
+                // Case-insensitive exact match
+                if (string.Equals(name, fuzzyName, StringComparison.OrdinalIgnoreCase))
                 {
-                    var result = FindRecursiveCombined(root.transform, fuzzyName, ref bestPartial);
-                    if (result != null) return result.gameObject; // Found exact (case-insensitive)
+                    // If we are looking for "Scroll", prioritize things with ScrollRect
+                    // And explicitly ignore common scrollbar children names
+                    bool isScrollingQuery = fuzzyName.IndexOf("Scroll", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (isScrollingQuery)
+                    {
+                        if (go.GetComponent<ScrollRect>() != null) return go;
+                        if (name.IndexOf("bar", StringComparison.OrdinalIgnoreCase) >= 0) continue; // Skip "Scrollbar"
+                    }
+
+                    // Prioritize active ones
+                    if (go.activeInHierarchy) return go;
+                    // Otherwise keep as fallback
+                    partialMatch = go;
+                }
+                
+                // Partial match fallback
+                if (partialMatch == null && name.IndexOf(fuzzyName, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    bool isScrollingQuery = fuzzyName.IndexOf("Scroll", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (isScrollingQuery)
+                    {
+                        // Highly prioritize ScrollRect for anything related to "Scroll"
+                        if (go.GetComponent<ScrollRect>() != null) return go;
+                        
+                        // Ignore common scrollbar parts that might have "Scroll" or "Sliding" in name
+                        if (name.IndexOf("bar", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                        if (name.IndexOf("Handle", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                        if (name.IndexOf("Area", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                    }
+
+                    partialMatch = go;
                 }
             }
 
-            // 3. Fallback to partial if found
-            if (bestPartial != null)
-            {
-                RealPlayLog.Warn($"SmartFind: Exact match for '{fuzzyName}' not found. Using partial match: '{bestPartial.name}'");
-                return bestPartial.gameObject;
-            }
-
-            return null;
+            return partialMatch;
         }
 
-        private static Transform FindRecursiveCombined(Transform t, string target, ref Transform bestPartial)
-        {
-            // Check self
-            string name = t.name;
-            if (string.Equals(name, target, StringComparison.OrdinalIgnoreCase))
-            {
-                return t; // Found exact (case-insensitive)
-            }
-            
-            // Track best partial (first one found is usually best in hierarchy order)
-            if (bestPartial == null && name.IndexOf(target, StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                bestPartial = t;
-            }
-
-            // Recurse
-            int childCount = t.childCount;
-            for (int i = 0; i < childCount; i++)
-            {
-                var result = FindRecursiveCombined(t.GetChild(i), target, ref bestPartial);
-                if (result != null) return result;
-            }
-
-            return null;
-        }
-
-        private static bool CheckMatch(string name, string target, bool contains)
-        {
-            if (contains)
-            {
-                return name.IndexOf(target, StringComparison.OrdinalIgnoreCase) >= 0;
-            }
-            else
-            {
-                return string.Equals(name, target, StringComparison.OrdinalIgnoreCase);
-            }
-        }
     }
 }

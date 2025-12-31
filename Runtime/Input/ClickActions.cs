@@ -57,7 +57,7 @@ namespace RealPlayTester.Input
                 return;
             }
 
-            var obj = GameObject.Find(name);
+            var obj = SmartFind.Object(name);
             if (obj != null)
             {
                 await WorldObject(obj);
@@ -244,6 +244,7 @@ namespace RealPlayTester.Input
             var pointerData = RealInputUtility.GetPooledPointerData(eventSystem);
             pointerData.position = screenPosition;
             pointerData.button = button;
+            RealInputUtility.SimulateMouseMove(screenPosition);
 
             var raycastResults = RealInputUtility.Raycasts(pointerData);
             GameObject target = preferredTarget != null ? preferredTarget : (raycastResults.Count > 0 ? raycastResults[0].gameObject : null);
@@ -281,6 +282,7 @@ namespace RealPlayTester.Input
             var pointerData = RealInputUtility.GetPooledPointerData(eventSystem);
             pointerData.position = screenPosition;
             pointerData.button = PointerEventData.InputButton.Left;
+            RealInputUtility.SimulateMouseMove(screenPosition); // Track simulated mouse position
 
             var raycastResults = RealInputUtility.Raycasts(pointerData);
             GameObject target = raycastResults.Count > 0 ? raycastResults[0].gameObject : null;
@@ -293,6 +295,7 @@ namespace RealPlayTester.Input
                 pointerData.rawPointerPress = target;
 
                 ExecuteEvents.Execute(target, pointerData, ExecuteEvents.pointerEnterHandler);
+                RealInputUtility.SimulateMouseClick(true); // Simulate button down
                 ExecuteEvents.Execute(target, pointerData, ExecuteEvents.pointerDownHandler);
                 float elapsed = 0f;
                 while (elapsed < duration)
@@ -300,6 +303,7 @@ namespace RealPlayTester.Input
                     elapsed += Time.deltaTime;
                     yield return null;
                 }
+                RealInputUtility.SimulateMouseClick(false); // Simulate button up
                 ExecuteEvents.Execute(target, pointerData, ExecuteEvents.pointerUpHandler);
                 ExecuteEvents.Execute(target, pointerData, ExecuteEvents.pointerClickHandler);
             }
@@ -388,7 +392,10 @@ namespace RealPlayTester.Input
         {
             var eventSystem = RealInputUtility.EnsureEventSystem();
             var pointer = RealInputUtility.GetPooledPointerData(eventSystem);
+            
+            // If we are not at start, move there first (teleport/snap for drag start is usually okay, but continuity is better)
             pointer.position = start;
+            RealInputUtility.SimulateMouseMove(start);
             pointer.button = PointerEventData.InputButton.Left;
 
             var raycastResults = RealInputUtility.Raycasts(pointer);
@@ -406,6 +413,9 @@ namespace RealPlayTester.Input
             pointer.pointerDrag = target;
 
             ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerEnterHandler);
+            RealInputUtility.SimulateMouseMove(start);
+            RealInputUtility.SimulateMouseClick(true);
+            RealInputUtility.SimulateDragging(true);
             ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerDownHandler);
             ExecuteEvents.Execute(target, pointer, ExecuteEvents.beginDragHandler);
 
@@ -416,15 +426,72 @@ namespace RealPlayTester.Input
                 elapsed += delta;
                 float t = duration > 0f ? Mathf.Clamp01(elapsed / duration) : 1f;
                 pointer.position = Vector2.Lerp(start, end, t);
+                RealInputUtility.SimulateMouseMove(pointer.position);
                 pointer.delta = (end - start) * (delta / duration);
                 ExecuteEvents.Execute(target, pointer, ExecuteEvents.dragHandler);
                 yield return null;
             }
 
             pointer.position = end;
+            RealInputUtility.SimulateMouseMove(end);
+            RealInputUtility.SimulateMouseClick(false);
+            RealInputUtility.SimulateDragging(false);
             ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerUpHandler);
             ExecuteEvents.Execute(target, pointer, ExecuteEvents.endDragHandler);
             ExecuteEvents.Execute(target, pointer, ExecuteEvents.dropHandler);
+        }
+    }
+
+    /// <summary>
+    /// Mouse movement helpers for realistic simulation.
+    /// </summary>
+    public static class MouseMove
+    {
+        public static Task To(Vector2 screenPosition, float durationSeconds)
+        {
+            if (!RealPlayEnvironment.IsEnabled)
+            {
+                return Task.CompletedTask;
+            }
+
+            var token = RealPlayExecutionContext.Token;
+            screenPosition = RealInputUtility.ClampToScreen(screenPosition);
+            
+            return RealPlayTesterHost.Instance.RunCoroutineTask(MoveRoutine(screenPosition, durationSeconds), token);
+        }
+
+        private static IEnumerator MoveRoutine(Vector2 target, float duration)
+        {
+            var eventSystem = RealInputUtility.EnsureEventSystem();
+            var pointer = RealInputUtility.GetPooledPointerData(eventSystem);
+            Vector2 start = RealInputUtility.LastSimulatedPosition;
+
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                float delta = Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
+                elapsed += delta;
+                float t = duration > 0f ? Mathf.SmoothStep(0f, 1f, elapsed / duration) : 1f;
+                
+                Vector2 currentPos = Vector2.Lerp(start, target, t);
+                pointer.position = currentPos;
+                RealInputUtility.SimulateMouseMove(currentPos);
+                
+                // Trigger hover events during movement
+                var raycastResults = RealInputUtility.Raycasts(pointer);
+                GameObject hit = (raycastResults != null && raycastResults.Count > 0) ? raycastResults[0].gameObject : null;
+                
+                if (hit != null)
+                {
+                    pointer.pointerCurrentRaycast = raycastResults[0];
+                    ExecuteEvents.Execute(hit, pointer, ExecuteEvents.pointerMoveHandler);
+                }
+
+                yield return null;
+            }
+
+            pointer.position = target;
+            RealInputUtility.SimulateMouseMove(target);
         }
     }
 }

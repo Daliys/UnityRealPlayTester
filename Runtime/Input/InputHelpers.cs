@@ -11,9 +11,10 @@ using RealPlayTester.Core;
 namespace RealPlayTester.Input
 {
     /// <summary>
-    /// Internal utilities for pointer event handling.
+    /// Core utility for simulating input via the Unity EventSystem.
+    /// Used by Click, Drag, and Touch classes.
     /// </summary>
-    internal static class RealInputUtility
+    public static class RealInputUtility
     {
         private static readonly Type InputSystemUIModuleType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
         private static readonly Type PanelRaycasterType = Type.GetType("UnityEngine.UIElements.PanelRaycaster, UnityEngine.UIElementsModule");
@@ -23,6 +24,22 @@ namespace RealPlayTester.Input
 
         private static readonly List<RaycastResult> RaycastCache = new List<RaycastResult>(16);
         private static PointerEventData _pooledPointerData;
+
+        private static Vector2? _lastSimulatedPosition;
+        public static Vector2 LastSimulatedPosition 
+        { 
+            get 
+            {
+                if (!_lastSimulatedPosition.HasValue)
+                {
+                    _lastSimulatedPosition = new Vector2(Screen.width / 2f, Screen.height / 2f);
+                }
+                return _lastSimulatedPosition.Value;
+            }
+            private set => _lastSimulatedPosition = value;
+        }
+        public static bool IsSimulatedButtonPressed { get; private set; }
+        public static bool IsSimulatedDragging { get; private set; }
 
         public static EventSystem EnsureEventSystem()
         {
@@ -120,20 +137,93 @@ namespace RealPlayTester.Input
         // ===== HUMAN INPUT HELPERS =====
         public static void SimulateMouseMove(Vector2 screenPos)
         {
+            var clamped = ClampToScreen(screenPos);
+            LastSimulatedPosition = clamped;
+            
             // Update Input System if available (triggers hovers etc)
             if (InputSystemShim.IsAvailable)
             {
-                InputSystemShim.MouseMove(screenPos);
+                InputSystemShim.MouseMove(clamped);
             }
         }
         
         public static void SimulateMouseClick(bool down)
         {
+            IsSimulatedButtonPressed = down;
              if (InputSystemShim.IsAvailable)
              {
                  // 0 = Left Button
                  InputSystemShim.MouseButton(0, down);
              }
+        }
+
+        public static void SimulateDragging(bool dragging)
+        {
+            IsSimulatedDragging = dragging;
+        }
+
+        /// <summary>Calculates the screen center of a given GameObject (UI or World).</summary>
+        public static Vector2 GetScreenCenter(GameObject go, Camera camera = null)
+        {
+            if (go == null) return LastSimulatedPosition;
+
+            // UI Element
+            if (go.transform is RectTransform rect)
+            {
+                var canvas = go.GetComponentInParent<Canvas>();
+                
+                // Get bounds in world space
+                var corners = new Vector3[4];
+                rect.GetWorldCorners(corners);
+                var worldCenter = (corners[0] + corners[2]) * 0.5f;
+                
+                if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay)
+                {
+                    // In Overlay mode, WorldCorners are already effectively screen pixels.
+                    return ClampToScreen(worldCenter);
+                }
+
+                // For Camera/World space, we need the associated camera
+                var cam = camera ?? (canvas != null ? canvas.worldCamera : GetCameraForObject(go));
+                if (cam != null)
+                {
+                    Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(cam, worldCenter);
+                    return ClampToScreen(screenPoint);
+                }
+                
+                return ClampToScreen(worldCenter);
+            }
+
+            // World Object
+            var targetCam = camera != null ? camera : GetCameraForObject(go);
+            if (targetCam != null)
+            {
+                var screenPoint = targetCam.WorldToScreenPoint(go.transform.position);
+                // If behind camera, stay at last known or center
+                if (screenPoint.z < 0) return LastSimulatedPosition;
+                return ClampToScreen(screenPoint);
+            }
+
+            return LastSimulatedPosition;
+        }
+
+        private static Camera GetCameraForObject(GameObject go)
+        {
+            // If it's on a Canvas, find that camera
+            var canvas = go.GetComponentInParent<Canvas>();
+            if (canvas != null && canvas.worldCamera != null) return canvas.worldCamera;
+
+            // Find camera that sees this layer
+            int layer = go.layer;
+            foreach (var cam in Camera.allCameras)
+            {
+                if (cam.enabled && (cam.cullingMask & (1 << layer)) != 0) return cam;
+            }
+
+            // Fallbacks
+            if (Camera.main != null) return Camera.main;
+            if (Camera.allCamerasCount > 0) return Camera.allCameras[0];
+            return null;
         }
     }
 

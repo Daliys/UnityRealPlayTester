@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.7.0] - 2025-12-31
+
+### Added
+- **Built-in Visual Pointer**: Added `RealPlay_VisualPointer` component that renders a virtual red cursor for all simulated inputs. Configurable via `Tester.Settings.ShowVisualPointer`.
+- **Realistic UI Demo Mode**: Pressing `P` in Play Mode now triggers a full simulation of common UI interactions (Button, Toggle, Input, Slider, Dropdown, Scroll).
+- **Smooth Movement & Continuity**: 
+  - Cursor position is now persistent between actions. No more "teleporting" from (0,0).
+  - `Tester.MouseMoveToCenter(GameObject, float)` calculates exact screen centers for both UI and World elements.
+  - Added `Tester.GetScreenCenter(GameObject)` public API for coordinate calculation.
+- **URP Compatibility**: Library now automatically adds `UniversalAdditionalCameraData` to the Main Camera if URP is detected, resolving common console warnings.
+- **Auto-Scene Setup**: Added `BuildSettingsHelper` to automatically ensure the required verification scene is added to Unity's Build Settings.
+
+### Fixed
+- **SmartFind Robustness**:
+  - Now ignores prefabs and assets, prioritizing active scene objects.
+  - Uses `Resources.FindObjectsOfTypeAll` to find inactive scene objects reliably.
+  - Silenced partial match warnings to reduce console noise.
+  - Specialized "Scroll" query logic: prioritizes `ScrollRect` over `Scrollbar` children.
+- **Targeting Accuracy**:
+  - Fixed `GetScreenCenter` for `ScreenSpaceOverlay` UI to be pixel-perfect.
+  - Added defensive screen clamping to all simulated movements.
+  - Improved ScrollView interaction: targets list items and nudges left to avoid scrollbars.
+
+### Changed
+- **AI-Agent Awareness**: Documentation updated to clarify that this package is optimized for autonomous AI agents to probe and control the game state.
+
+---
+
 ## [1.6.1] - 2025-12-30
 
 ### Fixed
