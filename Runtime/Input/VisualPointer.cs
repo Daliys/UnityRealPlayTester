@@ -17,6 +17,8 @@ namespace RealPlayTester.Input
         private static readonly Vector2 NormalSize = new Vector2(20, 20);
         private static readonly Vector2 PressSize = new Vector2(25, 25);
 
+        private Canvas _canvas;
+
         public void Initialize()
         {
             gameObject.name = "RealPlay_VisualPointer";
@@ -24,11 +26,12 @@ namespace RealPlayTester.Input
             // Ensure we start at center to avoid teleport from (0,0)
             RealInputUtility.SimulateMouseMove(new Vector2(Screen.width / 2f, Screen.height / 2f));
 
-            var canvasGo = new GameObject("PointerCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            var canvasGo = new GameObject("PointerCanvas", typeof(Canvas), typeof(CanvasScaler));
             canvasGo.transform.SetParent(transform);
-            var canvas = canvasGo.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 30000; // Always on top
+            _canvas = canvasGo.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 32767; // Max standard sorting order
+            _canvas.additionalShaderChannels = AdditionalCanvasShaderChannels.None;
 
             var cursorGo = new GameObject("Cursor", typeof(Image));
             cursorGo.transform.SetParent(canvasGo.transform);
@@ -76,6 +79,15 @@ namespace RealPlayTester.Input
 
             if (shouldBeVisible)
             {
+                // Enforce top-most sorting every frame in case other canvases are created
+                if (_canvas != null)
+                {
+                    if (_canvas.sortingOrder != 32767) _canvas.sortingOrder = 32767;
+                    
+                    // Ensure we are the last sibling in the root to stay on top of same-order canvases
+                    if (transform.parent == null) transform.SetAsLastSibling();
+                }
+
                 _rectTransform.position = RealInputUtility.LastSimulatedPosition;
                 
                 bool isPressed = RealInputUtility.IsSimulatedButtonPressed || RealInputUtility.IsSimulatedDragging;

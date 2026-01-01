@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.8.1] - 2026-01-01
+### Fixed
+- **Visual Cursor Visibility**: Enforced "Always-on-Top" rendering for the visual pointer by automatically claiming the maximum sorting order (32767) and maintaining the last sibling position in the hierarchy every frame.
+- **Input Interference**: Removed redundant `GraphicRaycaster` from the pointer canvas to prevent the virtual cursor from blocking UI interactions.
+
 ## [1.8.0] - 2026-01-01
 ### Added
 - **Automated Pipeline Enhancements**:
