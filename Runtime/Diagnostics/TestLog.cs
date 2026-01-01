@@ -102,12 +102,15 @@ namespace RealPlayTester.Diagnostics
             {
                 case "ERROR":
                     Debug.LogError(formattedMessage);
+                    if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(formattedMessage);
                     break;
                 case "WARN":
                     Debug.LogWarning(formattedMessage);
+                    if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(formattedMessage);
                     break;
                 default:
                     Debug.Log(formattedMessage);
+                    if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(formattedMessage);
                     break;
             }
         }

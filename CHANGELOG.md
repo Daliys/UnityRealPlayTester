@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.8.0] - 2026-01-01
+### Added
+- **Automated Pipeline Enhancements**:
+    - **Headless Optimization**: Added `Tester.Settings.ForceBatchmodeVisibility` to bypass UI animation delays and alpha/interactability checks in batchmode.
+    - **Unified Input Device Ownership**: Virtual Keyboard and Mouse are now explicitly "claimed" via `MakeCurrent()` during initialization to ensure consistency in headless environments.
+    - **Internal Input Heartbeat**: Added `Tester.Settings.EnableInputHeartbeat` to force `InputSystem.Update()` every frame during test runs.
+    - **CLI Log Routing**: Added `-realplay-stdout` command-line argument to mirror all internal logs directly to the standard Unity log output.
+    - **Blocker-Bypass Strategy**: Drag and Click interactions now automatically skip UI elements without event handlers (like "Background" images) and handle event bubbling for complex components like `ScrollView` and `Slider`.
+    - **Robust Device Discovery**: Fixed reflection-based device creation in batchmode, resolving the "Late bound operations" error during virtual device setup.
+
 ## [1.7.0] - 2025-12-31
 
 ### Added

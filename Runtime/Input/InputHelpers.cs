@@ -98,10 +98,38 @@ namespace RealPlayTester.Input
         public static List<RaycastResult> Raycasts(PointerEventData data)
         {
             RaycastCache.Clear();
+            
+            // Ensure UI state is up to date before raycasting
+            Canvas.ForceUpdateCanvases();
+
             var es = EventSystem.current ?? EnsureEventSystem();
             es.RaycastAll(data, RaycastCache);
+            if (RaycastCache.Count == 0 && (Application.isBatchMode || Tester.Settings.ForceBatchmodeVisibility))
+            {
+                ManualRaycast(data, RaycastCache);
+            }
+
             PanelRaycast(data, RaycastCache);
             return RaycastCache;
+        }
+
+        private static void ManualRaycast(PointerEventData data, List<RaycastResult> results)
+        {
+            // GraphicRaycaster manual fallback
+            var raycasters = UnityEngine.Object.FindObjectsByType<GraphicRaycaster>(FindObjectsSortMode.None);
+            foreach (var gr in raycasters)
+            {
+                if (gr == null || !gr.enabled || !gr.gameObject.activeInHierarchy) continue;
+                
+                int preCount = results.Count;
+                gr.Raycast(data, results);
+            }
+            
+            // Global sort by depth if we have multiple raycasters
+            if (results.Count > 1)
+            {
+                results.Sort((a, b) => b.depth.CompareTo(a.depth));
+            }
         }
 
         public static bool TryRaycastWorld(Camera camera, Vector2 screenPosition, out RaycastHit hit)
@@ -205,6 +233,50 @@ namespace RealPlayTester.Input
             }
 
             return LastSimulatedPosition;
+        }
+
+        /// <summary>
+        /// Attempts to find a likely interaction target near a screen position when standard raycasting fails.
+        /// Useful in batchmode/headless environments where GraphicRaycasters may return zero results.
+        /// </summary>
+        public static GameObject FindFallbackInteractionTarget(Vector2 screenPosition)
+        {
+            // Scan all Selectables
+            var selectables = UnityEngine.Object.FindObjectsByType<Selectable>(FindObjectsSortMode.None);
+            GameObject best = null;
+            float bestDist = 75f; // Radius of 75 pixels for fallback
+
+            foreach (var sel in selectables)
+            {
+                if (sel == null || !sel.isActiveAndEnabled) continue;
+                
+                Vector2 center = GetScreenCenter(sel.gameObject);
+                float d = Vector2.Distance(center, screenPosition);
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    best = sel.gameObject;
+                }
+            }
+
+            // If no selectable, try ScrollRects (as they might not be selectables but are draggable)
+            if (best == null)
+            {
+                var scrolls = UnityEngine.Object.FindObjectsByType<ScrollRect>(FindObjectsSortMode.None);
+                foreach (var s in scrolls)
+                {
+                    if (s == null || !s.isActiveAndEnabled) continue;
+                    Vector2 center = GetScreenCenter(s.gameObject);
+                    float d = Vector2.Distance(center, screenPosition);
+                    if (d < bestDist)
+                    {
+                        bestDist = d;
+                        best = s.gameObject;
+                    }
+                }
+            }
+
+            return best;
         }
 
         private static Camera GetCameraForObject(GameObject go)

@@ -43,16 +43,19 @@ namespace RealPlayTester.Core
         public static void Info(string message)
         {
             Debug.Log(Prefix + message);
+            if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(Prefix + message);
         }
 
         public static void Warn(string message)
         {
             Debug.LogWarning(Prefix + message);
+            if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(Prefix + "WARN: " + message);
         }
 
         public static void Error(string message)
         {
             Debug.LogError(Prefix + message);
+            if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(Prefix + "ERROR: " + message);
         }
     }
 

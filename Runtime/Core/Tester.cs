@@ -19,6 +19,24 @@ namespace RealPlayTester.Core
         {
             /// <summary>Set to true to show a red dot representing the simulated mouse cursor.</summary>
             public static bool ShowVisualPointer = true;
+
+            /// <summary>
+            /// Feature A: If true, Wait.ForUIVisible will force alpha=1 and interactable=true on objects
+            /// to bypass Unity UI animation delays in headless/batchmode environments.
+            /// </summary>
+            public static bool ForceBatchmodeVisibility = false;
+
+            /// <summary>
+            /// Feature C: If true, TestRunner will call InputSystem.Update() every frame during test execution
+            /// to ensure events are processed immediately in batchmode.
+            /// </summary>
+            public static bool EnableInputHeartbeat = false;
+
+            /// <summary>
+            /// Feature D: If true, library logs and test steps will be mirrored to System.Console.WriteLine
+            /// for real-time visibility in CI/CD pipeline outputs.
+            /// </summary>
+            public static bool MirrorLogsToStdout = false;
         }
 
         // ===== CLICK HELPERS =====

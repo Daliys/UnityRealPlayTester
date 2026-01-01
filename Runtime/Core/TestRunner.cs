@@ -70,6 +70,9 @@ namespace RealPlayTester.Core
             Application.runInBackground = true;
             Application.targetFrameRate = 60;
 
+            // Feature B: Claim device ownership early for all test types (NUnit + RealPlayTest)
+            InputShim.InitializeDevices();
+
             var host = RealPlayTesterHost.Instance;
             _instance = host.gameObject.AddComponent<TestRunner>();
             _instance.HandleCommandLine();
@@ -80,6 +83,11 @@ namespace RealPlayTester.Core
             if (!RealPlayEnvironment.IsEnabled)
             {
                 return;
+            }
+
+            if (Tester.Settings.EnableInputHeartbeat)
+            {
+                InputShim.UpdateInput();
             }
 
             bool f9 = InputShim.IsAvailable ? InputShim.GetKeyDown(KeyCode.F9) : SafeLegacyKey(KeyCode.F9);
@@ -150,6 +158,11 @@ namespace RealPlayTester.Core
                         }
                     }
                 }
+                if (arg.Equals("-realplay-stdout", StringComparison.OrdinalIgnoreCase))
+                {
+                    Tester.Settings.MirrorLogsToStdout = true;
+                    RealPlayLog.Info("MirrorLogsToStdout enabled via CLI.");
+                }
             }
         }
 
@@ -163,6 +176,7 @@ namespace RealPlayTester.Core
 
             _running = true;
             _cts = new CancellationTokenSource();
+
             int failures = 0;
             var tests = BuildTestCases(Discover());
             RealPlayLog.Info("Starting RealPlayTester run. Test cases: " + tests.Count);

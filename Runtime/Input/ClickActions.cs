@@ -247,13 +247,46 @@ namespace RealPlayTester.Input
             RealInputUtility.SimulateMouseMove(screenPosition);
 
             var raycastResults = RealInputUtility.Raycasts(pointerData);
-            GameObject target = preferredTarget != null ? preferredTarget : (raycastResults.Count > 0 ? raycastResults[0].gameObject : null);
+            GameObject target = preferredTarget;
+
+            if (target == null)
+            {
+                foreach (var res in raycastResults)
+                {
+                    if (res.gameObject == null) continue;
+                    if (ExecuteEvents.GetEventHandler<IPointerDownHandler>(res.gameObject) != null ||
+                        ExecuteEvents.GetEventHandler<IPointerClickHandler>(res.gameObject) != null)
+                    {
+                        target = res.gameObject;
+                        pointerData.pointerPressRaycast = res;
+                        break;
+                    }
+                }
+            }
+
+            if (target == null && preferredTarget == null && (Application.isBatchMode || Tester.Settings.ForceBatchmodeVisibility))
+            {
+                target = RealInputUtility.FindFallbackInteractionTarget(screenPosition);
+                if (target != null)
+                {
+                    var mockResult = new RaycastResult { gameObject = target, screenPosition = screenPosition, module = eventSystem.GetComponent<BaseRaycaster>() };
+                    pointerData.pointerPressRaycast = mockResult;
+                }
+            }
+            
+            // Final fallback to the top-most if still null (original behavior)
+            if (target == null && raycastResults.Count > 0)
+            {
+                target = raycastResults[0].gameObject;
+                pointerData.pointerPressRaycast = raycastResults[0];
+            }
 
             if (target == null && cam != null)
             {
                 if (RealInputUtility.TryRaycastWorld(cam, screenPosition, out var worldHit))
                 {
                     target = worldHit.collider.gameObject;
+                    pointerData.pointerPressRaycast = new RaycastResult { gameObject = target };
                 }
             }
 
@@ -263,7 +296,6 @@ namespace RealPlayTester.Input
                 yield break;
             }
 
-            pointerData.pointerPressRaycast = raycastResults.Count > 0 ? raycastResults[0] : new RaycastResult { gameObject = target };
             pointerData.pointerCurrentRaycast = pointerData.pointerPressRaycast;
             pointerData.pressPosition = screenPosition;
             pointerData.pointerPress = target;
@@ -398,8 +430,41 @@ namespace RealPlayTester.Input
             RealInputUtility.SimulateMouseMove(start);
             pointer.button = PointerEventData.InputButton.Left;
 
+            // Ensure layout is ready
+            Canvas.ForceUpdateCanvases();
+
             var raycastResults = RealInputUtility.Raycasts(pointer);
-            var target = raycastResults.Count > 0 ? raycastResults[0].gameObject : null;
+            GameObject target = null;
+            foreach (var res in raycastResults)
+            {
+                if (res.gameObject == null) continue;
+                if (ExecuteEvents.GetEventHandler<IPointerDownHandler>(res.gameObject) != null ||
+                    ExecuteEvents.GetEventHandler<IDragHandler>(res.gameObject) != null)
+                {
+                    target = res.gameObject;
+                    pointer.pointerPressRaycast = res;
+                    break;
+                }
+            }
+
+
+
+            if (target == null && (Application.isBatchMode || Tester.Settings.ForceBatchmodeVisibility))
+            {
+                target = RealInputUtility.FindFallbackInteractionTarget(start);
+                if (target != null)
+                {
+                    var mockResult = new RaycastResult { gameObject = target, screenPosition = start, module = eventSystem.GetComponent<BaseRaycaster>() };
+                    pointer.pointerPressRaycast = mockResult;
+                }
+            }
+            
+            // Final fallback to top-most if still null
+            if (target == null && raycastResults.Count > 0)
+            {
+                target = raycastResults[0].gameObject;
+                pointer.pointerPressRaycast = raycastResults[0];
+            }
 
             if (target == null)
             {
@@ -407,17 +472,26 @@ namespace RealPlayTester.Input
                 yield break;
             }
 
-            pointer.pointerPressRaycast = raycastResults[0];
-            pointer.pointerCurrentRaycast = raycastResults[0];
+            pointer.pointerCurrentRaycast = pointer.pointerPressRaycast;
             pointer.pressPosition = start;
-            pointer.pointerDrag = target;
+            
+            // Handle bubbling for Down and Drag
+            var downTarget = ExecuteEvents.GetEventHandler<IPointerDownHandler>(target);
+            var dragTarget = ExecuteEvents.GetEventHandler<IDragHandler>(target);
+            
+            RealPlayLog.Info($"Drag: bubbling targets - Down: {(downTarget != null ? downTarget.name : "none")}, Drag: {(dragTarget != null ? dragTarget.name : "none")}");
+
+            pointer.pointerPress = downTarget;
+            pointer.pointerDrag = dragTarget;
+            pointer.rawPointerPress = target;
 
             ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerEnterHandler);
             RealInputUtility.SimulateMouseMove(start);
             RealInputUtility.SimulateMouseClick(true);
             RealInputUtility.SimulateDragging(true);
-            ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerDownHandler);
-            ExecuteEvents.Execute(target, pointer, ExecuteEvents.beginDragHandler);
+            
+            if (downTarget != null) ExecuteEvents.Execute(downTarget, pointer, ExecuteEvents.pointerDownHandler);
+            if (dragTarget != null) ExecuteEvents.Execute(dragTarget, pointer, ExecuteEvents.beginDragHandler);
             
             // Give Unity a frame to process the drag initiation
             yield return null;
@@ -431,7 +505,14 @@ namespace RealPlayTester.Input
                 pointer.position = Vector2.Lerp(start, end, t);
                 RealInputUtility.SimulateMouseMove(pointer.position);
                 pointer.delta = (end - start) * (delta / duration);
-                ExecuteEvents.Execute(target, pointer, ExecuteEvents.dragHandler);
+                
+                if (dragTarget != null)
+                {
+                    ExecuteEvents.Execute(dragTarget, pointer, ExecuteEvents.dragHandler);
+                }
+                
+                if (Tester.Settings.EnableInputHeartbeat) InputSystemShim.UpdateInput();
+                
                 yield return null;
             }
 
@@ -439,9 +520,13 @@ namespace RealPlayTester.Input
             RealInputUtility.SimulateMouseMove(end);
             RealInputUtility.SimulateMouseClick(false);
             RealInputUtility.SimulateDragging(false);
-            ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerUpHandler);
-            ExecuteEvents.Execute(target, pointer, ExecuteEvents.endDragHandler);
-            ExecuteEvents.Execute(target, pointer, ExecuteEvents.dropHandler);
+            
+            if (downTarget != null) ExecuteEvents.Execute(downTarget, pointer, ExecuteEvents.pointerUpHandler);
+            if (dragTarget != null) 
+            {
+                ExecuteEvents.Execute(dragTarget, pointer, ExecuteEvents.endDragHandler);
+                ExecuteEvents.Execute(dragTarget, pointer, ExecuteEvents.dropHandler);
+            }
         }
     }
 
@@ -489,6 +574,8 @@ namespace RealPlayTester.Input
                     pointer.pointerCurrentRaycast = raycastResults[0];
                     ExecuteEvents.Execute(hit, pointer, ExecuteEvents.pointerMoveHandler);
                 }
+
+                if (Tester.Settings.EnableInputHeartbeat) InputSystemShim.UpdateInput();
 
                 yield return null;
             }

@@ -23,7 +23,15 @@ Unlike traditional testing frameworks, RealPlayTester focuses on **discoverabili
 
 ---
 
-## Features Highligths (v1.7.0)
+## Features Highlights (v1.8.0)
+
+### 🚀 Automated Pipeline (CI/CD) Optimizations
+RealPlayTester includes specific enhancements for reliable execution in headless (batchmode) environments:
+- **Headless Optimization**: Force `alpha=1` and `interactable=true` on UI elements to bypass animation delays in batchmode.
+- **Unified Input Ownership**: Virtual devices are explicitly "claimed" to ensure consistency when no hardware is present.
+- **Input Heartbeat**: Option to force `InputSystem.Update()` every frame during test runs.
+- **CLI Log Routing**: Mirror test logs and steps to standard CLI output via `-realplay-stdout`.
+- **Blocker-Bypass**: Automatically iterates through raycast hits to find valid interaction targets, skipping non-interactive elements (like background images) that would otherwise block inputs in headless environments.
 
 ### Visual Pointer & Simulation
 - **Visual Cursor**: A virtual red dot tracks all simulated movements, providing real-time feedback on hovers and clicks.

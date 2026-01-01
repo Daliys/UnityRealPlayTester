@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -85,11 +86,54 @@ namespace RealPlayTester.Input
             ? InputSystemType.GetMethod("AddDevice", new[] { typeof(Type) })
             : null;
 
-        private static object _virtualKeyboard;
+        internal static object _virtualKeyboard;
+        internal static object _virtualMouse;
 
         public static bool IsAvailable
         {
             get { return KeyboardType != null && KeyboardStateType != null && KeyEnumType != null && InputSystemType != null && KeyboardCurrentProperty != null && QueueStateEventGeneric != null; }
+        }
+
+        public static void InitializeDevices()
+        {
+            if (InputSystemType == null) return;
+
+            RealPlayLog.Info("InputSystemShim: Initializing virtual devices...");
+            
+            object keyboard = EnsureKeyboard();
+            object mouse = EnsureMouse();
+
+            if (keyboard != null) MakeCurrent(keyboard);
+            if (mouse != null) MakeCurrent(mouse);
+            
+            RealPlayLog.Info($"InputSystemShim: Initialized devices - Keyboard: {(keyboard != null ? "Ready" : "Missing")}, Mouse: {(mouse != null ? "Ready" : "Missing")}");
+        }
+
+        private static void MakeCurrent(object device)
+        {
+            if (device == null) return;
+            var method = device.GetType().GetMethod("MakeCurrent", BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            if (method != null)
+            {
+                method.Invoke(device, null);
+            }
+            else
+            {
+                // Fallback for some versions where it might be on a base type
+                var deviceType = Type.GetType("UnityEngine.InputSystem.InputDevice, Unity.InputSystem");
+                if (deviceType != null)
+                {
+                    method = deviceType.GetMethod("MakeCurrent", BindingFlags.Public | BindingFlags.Instance);
+                    method?.Invoke(device, null);
+                }
+            }
+        }
+
+        public static void UpdateInput()
+        {
+            if (InputSystemType == null) return;
+            var method = InputSystemType.GetMethod("Update", BindingFlags.Public | BindingFlags.Static);
+            method?.Invoke(null, null);
         }
 
         public static void KeyDown(KeyCode key)
@@ -134,42 +178,99 @@ namespace RealPlayTester.Input
 
         private static object GetKeyboard()
         {
-            object keyboard = KeyboardCurrentProperty.GetValue(null);
-            if (keyboard != null)
-            {
-                return keyboard;
-            }
-
-            // In batchmode or if no hardware keyboard, Keyboard.current is null.
-            // We return the cached virtual keyboard if we made one.
-            if (_virtualKeyboard != null)
+            // First check if already cached and still valid
+            if (_virtualKeyboard != null && IsDeviceInSystem(_virtualKeyboard))
             {
                 return _virtualKeyboard;
+            }
+
+            // Check if InputSystem.Keyboard.current is set
+            if (KeyboardCurrentProperty != null)
+            {
+                object keyboard = KeyboardCurrentProperty.GetValue(null);
+                if (keyboard != null) return keyboard;
+            }
+
+            // Aggressive discovery in all devices
+            if (InputSystemType != null)
+            {
+                var devicesProp = InputSystemType.GetProperty("devices", BindingFlags.Public | BindingFlags.Static);
+                if (devicesProp != null)
+                {
+                    var devices = devicesProp.GetValue(null) as IEnumerable;
+                    if (devices != null)
+                    {
+                        foreach (var d in devices)
+                        {
+                            if (d != null && d.GetType().Name.Contains("Keyboard"))
+                            {
+                                return d;
+                            }
+                        }
+                    }
+                }
             }
 
             return null;
         }
 
+        private static bool IsDeviceInSystem(object device)
+        {
+             if (device == null || InputSystemType == null) return false;
+             var devicesProperty = InputSystemType.GetProperty("devices", BindingFlags.Public | BindingFlags.Static);
+             if (devicesProperty == null) return false;
+             var devices = devicesProperty.GetValue(null) as IEnumerable;
+             if (devices == null) return false;
+             foreach (var d in devices) if (d == device) return true;
+             return false;
+        }
+
         private static object EnsureKeyboard()
         {
             object keyboard = GetKeyboard();
-            if (keyboard != null)
+            if (keyboard != null) 
             {
+                _virtualKeyboard = keyboard;
                 return keyboard;
             }
 
-            // Create virtual keyboard
-            if (AddDeviceMethod != null && KeyboardType != null)
+            if (InputSystemType != null)
             {
                 try
                 {
-                    _virtualKeyboard = AddDeviceMethod.Invoke(null, new[] { KeyboardType });
-                    RealPlayLog.Info("Created virtual Keyboard device for Input System simulation (batchmode/headless compatibility).");
-                    return _virtualKeyboard;
+                    // Specifically look for the non-generic AddDevice(string) overload
+                    MethodInfo addDeviceMethod = null;
+                    foreach (var m in InputSystemType.GetMethods(BindingFlags.Public | BindingFlags.Static))
+                    {
+                        if (m.Name == "AddDevice" && !m.IsGenericMethodDefinition)
+                        {
+                            var parameters = m.GetParameters();
+                            if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(string))
+                            {
+                                addDeviceMethod = m;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (addDeviceMethod != null)
+                    {
+                        _virtualKeyboard = addDeviceMethod.Invoke(null, new object[] { "Keyboard", null, null });
+                    }
+                    else if (AddDeviceMethod != null && KeyboardType != null)
+                    {
+                        _virtualKeyboard = AddDeviceMethod.Invoke(null, new[] { KeyboardType });
+                    }
+                    
+                    if (_virtualKeyboard != null)
+                    {
+                        RealPlayLog.Info("InputSystemShim: Created virtual Keyboard device.");
+                        return _virtualKeyboard;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    RealPlayLog.Warn("Failed to create virtual Keyboard: " + ex.Message);
+                    RealPlayLog.Warn($"InputSystemShim: Failed to create virtual Keyboard: {ex.Message}");
                 }
             }
 
@@ -210,7 +311,6 @@ namespace RealPlayTester.Input
             : null;
 
         private static object _lastMouseState;
-        private static object _virtualMouse;
         private static MethodInfo _queueStateEventMouse;
 
         public static void MouseMove(Vector2 position)
@@ -270,27 +370,90 @@ namespace RealPlayTester.Input
                 _queueStateEventMouse.Invoke(null, new[] { mouse, state, -1d });
         }
         
-        private static object EnsureMouse()
+        private static object GetMouse()
         {
+            // First check if already cached and still valid
+            if (_virtualMouse != null && IsDeviceInSystem(_virtualMouse))
+            {
+                return _virtualMouse;
+            }
+
+            // Check if InputSystem.Mouse.current is set
             if (MouseCurrentProperty != null)
             {
                 object mouse = MouseCurrentProperty.GetValue(null);
                 if (mouse != null) return mouse;
             }
-            
-            if (_virtualMouse != null) return _virtualMouse;
 
-            if (AddDeviceMethod != null && MouseType != null)
+            // Aggressive discovery in all devices
+            if (InputSystemType != null)
+            {
+                var devicesProp = InputSystemType.GetProperty("devices", BindingFlags.Public | BindingFlags.Static);
+                if (devicesProp != null)
+                {
+                    var devices = devicesProp.GetValue(null) as IEnumerable;
+                    if (devices != null)
+                    {
+                        foreach (var d in devices)
+                        {
+                            if (d != null && d.GetType().Name.Contains("Mouse"))
+                            {
+                                return d;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static object EnsureMouse()
+        {
+            object mouse = GetMouse();
+            if (mouse != null) 
+            {
+                _virtualMouse = mouse;
+                return mouse;
+            }
+
+            if (InputSystemType != null)
             {
                 try
                 {
-                    _virtualMouse = AddDeviceMethod.Invoke(null, new[] { MouseType });
-                    RealPlayLog.Info("Created virtual Mouse device for Input System simulation.");
-                    return _virtualMouse;
+                    // Specifically look for the non-generic AddDevice(string) overload
+                    MethodInfo addDeviceMethod = null;
+                    foreach (var m in InputSystemType.GetMethods(BindingFlags.Public | BindingFlags.Static))
+                    {
+                        if (m.Name == "AddDevice" && !m.IsGenericMethodDefinition)
+                        {
+                            var parameters = m.GetParameters();
+                            if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(string))
+                            {
+                                addDeviceMethod = m;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (addDeviceMethod != null)
+                    {
+                        _virtualMouse = addDeviceMethod.Invoke(null, new object[] { "Mouse", null, null });
+                    }
+                    else if (AddDeviceMethod != null && MouseType != null)
+                    {
+                        _virtualMouse = AddDeviceMethod.Invoke(null, new[] { MouseType });
+                    }
+
+                    if (_virtualMouse != null)
+                    {
+                        RealPlayLog.Info("InputSystemShim: Created virtual Mouse device.");
+                        return _virtualMouse;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    RealPlayLog.Warn("Failed to create virtual Mouse: " + ex.Message);
+                    RealPlayLog.Warn($"InputSystemShim: Failed to create virtual Mouse: {ex.Message}");
                 }
             }
             return null;

@@ -260,7 +260,17 @@ namespace RealPlayTester.Await
                 // 'IgnoreParentGroups' allows breaking the chain, but usually we care about the net result
                 if (g.ignoreParentGroups) break; 
                 
-                if (g.alpha <= 0f || !g.interactable) return false;
+                if (g.alpha <= 0.95f || !g.interactable)
+                {
+                    if (Tester.Settings.ForceBatchmodeVisibility)
+                    {
+                        // Feature A: Force visibility in batchmode
+                        g.alpha = 1f;
+                        g.interactable = true;
+                        continue; // Proceed to next group
+                    }
+                    return false;
+                }
             }
             return true;
         }
