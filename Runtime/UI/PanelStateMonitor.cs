@@ -28,17 +28,7 @@ namespace RealPlayTester.UI
         /// </summary>
         public static PanelState CheckPanelState(GameObject panel)
         {
-            if (panel == null)
-            {
-                return new PanelState
-                {
-                    IsVisible = false,
-                    Alpha = 0f,
-                    Interactable = false,
-                    ActiveInHierarchy = false,
-                    HasCanvasGroup = false
-                };
-            }
+            if (panel == null) return GetEmptyState();
 
             var state = new PanelState
             {
@@ -48,7 +38,27 @@ namespace RealPlayTester.UI
                 HasCanvasGroup = false
             };
 
-            // Check CanvasGroup if present
+            ApplyCanvasGroupState(panel, state);
+            ApplyParentCanvasGroups(panel, state);
+
+            state.IsVisible = state.ActiveInHierarchy && state.Alpha > 0.01f;
+            return state;
+        }
+
+        private static PanelState GetEmptyState()
+        {
+            return new PanelState
+            {
+                IsVisible = false,
+                Alpha = 0f,
+                Interactable = false,
+                ActiveInHierarchy = false,
+                HasCanvasGroup = false
+            };
+        }
+
+        private static void ApplyCanvasGroupState(GameObject panel, PanelState state)
+        {
             var canvasGroup = panel.GetComponent<CanvasGroup>();
             if (canvasGroup != null)
             {
@@ -56,28 +66,18 @@ namespace RealPlayTester.UI
                 state.Alpha = canvasGroup.alpha;
                 state.Interactable = canvasGroup.interactable;
             }
+        }
 
-            // Also check parent CanvasGroups that might affect this panel
+        private static void ApplyParentCanvasGroups(GameObject panel, PanelState state)
+        {
             var parentGroups = panel.GetComponentsInParent<CanvasGroup>();
             foreach (var group in parentGroups)
             {
-                if (group.gameObject == panel)
-                    continue;
-
-                if (group.alpha < state.Alpha)
-                    state.Alpha = group.alpha;
-
-                if (!group.interactable)
-                    state.Interactable = false;
-
-                if (group.ignoreParentGroups)
-                    break;
+                if (group.gameObject == panel) continue;
+                if (group.alpha < state.Alpha) state.Alpha = group.alpha;
+                if (!group.interactable) state.Interactable = false;
+                if (group.ignoreParentGroups) break;
             }
-
-            // Panel is visible if active and alpha > threshold
-            state.IsVisible = state.ActiveInHierarchy && state.Alpha > 0.01f;
-
-            return state;
         }
 
         /// <summary>

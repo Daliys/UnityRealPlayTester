@@ -34,28 +34,10 @@ namespace RealPlayTester.Core
 
         internal static bool CompareToBaselineInternal(string testName, Rect? region = null, float tolerance = DefaultTolerance)
         {
-            // 1. Capture current screen
-            Texture2D fullScreen = ScreenCapture.CaptureScreenshotAsTexture();
-            Texture2D actual = fullScreen;
-
-            // Crop if region specified
-            if (region.HasValue)
-            {
-                actual = CropTexture(fullScreen, region.Value);
-                if (actual != fullScreen)
-                {
-                    UnityEngine.Object.Destroy(fullScreen);
-                }
-            }
-            
-            // 2. Load baseline
+            Texture2D actual = CaptureScreenshotWithRegion(region);
             string baselinePath = Path.Combine(RealPlayEnvironment.ProjectRoot, BaselineFolder, testName + ".png");
-            if (!File.Exists(baselinePath))
-            {
-                RealPlayLog.Warn($"Baseline not found for '{testName}' at {baselinePath}. Saving current as baseline.");
-                SaveTexture(actual, baselinePath);
-                return true;
-            }
+
+            if (!File.Exists(baselinePath)) return HandleMissingBaseline(testName, actual, baselinePath);
 
             Texture2D baseline = LoadTexture(baselinePath);
             if (baseline == null)
@@ -64,19 +46,35 @@ namespace RealPlayTester.Core
                 return false;
             }
 
-            // 3. Compare
             bool match = CompareTextures(baseline, actual, tolerance, out float difference);
-
-            // 4. If fail, save diff/actual
-            if (!match)
-            {
-                string failureDir = Path.Combine(RealPlayEnvironment.TestReportsPath, FailureFolder);
-                Directory.CreateDirectory(failureDir);
-                SaveTexture(actual, Path.Combine(failureDir, testName + "_Actual.png"));
-                RealPlayLog.Error($"Screenshot mismatch for '{testName}'. Difference: {difference:P2} (Tolerance: {tolerance:P2})");
-            }
+            if (!match) HandleMismatch(testName, actual, difference, tolerance);
 
             return match;
+        }
+
+        private static Texture2D CaptureScreenshotWithRegion(Rect? region)
+        {
+            Texture2D fullScreen = ScreenCapture.CaptureScreenshotAsTexture();
+            if (!region.HasValue) return fullScreen;
+
+            Texture2D actual = CropTexture(fullScreen, region.Value);
+            if (actual != fullScreen) UnityEngine.Object.Destroy(fullScreen);
+            return actual;
+        }
+
+        private static bool HandleMissingBaseline(string testName, Texture2D actual, string baselinePath)
+        {
+            RealPlayLog.Warn($"Baseline not found for '{testName}' at {baselinePath}. Saving current as baseline.");
+            SaveTexture(actual, baselinePath);
+            return true;
+        }
+
+        private static void HandleMismatch(string testName, Texture2D actual, float difference, float tolerance)
+        {
+            string failureDir = Path.Combine(RealPlayEnvironment.TestReportsPath, FailureFolder);
+            Directory.CreateDirectory(failureDir);
+            SaveTexture(actual, Path.Combine(failureDir, testName + "_Actual.png"));
+            RealPlayLog.Error($"Screenshot mismatch for '{testName}'. Difference: {difference:P2} (Tolerance: {tolerance:P2})");
         }
 
         private static Texture2D CropTexture(Texture2D source, Rect region)

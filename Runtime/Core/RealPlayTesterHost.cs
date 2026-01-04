@@ -117,10 +117,42 @@ namespace RealPlayTester.Core
                     // Initialize built-in visual aids
                     var pointer = go.AddComponent<RealPlayTester.Input.VisualPointer>();
                     pointer.Initialize();
+
+                    var anchors = go.AddComponent<RealPlayTester.Input.VisualAnchorManager>();
+                    anchors.Initialize();
+
+                    var heatmap = go.AddComponent<RealPlayTester.Input.InteractionHeatmap>();
+                    heatmap.Initialize();
+
+                    RealPlayTester.Diagnostics.LogInterceptor.Initialize();
+                    
+                    _instance.StartCoroutine(HeartbeatRoutine());
                 }
             }
 
             _mainContext = SynchronizationContext.Current ?? new SynchronizationContext();
+        }
+
+        private static IEnumerator HeartbeatRoutine()
+        {
+            var wait = new WaitForSecondsRealtime(1.0f);
+            while (true)
+            {
+                var context = RealPlayTester.Diagnostics.TestRunContextTracker.Current;
+                if (context != null)
+                {
+                    RealPlayLog.Info($"[HEARTBEAT] Running: {context.TestName} (Frame: {Time.frameCount})");
+                }
+                yield return wait;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_instance == this)
+            {
+                RealPlayTester.Diagnostics.LogInterceptor.Shutdown();
+            }
         }
 
         public Task RunCoroutineTask(IEnumerator routine, CancellationToken token)

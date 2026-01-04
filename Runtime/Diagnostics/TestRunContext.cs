@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RealPlayTester.Diagnostics
@@ -27,7 +28,9 @@ namespace RealPlayTester.Diagnostics
         // Test State Tracking
         public string LastAction { get; set; }
         public string LastPanel { get; set; }
+        public string LastIntent { get; set; }
         public PlacementAttempt LastPlacementAttempt { get; set; }
+        public List<LogEntry> Logs { get; } = new List<LogEntry>();
 
         public TestRunContext()
         {
@@ -51,6 +54,15 @@ namespace RealPlayTester.Diagnostics
         {
             var sb = new StringBuilder();
             sb.AppendLine("{");
+            AppendMetadataJson(sb);
+            AppendPlacementJson(sb);
+            AppendLogsJson(sb);
+            sb.AppendLine("}");
+            return sb.ToString();
+        }
+
+        private void AppendMetadataJson(StringBuilder sb)
+        {
             sb.AppendLine($"  \"testName\": \"{EscapeJson(TestName)}\",");
             sb.AppendLine($"  \"testId\": \"{TestId}\",");
             sb.AppendLine($"  \"startTime\": \"{StartTime:O}\",");
@@ -61,22 +73,36 @@ namespace RealPlayTester.Diagnostics
             sb.AppendLine($"  \"activeInputMode\": \"{ActiveInputMode}\",");
             sb.AppendLine($"  \"lastAction\": \"{EscapeJson(LastAction)}\",");
             sb.AppendLine($"  \"lastPanel\": \"{EscapeJson(LastPanel)}\",");
-            
+            sb.AppendLine($"  \"lastIntent\": \"{EscapeJson(LastIntent)}\",");
+        }
+
+        private void AppendPlacementJson(StringBuilder sb)
+        {
             if (LastPlacementAttempt != null)
             {
                 sb.AppendLine($"  \"lastPlacementAttempt\": {{");
                 sb.AppendLine($"    \"position\": \"{LastPlacementAttempt.Position}\",");
                 sb.AppendLine($"    \"definitionId\": \"{EscapeJson(LastPlacementAttempt.DefinitionId)}\",");
                 sb.AppendLine($"    \"result\": \"{EscapeJson(LastPlacementAttempt.Result)}\"");
-                sb.AppendLine($"  }}");
+                sb.AppendLine($"  }},");
             }
             else
             {
-                sb.AppendLine($"  \"lastPlacementAttempt\": null");
+                sb.AppendLine($"  \"lastPlacementAttempt\": null,");
             }
-            
-            sb.AppendLine("}");
-            return sb.ToString();
+        }
+
+        private void AppendLogsJson(StringBuilder sb)
+        {
+            sb.AppendLine($"  \"logs\": [");
+            for (int i = 0; i < Logs.Count; i++)
+            {
+                var log = Logs[i];
+                sb.Append($"    {{ \"frame\": {log.Frame}, \"time\": {log.Timestamp:F3}, \"type\": \"{log.Type}\", \"severity\": \"{log.Severity}\", \"message\": \"{EscapeJson(log.Message)}\" }}");
+                if (i < Logs.Count - 1) sb.Append(",");
+                sb.AppendLine();
+            }
+            sb.AppendLine("  ]");
         }
 
         /// <summary>
@@ -85,24 +111,49 @@ namespace RealPlayTester.Diagnostics
         public string ToMarkdown()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("# Test Run Context");
-            sb.AppendLine();
+            sb.AppendLine("# Test Run Context\n");
+            
+            AppendMetadataMarkdown(sb);
+            AppendEnvironmentMarkdown(sb);
+            AppendStateMarkdown(sb);
+            
+            return sb.ToString();
+        }
+
+        private void AppendMetadataMarkdown(StringBuilder sb)
+        {
             sb.AppendLine("## Test Information");
             sb.AppendLine($"- **Test Name**: {TestName}");
             sb.AppendLine($"- **Test ID**: {TestId}");
             sb.AppendLine($"- **Start Time**: {StartTime:yyyy-MM-dd HH:mm:ss}");
-            sb.AppendLine($"- **End Time**: {EndTime:yyyy-MM-dd HH:mm:ss}");
-            sb.AppendLine($"- **Duration**: {(EndTime - StartTime).TotalSeconds:F2}s");
+            if (EndTime != default)
+            {
+                sb.AppendLine($"- **End Time**: {EndTime:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"- **Duration**: {(EndTime - StartTime).TotalSeconds:F2}s");
+            }
+            else
+            {
+                sb.AppendLine($"- **Duration (Active)**: {(DateTime.Now - StartTime).TotalSeconds:F2}s");
+            }
             sb.AppendLine();
+        }
+
+        private void AppendEnvironmentMarkdown(StringBuilder sb)
+        {
             sb.AppendLine("## Environment");
             sb.AppendLine($"- **Scene**: {SceneName}");
             sb.AppendLine($"- **Unity Version**: {UnityVersion}");
             sb.AppendLine($"- **Package Version**: {PackageVersion}");
             sb.AppendLine($"- **Input Mode**: {ActiveInputMode}");
             sb.AppendLine();
+        }
+
+        private void AppendStateMarkdown(StringBuilder sb)
+        {
             sb.AppendLine("## Test State");
             sb.AppendLine($"- **Last Action**: {LastAction ?? "N/A"}");
             sb.AppendLine($"- **Last Panel**: {LastPanel ?? "N/A"}");
+            sb.AppendLine($"- **Current Intent**: {LastIntent ?? "N/A"}");
             
             if (LastPlacementAttempt != null)
             {
@@ -112,8 +163,6 @@ namespace RealPlayTester.Diagnostics
                 sb.AppendLine($"- **Definition ID**: {LastPlacementAttempt.DefinitionId}");
                 sb.AppendLine($"- **Result**: {LastPlacementAttempt.Result}");
             }
-            
-            return sb.ToString();
         }
 
         private string EscapeJson(string str)
@@ -126,6 +175,29 @@ namespace RealPlayTester.Diagnostics
                       .Replace("\n", "\\n")
                       .Replace("\r", "\\r")
                       .Replace("\t", "\\t");
+        }
+    }
+
+    /// <summary>
+    /// A single log entry in the unified diagnostic stream.
+    /// </summary>
+    public class LogEntry
+    {
+        public int Frame { get; set; }
+        public float Timestamp { get; set; }
+        public string Type { get; set; }
+        public string Message { get; set; }
+        public string StackTrace { get; set; }
+        public LogType Severity { get; set; }
+
+        public LogEntry(string type, string message, string stackTrace = "", LogType severity = LogType.Log)
+        {
+            Frame = UnityEngine.Time.frameCount;
+            Timestamp = UnityEngine.Time.time;
+            Type = type;
+            Message = message;
+            StackTrace = stackTrace;
+            Severity = severity;
         }
     }
 

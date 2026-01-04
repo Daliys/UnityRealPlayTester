@@ -69,49 +69,57 @@ namespace RealPlayTester.Diagnostics
 
         private static void Log(string level, string message)
         {
-            if (!RealPlayEnvironment.IsEnabled)
-            {
-                return;
-            }
+            if (!RealPlayEnvironment.IsEnabled) return;
 
             string formattedMessage = $"[RealPlayTest] [{level}] {message}";
 
-            // Try GameLogger
+            TryLogToGameLogger(formattedMessage);
+            TryPublishToEventAggregator(formattedMessage);
+            LogToUnityConsole(level, formattedMessage);
+        }
+
+        private static void TryLogToGameLogger(string message)
+        {
             if (s_hasGameLogger && s_gameLoggerInstance != null)
             {
                 var logMethod = s_gameLoggerType.GetMethod("Log", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
                 if (logMethod != null)
                 {
-                    logMethod.Invoke(s_gameLoggerInstance, new object[] { formattedMessage });
+                    logMethod.Invoke(s_gameLoggerInstance, new object[] { message });
                 }
             }
+        }
 
-            // Try EventAggregator
+        private static void TryPublishToEventAggregator(string message)
+        {
             if (s_hasEventAggregator && s_eventAggregatorInstance != null)
             {
                 var publishMethod = s_eventAggregatorType.GetMethod("Publish", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
                 if (publishMethod != null)
                 {
-                    // Assume EventAggregator.Publish takes (string eventType, object data)
-                    publishMethod.Invoke(s_eventAggregatorInstance, new object[] { "TestLog", formattedMessage });
+                    publishMethod.Invoke(s_eventAggregatorInstance, new object[] { "TestLog", message });
                 }
             }
+        }
 
-            // Fallback to Debug.Log
+        private static void LogToUnityConsole(string level, string message)
+        {
             switch (level)
             {
                 case "ERROR":
-                    Debug.LogError(formattedMessage);
-                    if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(formattedMessage);
+                    Debug.LogError(message);
                     break;
                 case "WARN":
-                    Debug.LogWarning(formattedMessage);
-                    if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(formattedMessage);
+                    Debug.LogWarning(message);
                     break;
                 default:
-                    Debug.Log(formattedMessage);
-                    if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(formattedMessage);
+                    Debug.Log(message);
                     break;
+            }
+
+            if (Tester.Settings.MirrorLogsToStdout) 
+            {
+                System.Console.WriteLine(message);
             }
         }
     }

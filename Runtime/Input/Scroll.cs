@@ -31,78 +31,14 @@ namespace RealPlayTester.Input
             scrollRect.verticalNormalizedPosition = 0f;
         }
 
-        /// <summary>Scroll until the target RectTransform is visible within the ScrollRect viewport.</summary>
         public static async Task UntilVisible(ScrollRect scrollRect, RectTransform target, float timeoutSeconds = 5f)
         {
             if (!RealPlayEnvironment.IsEnabled || scrollRect == null || target == null) return;
             
             float startTime = Time.realtimeSinceStartup;
-            var token = RealPlayExecutionContext.Token;
-
-            // Simple viewport check (Intersection)
-            bool IsVisible()
+            while (!CheckVisibility(scrollRect.viewport, target))
             {
-                var targetCorners = new Vector3[4];
-                target.GetWorldCorners(targetCorners);
-                
-                var viewCorners = new Vector3[4];
-                scrollRect.viewport.GetWorldCorners(viewCorners);
-                
-                // Create Rects in World Space (assuming 2D overlay generally works aligned)
-                // For a more robust check we might need local conversion, but WorldCorners handles rotation usually
-                
-                float vMinX = Mathf.Min(viewCorners[0].x, viewCorners[2].x);
-                float vMaxX = Mathf.Max(viewCorners[0].x, viewCorners[2].x);
-                float vMinY = Mathf.Min(viewCorners[0].y, viewCorners[2].y);
-                float vMaxY = Mathf.Max(viewCorners[0].y, viewCorners[2].y);
-                Rect viewRect = new Rect(vMinX, vMinY, vMaxX - vMinX, vMaxY - vMinY);
-
-                float tMinX = Mathf.Min(targetCorners[0].x, targetCorners[2].x);
-                float tMaxX = Mathf.Max(targetCorners[0].x, targetCorners[2].x);
-                float tMinY = Mathf.Min(targetCorners[0].y, targetCorners[2].y);
-                float tMaxY = Mathf.Max(targetCorners[0].y, targetCorners[2].y);
-                Rect targetRect = new Rect(tMinX, tMinY, tMaxX - tMinX, tMaxY - tMinY);
-
-                // Use Overlaps to allow large elements to be considered "visible" even if clipped
-                // But we must also ensure *enough* is visible? 
-                // For now, strict overlap is better than "Contains" which fails for large objects.
-                // We also check if target fully contains view (e.g. huge background) which Overlaps covers.
-                return viewRect.Overlaps(targetRect);
-            }
-
-            // Heuristic scroll
-            while (!IsVisible())
-            {
-                bool scrolled = false;
-                
-                if (scrollRect.vertical)
-                {
-                    Vector3 targetLocal = scrollRect.viewport.InverseTransformPoint(target.position);
-                    // Use a slightly larger step or proportional step
-                    float shift = 0.1f * (Time.timeScale > 0 ? Time.deltaTime * 60f : 1f); 
-
-                    // Check if we are "close enough" to avoid jitter if overlap is barely failing?
-                    // Actually, Overlaps should be stable.
-                    
-                    if (targetLocal.y < 0) 
-                        scrollRect.verticalNormalizedPosition = Mathf.Max(0, scrollRect.verticalNormalizedPosition - shift);
-                    else 
-                        scrollRect.verticalNormalizedPosition = Mathf.Min(1, scrollRect.verticalNormalizedPosition + shift);
-                    scrolled = true;
-                }
-                
-                if (scrollRect.horizontal)
-                {
-                    Vector3 targetLocal = scrollRect.viewport.InverseTransformPoint(target.position);
-                    float shift = 0.05f * (Time.timeScale > 0 ? Time.deltaTime * 60f : 1f);
-                    if (targetLocal.x > 0) 
-                        scrollRect.horizontalNormalizedPosition = Mathf.Min(1, scrollRect.horizontalNormalizedPosition + shift);
-                    else 
-                        scrollRect.horizontalNormalizedPosition = Mathf.Max(0, scrollRect.horizontalNormalizedPosition - shift);
-                    scrolled = true;
-                }
-
-                if (!scrolled) break;
+                if (!PerformScrollStep(scrollRect, target)) break;
 
                 await Task.Yield();
                 if (Time.realtimeSinceStartup - startTime > timeoutSeconds)
@@ -111,6 +47,57 @@ namespace RealPlayTester.Input
                     break;
                 }
             }
+        }
+
+        private static bool CheckVisibility(RectTransform viewport, RectTransform target)
+        {
+            var viewCorners = new Vector3[4];
+            viewport.GetWorldCorners(viewCorners);
+            var viewRect = GetWorldRect(viewCorners);
+
+            var targetCorners = new Vector3[4];
+            target.GetWorldCorners(targetCorners);
+            var targetRect = GetWorldRect(targetCorners);
+
+            return viewRect.Overlaps(targetRect);
+        }
+
+        private static Rect GetWorldRect(Vector3[] corners)
+        {
+            float minX = Mathf.Min(corners[0].x, corners[2].x);
+            float maxX = Mathf.Max(corners[0].x, corners[2].x);
+            float minY = Mathf.Min(corners[0].y, corners[2].y);
+            float maxY = Mathf.Max(corners[0].y, corners[2].y);
+            return new Rect(minX, minY, maxX - minX, maxY - minY);
+        }
+
+        private static bool PerformScrollStep(ScrollRect scrollRect, RectTransform target)
+        {
+            bool scrolled = false;
+            Vector3 targetLocal = scrollRect.viewport.InverseTransformPoint(target.position);
+            float timeMult = Time.timeScale > 0 ? Time.deltaTime * 60f : 1f;
+
+            if (scrollRect.vertical)
+            {
+                float shift = 0.1f * timeMult;
+                if (targetLocal.y < 0) 
+                    scrollRect.verticalNormalizedPosition = Mathf.Max(0, scrollRect.verticalNormalizedPosition - shift);
+                else 
+                    scrollRect.verticalNormalizedPosition = Mathf.Min(1, scrollRect.verticalNormalizedPosition + shift);
+                scrolled = true;
+            }
+            
+            if (scrollRect.horizontal)
+            {
+                float shift = 0.05f * timeMult;
+                if (targetLocal.x > 0) 
+                    scrollRect.horizontalNormalizedPosition = Mathf.Min(1, scrollRect.horizontalNormalizedPosition + shift);
+                else 
+                    scrollRect.horizontalNormalizedPosition = Mathf.Max(0, scrollRect.horizontalNormalizedPosition - shift);
+                scrolled = true;
+            }
+
+            return scrolled;
         }
 
         private static bool IsVisibleInViewport(RectTransform viewport, RectTransform target)

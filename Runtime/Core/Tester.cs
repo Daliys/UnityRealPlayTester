@@ -13,334 +13,48 @@ namespace RealPlayTester.Core
     /// Single entry surface exposing all helper methods for AI-friendly usage.
     /// Provides complete facade over Click, Press, Drag, Wait, and Assert APIs.
     /// </summary>
-    public static class Tester
+    public static partial class Tester
     {
         public static class Settings
         {
-            /// <summary>Set to true to show a red dot representing the simulated mouse cursor.</summary>
-            public static bool ShowVisualPointer = true;
-
-            /// <summary>
-            /// Feature A: If true, Wait.ForUIVisible will force alpha=1 and interactable=true on objects
-            /// to bypass Unity UI animation delays in headless/batchmode environments.
-            /// </summary>
-            public static bool ForceBatchmodeVisibility = false;
-
-            /// <summary>
-            /// Feature C: If true, TestRunner will call InputSystem.Update() every frame during test execution
-            /// to ensure events are processed immediately in batchmode.
-            /// </summary>
-            public static bool EnableInputHeartbeat = false;
-
-            /// <summary>
-            /// Feature D: If true, library logs and test steps will be mirrored to System.Console.WriteLine
-            /// for real-time visibility in CI/CD pipeline outputs.
-            /// </summary>
-            public static bool MirrorLogsToStdout = false;
-        }
-
-        // ===== CLICK HELPERS =====
-
-        /// <summary>Click at screen position as percentage (0-1 range).</summary>
-        public static Task ClickScreenPercent(float x, float y) => 
-            RealPlayEnvironment.IsEnabled ? Click.ScreenPercent(x, y) : Task.CompletedTask;
-
-        /// <summary>Click at exact screen pixel position.</summary>
-        public static Task ClickScreenPixels(float x, float y) => 
-            RealPlayEnvironment.IsEnabled ? Click.ScreenPixels(x, y) : Task.CompletedTask;
-
-        /// <summary>Click at world position.</summary>
-        public static Task ClickWorldPosition(Vector3 worldPosition, Camera camera = null) => 
-            RealPlayEnvironment.IsEnabled ? Click.WorldPosition(worldPosition, camera) : Task.CompletedTask;
-
-        /// <summary>Click on a specific GameObject in world space.</summary>
-        public static Task ClickWorldObject(GameObject target, Camera camera = null) => 
-            RealPlayEnvironment.IsEnabled ? Click.WorldObject(target, camera) : Task.CompletedTask;
-
-        /// <summary>Raycast from camera and return hit result.</summary>
-        public static RaycastResult RaycastFromCamera(Camera camera, Vector2 screenPosition) =>
-            RealPlayEnvironment.IsEnabled ? Click.RaycastFromCamera(camera, screenPosition) : default;
-
-        /// <summary>Move mouse smoothly to screen position over duration.</summary>
-        public static Task MouseMoveTo(Vector2 screenPos, float durationSeconds) =>
-            RealPlayEnvironment.IsEnabled ? MouseMove.To(screenPos, durationSeconds) : Task.CompletedTask;
-
-        /// <summary>Move mouse smoothly to the center of a GameObject.</summary>
-        public static Task MouseMoveToCenter(GameObject target, float durationSeconds) =>
-            RealPlayEnvironment.IsEnabled ? MouseMove.To(RealInputUtility.GetScreenCenter(target), durationSeconds) : Task.CompletedTask;
-
-        /// <summary>Calculates the screen center of a given GameObject (UI or World).</summary>
-        public static Vector2 GetScreenCenter(GameObject go, Camera camera = null) =>
-            RealPlayEnvironment.IsEnabled ? RealInputUtility.GetScreenCenter(go, camera) : Vector2.zero;
-
-        /// <summary>Find an object by name and move mouse smoothly to its center.</summary>
-        public static async Task MouseMoveToCenter(string fuzzyName, float durationSeconds)
-        {
-            if (!RealPlayEnvironment.IsEnabled) return;
-            var go = FindObject(fuzzyName);
-            if (go != null) await MouseMoveToCenter(go, durationSeconds);
-        }
-
-        // ===== PRESS HELPERS =====
-
-        /// <summary>Press and hold a key for the specified duration.</summary>
-        public static Task PressKey(KeyCode key, float durationSeconds) =>
-            RealPlayEnvironment.IsEnabled ? Press.Key(key, durationSeconds) : Task.CompletedTask;
-
-        /// <summary>Press a key down (without releasing).</summary>
-        public static Task PressKeyDown(KeyCode key) =>
-            RealPlayEnvironment.IsEnabled ? Press.KeyDown(key) : Task.CompletedTask;
-
-        /// <summary>Release a previously pressed key.</summary>
-        public static Task PressKeyUp(KeyCode key) =>
-            RealPlayEnvironment.IsEnabled ? Press.KeyUp(key) : Task.CompletedTask;
-
-        // ===== DRAG HELPERS =====
-
-        /// <summary>Drag from start to end screen position over duration.</summary>
-        public static Task DragFromTo(Vector2 startScreenPos, Vector2 endScreenPos, float durationSeconds) =>
-            RealPlayEnvironment.IsEnabled ? Drag.FromTo(startScreenPos, endScreenPos, durationSeconds) : Task.CompletedTask;
-
-        // ===== WAIT HELPERS =====
-
-        /// <summary>Wait for specified seconds (scaled time by default).</summary>
-        public static Task WaitSeconds(float seconds, bool unscaled = false) =>
-            RealPlayEnvironment.IsEnabled ? Wait.Seconds(seconds, unscaled) : Task.CompletedTask;
-
-        /// <summary>Wait for specified number of frames.</summary>
-        public static Task WaitFrames(int frames) =>
-            RealPlayEnvironment.IsEnabled ? Wait.Frames(frames) : Task.CompletedTask;
-
-        /// <summary>Wait until predicate returns true.</summary>
-        public static Task WaitUntil(Func<bool> predicate, float? timeoutSeconds = null) =>
-            RealPlayEnvironment.IsEnabled ? Wait.Until(predicate, timeoutSeconds) : Task.CompletedTask;
-
-        /// <summary>Wait until a scene is loaded.</summary>
-        public static Task WaitSceneLoaded(string sceneName, float? timeoutSeconds = null) =>
-            RealPlayEnvironment.IsEnabled ? Wait.SceneLoaded(sceneName, timeoutSeconds) : Task.CompletedTask;
-
-        /// <summary>Wait for a GameObject by name to exist.</summary>
-        public static Task WaitForObject(string name, float? timeoutSeconds = null) =>
-            RealPlayEnvironment.IsEnabled ? Wait.ForObject(name, timeoutSeconds) : Task.CompletedTask;
-
-        /// <summary>Wait for a component of type T to exist.</summary>
-        public static Task WaitForComponent<T>(float? timeoutSeconds = null) where T : Component =>
-            RealPlayEnvironment.IsEnabled ? Wait.ForComponent<T>(timeoutSeconds) : Task.CompletedTask;
-
-        /// <summary>Wait for a UI element (by name) to be visible and interactable.</summary>
-        public static Task WaitForUIVisible(string name, float? timeoutSeconds = null) =>
-            RealPlayEnvironment.IsEnabled ? Wait.ForUIVisible(name, timeoutSeconds) : Task.CompletedTask;
-
-        /// <summary>Wait for an interactable component (visible, enabled, interactable) with optional text filter.</summary>
-        public static Task WaitForInteractable<T>(string textFilter = null, float? timeoutSeconds = null) where T : Component =>
-            RealPlayEnvironment.IsEnabled ? Wait.ForInteractable<T>(textFilter, timeoutSeconds) : Task.CompletedTask;
-
-        /// <summary>Ensure a UI object is visible by scrolling to it.</summary>
-        public static Task EnsureVisible(GameObject target) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Scroll.EnsureVisible(target) : Task.CompletedTask;
-
-        /// <summary>Wait for an Animator to reach a specific state.</summary>
-        public static Task WaitForAnimationState(Animator animator, string stateName, float? timeoutSeconds = null) =>
-            RealPlayEnvironment.IsEnabled ? Wait.ForAnimationState(animator, stateName, timeoutSeconds) : Task.CompletedTask;
-
-        /// <summary>Wait for an AudioSource to finish playing.</summary>
-        public static Task WaitForAudioComplete(AudioSource source, float? timeoutSeconds = null) =>
-            RealPlayEnvironment.IsEnabled ? Wait.ForAudioComplete(source, timeoutSeconds) : Task.CompletedTask;
-
-        /// <summary>Wait while predicate remains true (opposite of Until).</summary>
-        public static Task WaitWhile(Func<bool> predicate, float? timeoutSeconds = null) =>
-            RealPlayEnvironment.IsEnabled ? Wait.While(predicate, timeoutSeconds) : Task.CompletedTask;
-
-        /// <summary>Wait for loading screen (by name) to disappear.</summary>
-        public static Task WaitForLoadingComplete(string loadingObjectName = "LoadingScreen", float? timeoutSeconds = 30f) =>
-            RealPlayEnvironment.IsEnabled ? Wait.ForLoadingComplete(loadingObjectName, timeoutSeconds) : Task.CompletedTask;
-
-        // ===== ASSERT HELPERS =====
-
-        /// <summary>Assert condition is true. On failure: screenshot, pause, overlay, throw.</summary>
-        public static void AssertTrue(bool condition, string message = null)
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.IsTrue(condition, message);
-        }
-
-        /// <summary>Assert two values are equal. On failure: screenshot, pause, overlay, throw.</summary>
-        public static void AssertAreEqual<T>(T expected, T actual, string message = null)
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.AreEqual(expected, actual, message);
-        }
-
-        /// <summary>Immediately fail with message. Takes screenshot, pauses, overlays, throws.</summary>
-        public static void AssertFail(string message = null)
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.Fail(message);
-        }
-
-        public static void AssertFalse(bool condition, string message = null)
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.IsFalse(condition, message);
-        }
-
-        public static void AssertNull(object value, string message = null)
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.IsNull(value, message);
-        }
-
-        public static void AssertNotNull(object value, string message = null)
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.IsNotNull(value, message);
-        }
-
-        public static void AssertGreater<T>(T value, T threshold, string message = null) where T : IComparable<T>
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.Greater(value, threshold, message);
-        }
-
-        public static void AssertLess<T>(T value, T threshold, string message = null) where T : IComparable<T>
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.Less(value, threshold, message);
-        }
-
-        public static void AssertContains(string haystack, string needle, string message = null)
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.Contains(haystack, needle, message);
-        }
-
-        public static void AssertInRange<T>(T value, T min, T max, string message = null) where T : IComparable<T>
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.InRange(value, min, max, message);
-        }
-
-        public static void AssertThrows<TException>(Action action, string message = null) where TException : Exception
-        {
-            if (RealPlayEnvironment.IsEnabled) AssertLib.Throws<TException>(action, message);
-        }
-
-        // ===== CAPTURE HELPERS =====
-
-        public static string CaptureScreenshot(string name = null) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Assert.Capture.Screenshot(name) : string.Empty;
-
-        public static void CaptureCompareToBaseline(string baselinePath, float threshold = 0.95f)
-        {
-            if (RealPlayEnvironment.IsEnabled)
-            {
-                RealPlayTester.Assert.Capture.CompareToBaseline(baselinePath, threshold);
+            public static bool ShowVisualPointer { get => RealPlaySettings.ShowVisualPointer; set => RealPlaySettings.ShowVisualPointer = value; }
+            public static bool ShowVisualAnchors { get => RealPlaySettings.ShowVisualAnchors; set => RealPlaySettings.ShowVisualAnchors = value; }
+            public static bool ShowInteractionHeatmap { get => RealPlaySettings.ShowInteractionHeatmap; set => RealPlaySettings.ShowInteractionHeatmap = value; }
+            public static bool ForceBatchmodeVisibility { get => RealPlaySettings.ForceBatchmodeVisibility; set => RealPlaySettings.ForceBatchmodeVisibility = value; }
+            public static bool EnableInputHeartbeat { get => RealPlaySettings.EnableInputHeartbeat; set => RealPlaySettings.EnableInputHeartbeat = value; }
+            public static bool MirrorLogsToStdout { get => RealPlaySettings.MirrorLogsToStdout; set => RealPlaySettings.MirrorLogsToStdout = value; }
+            
+            public static bool AutoSimulatePhysics 
+            { 
+                get => RealPlaySettings.AutoSimulatePhysics2D && RealPlaySettings.AutoSimulatePhysics3D; 
+                set { RealPlaySettings.AutoSimulatePhysics2D = value; RealPlaySettings.AutoSimulatePhysics3D = value; } 
             }
+            public static bool AutoSimulatePhysics2D { get => RealPlaySettings.AutoSimulatePhysics2D; set => RealPlaySettings.AutoSimulatePhysics2D = value; }
+            public static bool AutoSimulatePhysics3D { get => RealPlaySettings.AutoSimulatePhysics3D; set => RealPlaySettings.AutoSimulatePhysics3D = value; }
         }
-
-        public static void CaptureStartRecording()
-        {
-            if (RealPlayEnvironment.IsEnabled)
-            {
-                RealPlayTester.Assert.Capture.StartRecording();
-            }
-        }
-
-        public static void CaptureStopRecording(string outputPath = null)
-        {
-            if (RealPlayEnvironment.IsEnabled)
-            {
-                RealPlayTester.Assert.Capture.StopRecording(outputPath);
-            }
-        }
-
-        // ===== DEBUG HELPERS =====
-
-        public static Task DebugBreakpoint(KeyCode resumeKey = KeyCode.Space) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Utilities.DevTools.Breakpoint(resumeKey) : Task.CompletedTask;
-
-        public static void DebugShowClickMarker(Vector2 screenPos, float duration = 0.5f)
-        {
-            if (RealPlayEnvironment.IsEnabled) RealPlayTester.Utilities.DevTools.ShowClickMarker(screenPos, duration);
-        }
-
-        public static void DebugSetSlowMotion(float timeScale = 0.25f)
-        {
-            if (RealPlayEnvironment.IsEnabled) RealPlayTester.Utilities.DevTools.SetSlowMotion(timeScale);
-        }
-
-        public static void DebugInspect<T>(string name, T value)
-        {
-            if (RealPlayEnvironment.IsEnabled) RealPlayTester.Utilities.DevTools.Inspect(name, value);
-        }
-
-        // ===== TEXT HELPERS =====
-
-        /// <summary>Type text into the currently focused input field (InputField or TMP_InputField).</summary>
-        public static Task TextType(string text, float delayBetweenChars = 0.05f) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Text.Type(text, delayBetweenChars) : Task.CompletedTask;
-
-        /// <summary>Type text into a specific input field by GameObject name.</summary>
-        public static Task TextTypeIntoField(string fieldName, string text, float delayBetweenChars = 0.05f) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Text.TypeIntoField(fieldName, text, delayBetweenChars) : Task.CompletedTask;
-
-        // ===== UI FIND HELPERS =====
-
-        public static Task ClickButtonWithText(string buttonText) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Click.ButtonWithText(buttonText) : Task.CompletedTask;
-
-        public static Task ClickObjectNamed(string name) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Click.ObjectNamed(name) : Task.CompletedTask;
-
-        public static Task ClickComponent<T>() where T : Component =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Click.Component<T>() : Task.CompletedTask;
-
-        // ===== TOUCH HELPERS =====
-
-        public static Task TouchTap(Vector2 screenPos, float duration = 0.1f) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Touch.Tap(screenPos, duration) : Task.CompletedTask;
-
-        public static Task TouchSwipe(Vector2 from, Vector2 to, float duration = 0.3f) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Touch.Swipe(from, to, duration) : Task.CompletedTask;
-
-        public static Task TouchPinch(Vector2 center, float startDistance, float endDistance, float duration = 0.5f) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Touch.Pinch(center, startDistance, endDistance, duration) : Task.CompletedTask;
-
-        public static Task TouchLongPress(Vector2 screenPos, float duration = 1.0f) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Touch.LongPress(screenPos, duration) : Task.CompletedTask;
-
-        // ===== SCROLL HELPERS =====
-
-        public static Task ScrollToBottom(ScrollRect scrollRect, float duration = 0.5f) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Scroll.ToBottom(scrollRect, duration) : Task.CompletedTask;
-
-        public static Task ScrollUntilVisible(ScrollRect scrollRect, RectTransform target, float timeoutSeconds = 5f) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Scroll.UntilVisible(scrollRect, target, timeoutSeconds) : Task.CompletedTask;
-
-        // ===== SAFETY HELPERS =====
-        public static Task ResetCursor() =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Click.ScreenPercent(0.5f, 0.5f) : Task.CompletedTask;
-
-        // ===== DEBUGGING & LOGGING =====
-
-        /// <summary>Returns a string dump of the active scene hierarchy for debugging.</summary>
-        public static string DumpHierarchy() => 
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Utilities.VisualTreeLogger.DumpHierarchy() : string.Empty;
-
-        /// <summary>Probes the screen at position to see what UI/World elements are hit.</summary>
-        public static string ProbeScreen(Vector2 screenPos) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Utilities.InteractionProbe.ProbeScreen(screenPos) : string.Empty;
-
-        /// <summary>Assert that no unexpected error logs occurred during the test.</summary>
-        public static void AssertNoLogErrors() =>
-            RealPlayTester.Assert.LogAssert.NoUnexpectedErrors();
-
-        /// <summary>Expect a specific error log pattern (Regex) to appear (and ignore it).</summary>
-        public static void ExpectLog(string regexPattern) =>
-            RealPlayTester.Assert.LogAssert.Expect(regexPattern);
-
-        /// <summary>Find a GameObject using fuzzy matching (Exact -> CaseInsensitive -> Contains).</summary>
-        public static GameObject FindObject(string fuzzyName) =>
-            RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.SmartFind.Object(fuzzyName) : null;
 
         // ===== NESTED API GROUPS =====
 
-        /// <summary>
-        /// Comprehensive assertion library including Visual, Asset, and GameState validations.
-        /// </summary>
+        public static class Wait
+        {
+            public static Task Seconds(float seconds, bool unscaled = false) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.Seconds(seconds, unscaled) : Task.CompletedTask;
+            public static Task Frames(int frames) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.Frames(frames) : Task.CompletedTask;
+            public static Task Until(Func<bool> predicate, float? timeoutSeconds = null) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.Until(predicate, timeoutSeconds) : Task.CompletedTask;
+            public static Task SceneLoaded(string sceneName, float? timeoutSeconds = null) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.SceneLoaded(sceneName, timeoutSeconds) : Task.CompletedTask;
+            public static Task ForObject(string name, float? timeoutSeconds = null) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.ForObject(name, timeoutSeconds) : Task.CompletedTask;
+            public static Task ForComponent<T>(float? timeoutSeconds = null) where T : Component => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.ForComponent<T>(timeoutSeconds) : Task.CompletedTask;
+            public static Task ForUIVisible(string name, float? timeoutSeconds = null) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.ForUIVisible(name, timeoutSeconds) : Task.CompletedTask;
+            public static Task ForInteractable<T>(string textFilter = null, float? timeoutSeconds = null) where T : Component => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.ForInteractable<T>(textFilter, timeoutSeconds) : Task.CompletedTask;
+            public static Task ForAnimationState(Animator animator, string stateName, float? timeoutSeconds = null) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.ForAnimationState(animator, stateName, timeoutSeconds) : Task.CompletedTask;
+            public static Task ForAudioComplete(AudioSource source, float? timeoutSeconds = null) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.ForAudioComplete(source, timeoutSeconds) : Task.CompletedTask;
+            public static Task While(Func<bool> predicate, float? timeoutSeconds = null) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.While(predicate, timeoutSeconds) : Task.CompletedTask;
+            public static Task ForLoadingComplete(string loadingObjectName = "LoadingScreen", float? timeoutSeconds = 30f) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.ForLoadingComplete(loadingObjectName, timeoutSeconds) : Task.CompletedTask;
+            public static Task ForStablePhysics(float velocityThreshold = 0.01f, float? timeoutSeconds = null) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Await.Wait.ForStablePhysics(velocityThreshold, timeoutSeconds) : Task.CompletedTask;
+            public static void Step(string label) { if (RealPlayEnvironment.IsEnabled) RealPlayTester.Await.Wait.Step(label); }
+        }
+
         public static class Assert
         {
-            // Standard Assertions
             public static void IsTrue(bool condition, string message = null) => AssertLib.IsTrue(condition, message);
             public static void IsFalse(bool condition, string message = null) => AssertLib.IsFalse(condition, message);
             public static void AreEqual<T>(T expected, T actual, string message = null) => AssertLib.AreEqual(expected, actual, message);
@@ -352,86 +66,45 @@ namespace RealPlayTester.Core
             public static void Contains(string haystack, string needle, string message = null) => AssertLib.Contains(haystack, needle, message);
             public static void InRange<T>(T value, T min, T max, string message = null) where T : IComparable<T> => AssertLib.InRange(value, min, max, message);
             public static void Throws<TException>(Action action, string message = null) where TException : Exception => AssertLib.Throws<TException>(action, message);
-
-            // Visual Assertions
+            public static void StateMatches<T>(T stateObject, string baselineJson, string message = null)
+            {
+                if (!RealPlayEnvironment.IsEnabled) return;
+                string currentState = Utilities.StateTracker.CaptureObjectState(stateObject);
+                if (currentState != baselineJson)
+                {
+                    string diff = Utilities.StateTracker.GetJsonDiff(baselineJson, currentState);
+                    AssertLib.Fail($"{message ?? "State mismatch detected."}\n\n[JSON DIFF]\n{diff}");
+                }
+            }
             public static void IsVisible(GameObject go, string message = null) => AssertLib.IsVisible(go, message);
             public static void HasSprite(Component target, Sprite expected, string message = null) => AssertLib.HasSprite(target, expected, message);
-            public static void ScreenElementVisible(string elementName, string message = null) => AssertLib.ScreenElementVisible(elementName, message);
-            public static void VisualStateMatches(string expectedStateName, string message = null) => AssertLib.VisualStateMatches(expectedStateName, message);
-            public static void VisualStateMatches(string expectedStateName, Rect region, string message = null) => AssertLib.VisualStateMatches(expectedStateName, region, message);
-            public static void NoMissingMaterials(string message = null) => AssertLib.NoMissingMaterials(message);
-
-            // Asset Assertions
-            public static void AssetLoaded<T>(string assetPath, string message = null) where T : UnityEngine.Object => AssertLib.AssetLoaded<T>(assetPath, message);
-            public static void SceneConfigurationValid(string message = null) => AssertLib.SceneConfigurationValid(message);
-            public static void TextureWithinLimits(string assetPath, int maxWidth, int maxHeight, string message = null) => AssertLib.TextureWithinLimits(assetPath, maxWidth, maxHeight, message);
-
-            // Game State Assertions
-            public static void GameStateMatches(Action expectedAction, string message = null) => AssertLib.GameStateMatches(expectedAction, message);
-            public static void VisualFeedbackCorrect(string message = null) => AssertLib.VisualFeedbackCorrect(message);
-            public static void EventFired(string eventName, int minCount = 1, string message = null) => AssertLib.EventFired(eventName, minCount, message);
+            public static void ScreenElementVisible(string name, string msg = null) => AssertLib.ScreenElementVisible(name, msg);
+            public static void VisualStateMatches(string name, string msg = null) => AssertLib.VisualStateMatches(name, msg);
+            public static void NoMissingMaterials(string msg = null) => AssertLib.NoMissingMaterials(msg);
+            public static void AssetLoaded<T>(string path, string msg = null) where T : UnityEngine.Object => AssertLib.AssetLoaded<T>(path, msg);
+            public static void NoUnexpectedErrors() => RealPlayTester.Assert.LogAssert.NoUnexpectedErrors();
+            public static void ExpectLog(string regex) => RealPlayTester.Assert.LogAssert.Expect(regex);
         }
 
-        /// <summary>
-        /// Screenshot based testing tools.
-        /// </summary>
         public static class Screenshot
         {
-            public static void CaptureAndCompare(string testName)
-            {
-                if (RealPlayEnvironment.IsEnabled)
-                {
-                    RealPlayTester.Core.Screenshot.CaptureAndCompare(testName);
-                }
-            }
-
-            public static void CaptureAndCompareRegion(string testName, Rect region)
-            {
-                if (RealPlayEnvironment.IsEnabled)
-                {
-                    RealPlayTester.Core.Screenshot.CaptureAndCompareRegion(testName, region);
-                }
-            }
+            public static string Capture(string name = null) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Assert.Capture.Screenshot(name) : string.Empty;
+            public static void Compare(string path, float threshold = 0.95f) { if (RealPlayEnvironment.IsEnabled) RealPlayTester.Assert.Capture.CompareToBaseline(path, threshold); }
+            public static void CaptureAndCompare(string testName) { if (RealPlayEnvironment.IsEnabled) RealPlayTester.Core.Screenshot.CaptureAndCompare(testName); }
+            public static void CaptureAndCompareRegion(string testName, Rect region) { if (RealPlayEnvironment.IsEnabled) RealPlayTester.Core.Screenshot.CaptureAndCompareRegion(testName, region); }
         }
 
-        /// <summary>
-        /// Continuous health monitoring during test execution.
-        /// </summary>
         public static class Monitoring
         {
-            public static void StartVisualHealthCheck(float interval = 2.0f) => 
-                RealPlayTester.Utilities.VisualHealthMonitor.StartMonitoring(interval);
-
-            public static void StopVisualHealthCheck() => 
-                RealPlayTester.Utilities.VisualHealthMonitor.StopMonitoring();
+            public static void StartVisualHealthCheck(float interval = 2.0f) => RealPlayTester.Utilities.VisualHealthMonitor.StartMonitoring(interval);
+            public static void StopVisualHealthCheck() => RealPlayTester.Utilities.VisualHealthMonitor.StopMonitoring();
         }
 
-        /// <summary>
-        /// Game event tracking and verification.
-        /// </summary>
         public static class Events
         {
             public static void Record(string eventName) => RealPlayTester.Core.EventTracker.Record(eventName);
             public static void Clear() => RealPlayTester.Core.EventTracker.Clear();
-            public static bool WasFired(string eventName, int minCount = 1) => RealPlayTester.Core.EventTracker.WasFired(eventName, minCount);
-        }
-
-        // ===== INTERACTION PATTERNS =====
-
-        /// <summary>
-        /// Performs an interaction and immediately verifies the result with a predicate.
-        /// Implements the 'Input-Output Validation Gate' pattern.
-        /// </summary>
-        public static async Task PerformAndVerify(Func<Task> interaction, Func<bool> verification, string failMessage = null, float timeout = 5f)
-        {
-            if (!RealPlayEnvironment.IsEnabled) return;
-
-            await interaction();
-            await Wait.Until(verification, timeout);
-            if (!verification())
-            {
-                AssertLib.Fail(failMessage ?? "Interaction failed verification after timeout.");
-            }
+            public static bool WasFired(string eventName, int min = 1) => RealPlayTester.Core.EventTracker.WasFired(eventName, min);
         }
     }
 }

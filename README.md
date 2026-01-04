@@ -1,19 +1,21 @@
-# RealPlayTester
+# RealPlayTester (v2.0)
 
 ## Overview
-A zero-config Unity package for writing automated playtests using real human-like inputs (EventSystem + raycasts). This library is specifically designed to be controlled by **Autonomous AI Agents**, providing them with "eyes" (probes) and "hands" (realistic simulation) to test games exactly as a human would.
+RealPlayTester is a high-fidelity automation library designed exclusively for **Autonomous AI Agents** and **LLM-driven testing**. It provides agents with "eyes" (semantic probes), "ears" (structured log streams), and "hands" (deterministic human-like input) to navigate and test Unity applications as a human would.
 
-**Compatibility**: Unity 6000.2+ | URP / Built-in | Editor | Development Builds (PC, Mobile, Console)
-**License**: MIT
+**Compatibility**: Unity 6000.2+ | URP / Built-in | Editor | Development Builds
+**Orientation**: **AI-Native** (Optimized for JSON-parsing and vision-based reasoning)
 
 ---
 
-## Design for AI Agents
-Unlike traditional testing frameworks, RealPlayTester focuses on **discoverability** and **realism**:
-- **SmartFind**: Allows agents to find objects by fuzzy names (e.g., `Click.ObjectNamed("Login")` finds `Button_Login`).
-- **Interaction Probes**: Agents can call `Tester.ProbeScreen(pos)` to understand what UI or world object is under the "cursor".
-- **Hierarchy Dumps**: `Tester.DumpHierarchy()` provides a token-optimized view of the scene for LLM processing.
-- **Visual Feedback**: The built-in pointer ensures that recorded failures are visually diagnostic for both humans and AI vision models.
+## 🤖 AI-Native Design Principles
+Unlike traditional frameworks designed for humans, RealPlayTester prioritize **context-rich observability**:
+
+- **Deterministic Perception**: `Tester.Perception.DumpHierarchyJson()` provides a token-efficient, coordinate-aware JSON tree optimized for LLM "System Prompts".
+- **Interaction Probes**: `Tester.Perception.ProbeScreen(pos)` allows agents to "look" at specific pixels and receive semantic descriptions (e.g., "Primary Action Button").
+- **Visual Anchors**: Semantic ID tagging (`#A1`, `#A2`) that persists across frames, helping vision agents maintain spatial awareness.
+- **Black Box Recorder**: Unified, categorized log streams (`[INPUT]`, `[BLOCKER]`, `[STEP]`) enable agents to reconstruct the "causal chain" of their actions.
+- **Causal Tracking**: `Tester.State.Capture()` and `GetDiff()` allow agents to measure the direct impact of an interaction on the scene state.
 
 ---
 
@@ -23,15 +25,28 @@ Unlike traditional testing frameworks, RealPlayTester focuses on **discoverabili
 
 ---
 
-## Features Highlights (v1.8.0)
+## Feature Highlights (v2.0.0)
 
-### 🚀 Automated Pipeline (CI/CD) Optimizations
-RealPlayTester includes specific enhancements for reliable execution in headless (batchmode) environments:
-- **Headless Optimization**: Force `alpha=1` and `interactable=true` on UI elements to bypass animation delays in batchmode.
-- **Unified Input Ownership**: Virtual devices are explicitly "claimed" to ensure consistency when no hardware is present.
-- **Input Heartbeat**: Option to force `InputSystem.Update()` every frame during test runs.
-- **CLI Log Routing**: Mirror test logs and steps to standard CLI output via `-realplay-stdout`.
-- **Blocker-Bypass**: Automatically iterates through raycast hits to find valid interaction targets, skipping non-interactive elements (like background images) that would otherwise block inputs in headless environments.
+### 📦 Black Box Recorder & Diagnostics
+The library acts as a stateful recorder, providing a continuous diagnostic narrative:
+- **Unified Stream**: Automatic categorization of logs into `Input`, `Test`, `Step`, `Game`, `Library`, and `Heartbeat`.
+- **Blocker Awareness**: Real-time raycast diagnostic logs `[BLOCKER]` warnings if an interaction target is physically obscured.
+- **Failure Bundles v2**: On failure, a bundle is exported with `hierarchy.json`, `diagnostics.md`, screenshots, and session logs, ready for LLM triage.
+- **Intent Logging**: Agents can call `Tester.RecordIntent("Checking if the login button works")` to persist their reasoning in the failure report.
+
+### 🚀 CI/CD & Headless Robustness
+- **Bypass Heuristics**: Automatically forces UI interactability and visibility in batchmode, bypassing animation bottlenecks.
+- **Input Heartbeat**: Forced event processing ensures zero-lag simulation even when the OS provides no hardware input.
+- **Coordinate Clamping**: Automatic target calculation handles edge cases like zero-pixel windows or background blocks.
+
+### 🧠 AI-Vision & Perception
+- 🧠 **AI-Vision & Perception**: Semantic role identification (Button, InputField, Dialog) and coordinate-aware hierarchy dumps.
+- 📍 **Visual Anchors**: Semantic tagging of interactable elements to help vision-based agents pinpoint targets.
+
+### 📡 Advanced Observability
+- 📡 **Advanced Observability**: Automatic failure reporting with screenshots, semantic context, and interaction heatmaps for LLM-friendly debugging.
+- 🚀 **CI/CD Optimized**: Dedicated headless modes, blocker-bypass strategy, and unified input ownership.
+- 🕒 **Input Heartbeat**: Forced event processing during test execution to ensure zero-lag simulation.
 
 ### Visual Pointer & Simulation
 - **Visual Cursor**: A virtual red dot tracks all simulated movements, providing real-time feedback on hovers and clicks.
@@ -55,10 +70,15 @@ public class MyTest : RealPlayTest
 {
     protected override async Task Run()
     {
-        // Smoothly move to a button and click
-        await Click.ObjectNamed("StartGame"); 
-        await Wait.Seconds(1f);
-        Assert.IsTrue(true, "Success");
+        // Deterministic interaction via the nested facade
+        await Tester.Interaction.Mouse.MoveToCenter(GameObject.Find("StartGame"));
+        await Tester.Interaction.Mouse.Click(Input.mousePosition); 
+        
+        await Tester.Await.Seconds(1f);
+        
+        // Semantic validation
+        var state = Tester.Perception.DumpHierarchyJson();
+        Tester.Assert.IsNotNull(state, "Scene state should be accessible");
     }
 }
 ```
@@ -77,151 +97,6 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 
 ---
 
-## API Reference
-
-### Click & Move
-| Method | Description |
-|--------|-------------|
-| `Tester.MouseMoveTo(Vector2, float)` | Move mouse smoothly over duration. |
-| `Tester.MouseMoveToCenter(GameObject, float)` | Move mouse to precision center of an object. |
-| `Tester.GetScreenCenter(GameObject)` | **[New]** Calculate the screen coordinate for any object. |
-| `Click.ObjectNamed(string)` | Find and click a GameObject by fuzzy name. |
-| `Click.WorldObject(GameObject)` | Click on a specific object. **Auto-scrolls if in ScrollRect.** |
-| `Click.ButtonWithText(string)` | Find and click a Button by label text. |
-| `Click.Component<T>()` | Find and click the first component of type T. |
-| `Click.RightClick(Vector2)` | Right-click at position. |
-| `Click.MiddleClick(Vector2)` | Middle-click at position. |
-| `Click.DoubleClick(Vector2, float?)` | Double-click at position. |
-| `Click.Hold(Vector2, float)` | Click and hold at position. |
-| `Click.RaycastFromCamera(Camera, Vector2)` | Raycast and return hit result. |
-
-> **Note**: World interactions are automatically clamped to screen bounds to prevent "No Target" errors.
-
-### Press (Keyboard)
-| Method | Description |
-|--------|-------------|
-| `Press.Key(KeyCode, float)` | Press and hold key for duration. |
-| `Press.KeyDown(KeyCode)` | Press key down (no release). |
-| `Press.KeyUp(KeyCode)` | Release key. |
-
-### Drag
-| Method | Description |
-|--------|-------------|
-| `Drag.FromTo(Vector2, Vector2, float)` | Drag from start to end over duration. |
-
-### Wait
-| Method | Description |
-|--------|-------------|
-| `Wait.Seconds(float, bool unscaled=false)` | Wait for seconds (scaled or unscaled time). |
-| `Wait.Frames(int)` | Wait for N frames. |
-| `Wait.Until(Func<bool>, float? timeout)` | Wait until predicate is true. |
-| `Wait.While(Func<bool>, float? timeout)` | Wait while predicate is true. |
-| `Wait.SceneLoaded(string, float? timeout)` | Wait for scene to load. |
-| `Wait.ForObject(string, float? timeout)` | Wait for GameObject by name to exist. |
-| `Wait.ForComponent<T>(float? timeout)` | Wait for component to exist. |
-| `Wait.ForUIVisible(string, float? timeout)` | Wait for named UI to be active and interactable (checks parent CanvasGroups). |
-| `Wait.ForInteractable<T>(string text?, float? timeout)` | Wait for component T to be fully visible, enabled, and interactable. **Supports TMP.** |
-| `Wait.ForAnimationState(Animator, string, float?)` | Wait for Animator state. |
-| `Wait.ForAudioComplete(AudioSource, float?)` | Wait for audio to stop playing. |
-| `Wait.ForLoadingComplete(string?, float?)` | Wait for loading screen to disappear. |
-
-### Assert
-| Method | Description |
-|--------|-------------|
-| `Assert.IsTrue(bool, string?)` | Fail if false. |
-| `Assert.IsFalse(bool, string?)` | Fail if true. |
-| `Assert.AreEqual<T>(T, T, string?)` | Fail if not equal. |
-| `Assert.IsNull(object, string?)` | Fail if not null. |
-| `Assert.IsNotNull(object, string?)` | Fail if null. |
-| `Assert.Greater<T>(T, T, string?)` | Fail if value <= threshold. |
-| `Assert.Less<T>(T, T, string?)` | Fail if value >= threshold. |
-| `Assert.InRange<T>(T, T, T, string?)` | Fail if value outside range. |
-| `Assert.Contains(string, string, string?)` | Fail if substring not found. |
-| `Assert.Throws<T>(Action, string?)` | Fail if exception T not thrown. |
-| `Assert.Fail(string?)` | Immediately fail. |
-
-**Visual Assertions**
-| Method | Description |
-|--------|-------------|
-| `Assert.IsVisible(GameObject)` | Fail if object/renderer/UI is not active and visible. |
-| `Assert.HasSprite(Component, Sprite)` | Fail if target (SpriteRenderer/Image) has wrong sprite. |
-| `Assert.ScreenElementVisible(string)` | Find object by name/tag and verify visibility. |
-| `Assert.VisualStateMatches(string)` | Fail if screen does not match baseline image. |
-| `Assert.VisualStateMatches(string, Rect)` | Fail if screen region does not match baseline. |
-| `Assert.NoMissingMaterials()` | Fail if any renderer has missing or "Pink" error materials. |
-
-**Asset & State Assertions**
-| Method | Description |
-|--------|-------------|
-| `Assert.AssetLoaded<T>(string path)` | Fail if asset cannot be loaded from Resources. |
-| `Assert.TextureWithinLimits(string, w, h)` | Fail if texture at path exceeds dimensions. |
-| `Assert.SceneConfigurationValid()` | Fail if any active GameObject has missing scripts. |
-| `Assert.GameStateMatches(Action)` | Execute custom validation logic. |
-| `Assert.EventFired(string, int?)` | Fail if specific event was not recorded by EventTracker. |
-| `Assert.VisualFeedbackCorrect()` | Hook for verifying visual feedback occurred. |
-
-**On Failure**: Screenshot saved to `persistentDataPath/RealPlayTester/Failures/<timestamp>.png`, `Time.timeScale = 0`, red overlay shown.
-
-### Screenshot
-| Method | Description |
-|--------|-------------|
-| `Screenshot.CaptureAndCompare(string)` | Capture screen and compare with baseline in `TestBaselines/`. |
-| `Screenshot.CaptureAndCompareRegion(string, Rect)` | Capture specific screen region and compare with baseline. |
-
-### Monitoring
-| Method | Description |
-|--------|-------------|
-| `Monitoring.StartVisualHealthCheck(int)` | Start background monitoring for Pink shaders/errors. |
-| `Monitoring.StopVisualHealthCheck()` | Stop background monitoring. |
-
-### Events
-| Method | Description |
-|--------|-------------|
-| `Events.Record(string)` | Record a game event for later assertion. |
-| `Events.Clear()` | Reset the event tracker. |
-| `Events.WasFired(string, int)` | Check if an event was recorded. |
-
-### Interaction Patterns
-| Method | Description |
-|--------|-------------|
-| `PerformAndVerify(interaction, predicate)` | Perform action and wait until predicate is true. |
-
-### Text
-| Method | Description |
-|--------|-------------|
-| `Text.Type(string, float delay=0.05f)` | Type into currently focused input field. |
-| `Text.TypeIntoField(string fieldName, string, float?)` | Find field by name and type text. |
-
-### Touch
-| Method | Description |
-|--------|-------------|
-| `Touch.Tap(Vector2, float duration=0.1f)` | Simulate tap. |
-| `Touch.Swipe(Vector2, Vector2, float duration=0.3f)` | Simulate swipe. |
-| `Touch.Pinch(Vector2 center, float start, float end, float dur)` | Simulate pinch. |
-| `Touch.LongPress(Vector2, float duration=1f)` | Simulate long press. |
-
-### Scroll
-| Method | Description |
-|--------|-------------|
-| `Scroll.ToBottom(ScrollRect, float duration=0.5f)` | Scroll to bottom. |
-| `Scroll.UntilVisible(ScrollRect, RectTransform, float timeout=5f)` | Scroll until element is visible (Vertical & Horizontal). |
-| `Scroll.EnsureVisible(GameObject)` | Helper to find parent ScrollRect and scroll target into view. |
-
-### Capture
-| Method | Description |
-|--------|-------------|
-| `Capture.Screenshot(string? name)` | Take screenshot, return path. |
-| `Capture.CompareToBaseline(string path, float threshold=0.95f)` | Visual regression test. |
-| `Capture.StartRecording()` | (Stub) Start video recording. |
-| `Capture.StopRecording(string? path)` | (Stub) Stop video recording. |
-
-### Debug / DevTools
-| Method | Description |
-|--------|-------------|
-| `DevTools.Breakpoint(KeyCode resumeKey=Space)` | Pause test until key pressed. |
-| `DevTools.ShowClickMarker(Vector2, float dur=0.5f)` | Visual marker at position. |
-| `DevTools.SetSlowMotion(float timeScale=0.25f)` | Set Time.timeScale. |
-| `DevTools.Inspect<T>(string name, T value)` | Log value to console. |
 | `Tester.ResetCursor()` | Safely center the cursor. |
 
 ### Diagnostics
@@ -233,6 +108,63 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 | `TestLog.Error(string)` | Log error message. |
 | `Wait.UntilWithDiagnostics(predicate, timeout, context)` | Wait with enhanced timeout diagnostics. |
 | `Wait.Step(string label)` | Update test context with current step. |
+| `Tester.RecordIntent(string)` | Record agent's reasoning (included in AI reports). |
+
+---
+
+## 🏗️ Core API Facade (v2.0)
+The legacy flat API is superseded by this nested structure, optimized for AI discovery.
+
+### 🕹️ Tester.Interaction
+Primary interface for deterministic input simulation.
+
+| Method | Description |
+|--------|-------------|
+| `Mouse.Click(Vector2)` | Click at screen pixels (consistently normalized). |
+| `Mouse.MoveTo(Vector2, float)` | Move mouse smoothly over duration. |
+| `Mouse.MoveToCenter(GameObject, float)` | Precision move to object screen center. |
+| `Keyboard.Type(string, float)` | Simulate typing into focused field. |
+| `Keyboard.TypeIntoField(string, string)` | Find field by name and type. |
+| `Touch.Pinch(PinchParams)` | Simulate pinch gesture using consolidated params. |
+
+### 👁️ Tester.Perception
+The "Eyes" of the agent.
+
+| Method | Description |
+|--------|-------------|
+| `Find(string)` | Fuzzy-find active object in hierarchy. |
+| `ProbeScreen(Vector2)` | Get semantic info for pixel position. |
+| `DumpHierarchyJson()` | Export scene as minified, AI-friendly JSON. |
+| `GetActionableElements()` | List all currently interactable targets. |
+
+### 📊 Tester.State
+Causal analysis and state snapshotting.
+
+| Method | Description |
+|--------|-------------|
+| `Capture()` | Capture serializable JSON snapshot of full scene. |
+| `CaptureObject(object)` | Snapshot a specific state object. |
+| `GetDiff(string, string)` | Generate semantic diff between snapshots. |
+
+### ⏳ Tester.Await
+Deterministic synchronization.
+
+| Method | Description |
+|--------|-------------|
+| `Seconds(float)` | Wait for scaled/unscaled time. |
+| `Frames(int)` | Wait for specific frame count. |
+| `Until(Func<bool>)` | Wait until predicate is true. |
+| `Step(string)` | Record logical test step for diagnostics. |
+
+### 🛡️ Tester.Assert
+High-fidelity validation library.
+
+| Method | Description |
+|--------|-------------|
+| `IsTrue/AreEqual` | Standard functional assertions. |
+| `IsVisible(GameObject)` | Verify spatial/UI visibility. |
+| `VisualStateMatches(name)` | Screen-diff against baseline image. |
+| `NoMissingMaterials()` | Scan for shader/material errors ("Pink"). |
 
 **TestRunContext**: Tracks test execution state:
 - Test identity: TestName, TestId, StartTime, EndTime
@@ -244,11 +176,12 @@ Place test assets in `Resources/RealPlayTests/` for runtime discovery.
 - `TestReports/current-test-context.json`
 - `TestReports/current-test-context.md`
 
-**FailureBundleWriter**: On test failure, generates bundle at `TestReports/FailureBundles/{timestamp}/{testName}/` containing:
-- `diagnostics.json` / `diagnostics.md`: Test context
-- `Logs/`: game.log, game_session.log, Editor.log
-- `test-results.json`: Overall test results
-- Screenshots and hierarchy dumps
+- **FailureBundle v2**: On test failure, generates bundle at `TestReports/FailureBundles/{timestamp}/{testName}/` containing:
+    - `diagnostics.json` / `diagnostics.md`: Test context
+    - `hierarchy.json`: **[New]** Full scene state in structured JSON format
+    - `Logs/`: game.log, categorized session logs
+    - `test-results.json`: Overall test results
+    - Screenshots and interaction heatmaps
 
 ### Input Guards
 
@@ -292,18 +225,30 @@ These tools help AI agents diagnose test failures autonomously.
 
 | Method | Description |
 |--------|-------------|
-| `Tester.DumpHierarchy()` | Returns string dump of scene hierarchy (auto-appended to failures). |
+| `Tester.DumpHierarchyJson()` | Returns minified JSON of scene hierarchy (best for LLM context). |
+| `Tester.DumpHierarchy()` | Returns human-readable string dump of scene hierarchy. |
 | `Tester.FindObject(string fuzzyName)` | Fuzzy find: exact → case-insensitive → contains match. |
-| `Tester.ProbeScreen(Vector2 pos)` | Returns string describing what UI/World is under pixel. |
+| `Tester.ProbeScreen(Vector2 pos)` | Returns semantic description of what is under pixel. |
+| `Tester.GetActionableElements()` | Returns JSON list of all buttons/inputs visible on screen. |
 | `Tester.AssertNoLogErrors()` | Fail if any unexpected `Debug.LogError` occurred. |
 | `Tester.ExpectLog(string regex)` | Mark expected error pattern (ignored by AssertNoLogErrors). |
 
-**Hierarchy Dump Format**:
-```
-[+] Canvas
-  [+] Panel_Login
-    [+] Button_Submit (Button) [Text: "Login"]
-    [-] LoadingSpinner
+**JSON Hierarchy Format**:
+```json
+{
+  "name": "Canvas",
+  "type": "Canvas",
+  "visible": true,
+  "children": [
+    {
+      "name": "SubmitButton",
+      "tag": "Button",
+      "text": "Login",
+      "screenPos": [320, 240],
+      "interactable": true
+    }
+  ]
+}
 ```
 
 ---
@@ -357,8 +302,12 @@ TestRunner.CustomReportHandler = new MyReporter();
 ---
 
 ## Tester Facade
-All API methods are also available via `Tester.*`:
-- `Tester.ClickScreenPercent(...)`, `Tester.WaitSeconds(...)`, `Tester.AssertTrue(...)`, etc.
+All API methods are now logically grouped under `Tester.*` nested categories:
+- `Tester.Interaction.*`: Input simulation (Mouse, Keyboard, Touch).
+- `Tester.Perception.*`: Scene discovery and semantic probing.
+- `Tester.State.*`: Consequence analysis and snapshotting.
+- `Tester.Await.*`: Deterministic synchronization.
+- `Tester.Assert.*`: Comprehensive validation.
 
 ---
 

@@ -25,6 +25,8 @@ namespace RealPlayTester.Input
                 return;
             }
 
+            RealPlayLog.Info($"[INPUT] Type text: \"{text}\"");
+
             foreach (char c in text)
             {
                 await TypeCharacter(c);
@@ -35,15 +37,9 @@ namespace RealPlayTester.Input
             }
         }
 
-        /// <summary>
-        /// Type text into a named InputField or TMP_InputField (selects field before typing).
-        /// </summary>
         public static async Task TypeIntoField(string fieldName, string text, float delayBetweenChars = 0.05f)
         {
-            if (!RealPlayEnvironment.IsEnabled)
-            {
-                return;
-            }
+            if (!RealPlayEnvironment.IsEnabled) return;
 
             var go = GameObject.Find(fieldName);
             if (go == null)
@@ -52,6 +48,13 @@ namespace RealPlayTester.Input
                 return;
             }
 
+            SelectAndActivateField(go);
+            await Type(text, delayBetweenChars);
+            SyncFieldValue(go, text);
+        }
+
+        private static void SelectAndActivateField(GameObject go)
+        {
             var es = RealInputUtility.EnsureEventSystem();
             es.SetSelectedGameObject(go);
 
@@ -70,9 +73,10 @@ namespace RealPlayTester.Input
                     InvokeIfExists(tmp, "ActivateInputField");
                 }
             }
+        }
 
-            await Type(text, delayBetweenChars);
-
+        private static void SyncFieldValue(GameObject go, string text)
+        {
             var inputField = go.GetComponent<InputField>();
             if (inputField != null && inputField.text != text)
             {
@@ -95,65 +99,66 @@ namespace RealPlayTester.Input
 
         private static async Task TypeCharacter(char c)
         {
-            var es = RealInputUtility.EnsureEventSystem();
-            var target = es.currentSelectedGameObject ?? es.firstSelectedGameObject;
-            if (target == null)
-            {
-                var anyInput = UnityEngine.Object.FindFirstObjectByType<InputField>();
-                if (anyInput != null)
-                {
-                    target = anyInput.gameObject;
-                    es.SetSelectedGameObject(target);
-                }
-                else
-                {
-                    var tmpTypeFallback = GetTMPInputFieldType();
-                    if (tmpTypeFallback != null)
-                    {
-                        var tmpField = UnityEngine.Object.FindFirstObjectByType(tmpTypeFallback);
-                        if (tmpField != null)
-                        {
-                            target = ((Component)tmpField).gameObject;
-                            es.SetSelectedGameObject(target);
-                        }
-                    }
-                }
-            }
+            var target = FindBestInputTarget();
             if (target == null)
             {
                 ApplyFallbackCharacter(c);
                 return;
             }
 
-            var input = target.GetComponent<InputField>();
-            if (input != null)
+            if (await ApplyToInputField(target, c)) return;
+            await ApplyToTMPField(target, c);
+        }
+
+        private static GameObject FindBestInputTarget()
+        {
+            var es = RealInputUtility.EnsureEventSystem();
+            var target = es.currentSelectedGameObject ?? es.firstSelectedGameObject;
+            if (target != null) return target;
+
+            var anyInput = UnityEngine.Object.FindFirstObjectByType<InputField>();
+            if (anyInput != null) return anyInput.gameObject;
+
+            var tmpType = GetTMPInputFieldType();
+            if (tmpType != null)
             {
-                if (input.characterLimit > 0 && input.text.Length >= input.characterLimit)
-                {
-                    return; // Respect character limit
-                }
-                
+                var tmpField = UnityEngine.Object.FindFirstObjectByType(tmpType);
+                if (tmpField != null) return ((Component)tmpField).gameObject;
+            }
+
+            return null;
+        }
+
+        private static async Task<bool> ApplyToInputField(GameObject target, char c)
+        {
+            var input = target.GetComponent<InputField>();
+            if (input == null) return false;
+
+            if (input.characterLimit <= 0 || input.text.Length < input.characterLimit)
+            {
                 input.text += c;
                 input.ForceLabelUpdate();
                 input.onValueChanged?.Invoke(input.text);
                 ExecuteEvents.Execute<IUpdateSelectedHandler>(target, new BaseEventData(EventSystem.current), ExecuteEvents.updateSelectedHandler);
                 await Task.Yield();
-                return;
             }
+            return true;
+        }
 
+        private static async Task ApplyToTMPField(GameObject target, char c)
+        {
             var tmpType = GetTMPInputFieldType();
-            if (tmpType != null)
+            if (tmpType == null) return;
+
+            var tmpField = target.GetComponent(tmpType);
+            if (tmpField != null)
             {
-                var tmpField = target.GetComponent(tmpType);
-                if (tmpField != null)
-                {
-                    string before = GetText(tmpField);
-                    SetText(tmpField, before + c);
-                    InvokeIfExists(tmpField, "ForceLabelUpdate");
-                    InvokeIfExists(tmpField, "SendOnValueChangedAndUpdateLabel");
-                    ExecuteEvents.Execute<IUpdateSelectedHandler>(((Component)tmpField).gameObject, new BaseEventData(EventSystem.current), ExecuteEvents.updateSelectedHandler);
-                    await Task.Yield();
-                }
+                string before = GetText(tmpField);
+                SetText(tmpField, before + c);
+                InvokeIfExists(tmpField, "ForceLabelUpdate");
+                InvokeIfExists(tmpField, "SendOnValueChangedAndUpdateLabel");
+                ExecuteEvents.Execute<IUpdateSelectedHandler>(((Component)tmpField).gameObject, new BaseEventData(EventSystem.current), ExecuteEvents.updateSelectedHandler);
+                await Task.Yield();
             }
         }
 

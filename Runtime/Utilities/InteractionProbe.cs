@@ -16,52 +16,57 @@ namespace RealPlayTester.Utilities
             var sb = new StringBuilder();
             sb.AppendLine($"Probe at {screenPos}:");
 
-            // 1. UI Probe
-            var es = EventSystem.current;
-            if (es != null)
-            {
-                var pointer = new PointerEventData(es) { position = screenPos };
-                var results = new List<RaycastResult>();
-                es.RaycastAll(pointer, results);
-
-                if (results.Count > 0)
-                {
-                    sb.AppendLine("  UI Hits:");
-                    foreach (var hit in results)
-                    {
-                        sb.AppendLine($"    - {hit.gameObject.name} (Sorting: {hit.sortingOrder}, Depth: {hit.depth})");
-                    }
-                }
-                else
-                {
-                    sb.AppendLine("  UI Hits: None");
-                }
-            }
-            else
-            {
-                sb.AppendLine("  UI: No EventSystem found.");
-            }
-
-            // 2. World Probe (Main Camera)
-            var cam = Camera.main;
-            if (cam != null)
-            {
-                Ray ray = cam.ScreenPointToRay(screenPos);
-                if (Physics.Raycast(ray, out RaycastHit hit))
-                {
-                    sb.AppendLine($"  World Hit: {hit.collider.gameObject.name} (Dist: {hit.distance:F2})");
-                }
-                else
-                {
-                    sb.AppendLine("  World Hit: None");
-                }
-            }
-            else
-            {
-                sb.AppendLine("  World: No MainCamera found.");
-            }
+            ProbeUI(sb, screenPos);
+            ProbeWorld(sb, screenPos);
 
             return sb.ToString().Trim();
+        }
+
+        private static void ProbeUI(StringBuilder sb, Vector2 screenPos)
+        {
+            var es = EventSystem.current;
+            if (es == null)
+            {
+                sb.AppendLine("  UI: No EventSystem found.");
+                return;
+            }
+
+            var pointer = new PointerEventData(es) { position = screenPos };
+            var results = new List<RaycastResult>();
+            es.RaycastAll(pointer, results);
+
+            if (results.Count > 0)
+            {
+                sb.AppendLine("  UI Hits:");
+                foreach (var hit in results)
+                {
+                    sb.AppendLine($"    - {hit.gameObject.name} (Sorting: {hit.sortingOrder}, Depth: {hit.depth})");
+                }
+            }
+            else
+            {
+                sb.AppendLine("  UI Hits: None");
+            }
+        }
+
+        private static void ProbeWorld(StringBuilder sb, Vector2 screenPos)
+        {
+            var cam = Camera.main;
+            if (cam == null)
+            {
+                sb.AppendLine("  World: No MainCamera found.");
+                return;
+            }
+
+            Ray ray = cam.ScreenPointToRay(screenPos);
+            if (Physics.Raycast(ray, out RaycastHit hit))
+            {
+                sb.AppendLine($"  World Hit: {hit.collider.gameObject.name} (Dist: {hit.distance:F2})");
+            }
+            else
+            {
+                sb.AppendLine("  World Hit: None");
+            }
         }
     }
 }

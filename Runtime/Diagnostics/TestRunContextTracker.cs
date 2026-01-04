@@ -102,6 +102,14 @@ namespace RealPlayTester.Diagnostics
             UpdateContext(ctx => ctx.LastPlacementAttempt = new PlacementAttempt(position, definitionId, result));
         }
 
+        /// <summary>
+        /// Updates the current AI intent for the active test.
+        /// </summary>
+        public static void UpdateIntent(string intent)
+        {
+            UpdateContext(ctx => ctx.LastIntent = intent);
+        }
+
         private static void UpdateContext(Action<TestRunContext> update)
         {
             if (!RealPlayEnvironment.IsEnabled)

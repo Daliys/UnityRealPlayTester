@@ -2,41 +2,19 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading.Tasks;
 using UnityEngine;
 using RealPlayTester.Core;
+using RealPlayTester.Input.Internal;
 
 namespace RealPlayTester.Input
 {
     /// <summary>
-    /// Reflection-based shim for Unity's new Input System. Maps KeyCode to InputSystem.Key values.
+    /// Reflection-based facade for Unity's new Input System.
+    /// Provides a high-level API for simulating input.
     /// </summary>
-    internal static class InputSystemShim
+    public static class InputSystemShim
     {
-        private static readonly Type KeyboardType = Type.GetType("UnityEngine.InputSystem.Keyboard, Unity.InputSystem");
-        private static readonly Type KeyboardStateType = Type.GetType("UnityEngine.InputSystem.LowLevel.KeyboardState, Unity.InputSystem");
-        private static readonly Type KeyEnumType = Type.GetType("UnityEngine.InputSystem.Key, Unity.InputSystem");
-        private static readonly Type InputSystemType = Type.GetType("UnityEngine.InputSystem.InputSystem, Unity.InputSystem");
-        private static readonly Type KeyControlType = Type.GetType("UnityEngine.InputSystem.Controls.KeyControl, Unity.InputSystem");
-
-        private static readonly MethodInfo QueueStateEventGeneric = GetQueueStateEventGeneric();
-        private static readonly MethodInfo KeyboardStateSetMethod = KeyboardStateType != null && KeyEnumType != null
-            ? KeyboardStateType.GetMethod("Set", new[] { KeyEnumType, typeof(bool) })
-            : null;
-
-        private static readonly PropertyInfo KeyboardCurrentProperty = KeyboardType != null
-            ? KeyboardType.GetProperty("current", BindingFlags.Public | BindingFlags.Static)
-            : null;
-
-        private static readonly PropertyInfo KeyboardItemProperty = KeyboardType != null && KeyEnumType != null
-            ? KeyboardType.GetProperty("Item", new[] { KeyEnumType })
-            : null;
-
-        private static readonly PropertyInfo WasPressedThisFrameProperty = KeyControlType != null
-            ? KeyControlType.GetProperty("wasPressedThisFrame", BindingFlags.Public | BindingFlags.Instance)
-            : null;
-
-        private static readonly HashSet<KeyCode> WarnedUnmappedKeys = new HashSet<KeyCode>();
-
         private static readonly Dictionary<KeyCode, int> KeyCodeToInputSystemKey = new Dictionary<KeyCode, int>
         {
             { KeyCode.A, 15 }, { KeyCode.B, 16 }, { KeyCode.C, 17 }, { KeyCode.D, 18 },
@@ -82,417 +60,112 @@ namespace RealPlayTester.Input
             { KeyCode.Minus, 61 }, { KeyCode.Equals, 62 }
         };
 
-        private static readonly MethodInfo AddDeviceMethod = InputSystemType != null
-            ? InputSystemType.GetMethod("AddDevice", new[] { typeof(Type) })
-            : null;
+        private static readonly HashSet<KeyCode> WarnedUnmappedKeys = new HashSet<KeyCode>();
 
-        internal static object _virtualKeyboard;
-        internal static object _virtualMouse;
-
-        public static bool IsAvailable
-        {
-            get { return KeyboardType != null && KeyboardStateType != null && KeyEnumType != null && InputSystemType != null && KeyboardCurrentProperty != null && QueueStateEventGeneric != null; }
-        }
+        public static bool IsAvailable => InputSystemReflector.Types.InputSystem != null && InputSystemReflector.QueueStateEventKeyboard != null;
 
         public static void InitializeDevices()
         {
-            if (InputSystemType == null) return;
-
-            RealPlayLog.Info("InputSystemShim: Initializing virtual devices...");
+            if (!IsAvailable) return;
+            RealPlaySettings.Initialize();
+            InputSimulator.UpdateInput();
             
-            object keyboard = EnsureKeyboard();
-            object mouse = EnsureMouse();
+            VirtualDeviceManager.EnsureKeyboard();
+            VirtualDeviceManager.EnsureMouse();
 
-            if (keyboard != null) MakeCurrent(keyboard);
-            if (mouse != null) MakeCurrent(mouse);
+            SubscribeToEvents();
+        }
+
+        public static void UpdateInput() => InputSimulator.UpdateInput();
+
+        public static Task QueueKeyState(KeyCode key, bool down)
+        {
+            if (!TryMapKeyCode(key, out int kv))
+            {
+                WarnUnmapped(key);
+                return Task.CompletedTask;
+            }
+            return InputSimulator.QueueKeyState(kv, down);
+        }
+
+        public static async Task PressKey(KeyCode key, float duration = 0.05f)
+        {
+            await QueueKeyState(key, true);
+            await RealPlayTester.Await.Wait.Seconds(duration);
+            await QueueKeyState(key, false);
+        }
+
+        public static void KeyDown(KeyCode key) => _ = QueueKeyState(key, true);
+        public static void KeyUp(KeyCode key) => _ = QueueKeyState(key, false);
+
+        public static Task MouseDown(int button = 0) => InputSimulator.QueueMouseState(Vector2.zero, button, true, false);
+        public static Task MouseUp(int button = 0) => InputSimulator.QueueMouseState(Vector2.zero, button, false, false);
+        public static Task MouseMove(Vector2 position) => InputSimulator.QueueMouseState(position, -1, false, true);
+        public static void MouseButton(int button = 0, bool down = true) => _ = InputSimulator.QueueMouseState(Vector2.zero, button, down, false);
+
+        public static bool GetKeyHeld(KeyCode key)
+        {
+            if (!IsAvailable) return false;
+            object keyboard = VirtualDeviceManager.GetKeyboard();
+            if (keyboard == null || InputSystemReflector.KeyboardItemProperty == null) return false;
             
-            RealPlayLog.Info($"InputSystemShim: Initialized devices - Keyboard: {(keyboard != null ? "Ready" : "Missing")}, Mouse: {(mouse != null ? "Ready" : "Missing")}");
-        }
-
-        private static void MakeCurrent(object device)
-        {
-            if (device == null) return;
-            var method = device.GetType().GetMethod("MakeCurrent", BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-            if (method != null)
-            {
-                method.Invoke(device, null);
-            }
-            else
-            {
-                // Fallback for some versions where it might be on a base type
-                var deviceType = Type.GetType("UnityEngine.InputSystem.InputDevice, Unity.InputSystem");
-                if (deviceType != null)
-                {
-                    method = deviceType.GetMethod("MakeCurrent", BindingFlags.Public | BindingFlags.Instance);
-                    method?.Invoke(device, null);
-                }
-            }
-        }
-
-        public static void UpdateInput()
-        {
-            if (InputSystemType == null) return;
-            var method = InputSystemType.GetMethod("Update", BindingFlags.Public | BindingFlags.Static);
-            method?.Invoke(null, null);
-        }
-
-        public static void KeyDown(KeyCode key)
-        {
-            QueueKeyState(key, true);
-        }
-
-        public static void KeyUp(KeyCode key)
-        {
-            QueueKeyState(key, false);
+            if (!TryMapKeyCode(key, out int kv)) return false;
+            object keyEnum = Enum.ToObject(InputSystemReflector.Types.KeyEnum, kv);
+            object control = InputSystemReflector.KeyboardItemProperty.GetValue(keyboard, new[] { keyEnum });
+            if (control == null) return false;
+            
+            var isPressedProp = control.GetType().GetProperty("isPressed", BindingFlags.Public | BindingFlags.Instance);
+            return isPressedProp != null && (bool)isPressedProp.GetValue(control);
         }
 
         public static bool GetKeyDown(KeyCode key)
         {
-            if (!IsAvailable)
-            {
-                return false;
-            }
-
-            object keyboard = GetKeyboard();
-            if (keyboard == null || KeyboardItemProperty == null || WasPressedThisFrameProperty == null)
-            {
-                return false;
-            }
-
-            if (!TryMapKeyCode(key, out int inputSystemKeyValue))
-            {
-                WarnUnmapped(key);
-                return false;
-            }
-
-            object keyEnum = Enum.ToObject(KeyEnumType, inputSystemKeyValue);
-            object keyControl = KeyboardItemProperty.GetValue(keyboard, new[] { keyEnum });
-            if (keyControl == null)
-            {
-                return false;
-            }
-
-            object wasPressed = WasPressedThisFrameProperty.GetValue(keyControl);
-            return wasPressed is bool pressed && pressed;
+            if (!IsAvailable) return false;
+            object keyboard = VirtualDeviceManager.GetKeyboard();
+            if (keyboard == null || InputSystemReflector.KeyboardItemProperty == null || InputSystemReflector.WasPressedThisFrameProperty == null) return false;
+            if (!TryMapKeyCode(key, out int kv)) return false;
+            object kEnum = Enum.ToObject(InputSystemReflector.Types.KeyEnum, kv);
+            object ctrl = InputSystemReflector.KeyboardItemProperty.GetValue(keyboard, new[] { kEnum });
+            return ctrl != null && (bool)InputSystemReflector.WasPressedThisFrameProperty.GetValue(ctrl);
         }
 
-        private static object GetKeyboard()
+        public static void ClearEvents()
         {
-            // First check if already cached and still valid
-            if (_virtualKeyboard != null && IsDeviceInSystem(_virtualKeyboard))
-            {
-                return _virtualKeyboard;
-            }
-
-            // Check if InputSystem.Keyboard.current is set
-            if (KeyboardCurrentProperty != null)
-            {
-                object keyboard = KeyboardCurrentProperty.GetValue(null);
-                if (keyboard != null) return keyboard;
-            }
-
-            // Aggressive discovery in all devices
-            if (InputSystemType != null)
-            {
-                var devicesProp = InputSystemType.GetProperty("devices", BindingFlags.Public | BindingFlags.Static);
-                if (devicesProp != null)
-                {
-                    var devices = devicesProp.GetValue(null) as IEnumerable;
-                    if (devices != null)
-                    {
-                        foreach (var d in devices)
-                        {
-                            if (d != null && d.GetType().Name.Contains("Keyboard"))
-                            {
-                                return d;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return null;
+            InputSystemReflector.Types.InputSystem?.GetMethod("Reset", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, null);
+            InputSimulator.ClearMouseState();
+            InitializeDevices();
         }
 
-        private static bool IsDeviceInSystem(object device)
-        {
-             if (device == null || InputSystemType == null) return false;
-             var devicesProperty = InputSystemType.GetProperty("devices", BindingFlags.Public | BindingFlags.Static);
-             if (devicesProperty == null) return false;
-             var devices = devicesProperty.GetValue(null) as IEnumerable;
-             if (devices == null) return false;
-             foreach (var d in devices) if (d == device) return true;
-             return false;
-        }
-
-        private static object EnsureKeyboard()
-        {
-            object keyboard = GetKeyboard();
-            if (keyboard != null) 
-            {
-                _virtualKeyboard = keyboard;
-                return keyboard;
-            }
-
-            if (InputSystemType != null)
-            {
-                try
-                {
-                    // Specifically look for the non-generic AddDevice(string) overload
-                    MethodInfo addDeviceMethod = null;
-                    foreach (var m in InputSystemType.GetMethods(BindingFlags.Public | BindingFlags.Static))
-                    {
-                        if (m.Name == "AddDevice" && !m.IsGenericMethodDefinition)
-                        {
-                            var parameters = m.GetParameters();
-                            if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(string))
-                            {
-                                addDeviceMethod = m;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (addDeviceMethod != null)
-                    {
-                        _virtualKeyboard = addDeviceMethod.Invoke(null, new object[] { "Keyboard", null, null });
-                    }
-                    else if (AddDeviceMethod != null && KeyboardType != null)
-                    {
-                        _virtualKeyboard = AddDeviceMethod.Invoke(null, new[] { KeyboardType });
-                    }
-                    
-                    if (_virtualKeyboard != null)
-                    {
-                        RealPlayLog.Info("InputSystemShim: Created virtual Keyboard device.");
-                        return _virtualKeyboard;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    RealPlayLog.Warn($"InputSystemShim: Failed to create virtual Keyboard: {ex.Message}");
-                }
-            }
-
-            return null;
-        }
-
-        private static void QueueKeyState(KeyCode key, bool pressed)
-        {
-            if (!IsAvailable)
-            {
-                return;
-            }
-
-            if (!TryMapKeyCode(key, out int inputSystemKeyValue))
-            {
-                WarnUnmapped(key);
-                return;
-            }
-
-            object keyboard = EnsureKeyboard();
-            if (keyboard == null)
-            {
-                RealPlayLog.Warn("InputSystemShim: No keyboard available and failed to create virtual one. Key press ignored.");
-                return;
-            }
-
-            object state = Activator.CreateInstance(KeyboardStateType);
-            object keyValue = Enum.ToObject(KeyEnumType, inputSystemKeyValue);
-            KeyboardStateSetMethod.Invoke(state, new[] { keyValue, pressed });
-            QueueStateEventGeneric.Invoke(null, new[] { keyboard, state, -1d });
-        }
-
-        // ===== MOUSE SIMULATION SUPPORT =====
-        private static readonly Type MouseType = Type.GetType("UnityEngine.InputSystem.Mouse, Unity.InputSystem");
-        private static readonly Type MouseStateType = Type.GetType("UnityEngine.InputSystem.LowLevel.MouseState, Unity.InputSystem");
-        private static readonly PropertyInfo MouseCurrentProperty = MouseType != null
-            ? MouseType.GetProperty("current", BindingFlags.Public | BindingFlags.Static)
-            : null;
-
-        private static object _lastMouseState;
-        private static MethodInfo _queueStateEventMouse;
-
-        public static void MouseMove(Vector2 position)
-        {
-            if (!IsAvailable || MouseType == null) return;
-
-            object mouse = EnsureMouse();
-            if (mouse == null) return;
-
-            // Use cached state or create fresh if none
-            object state = _lastMouseState ?? Activator.CreateInstance(MouseStateType);
-            
-            // Set position (MouseState.position is Vector2)
-            var posField = MouseStateType.GetField("position");
-            if (posField != null) posField.SetValue(state, position);
-            
-            // Cache it
-            _lastMouseState = state;
-            
-            // Queue Event
-            if (_queueStateEventMouse == null) _queueStateEventMouse = GetQueueStateEventGeneric(MouseStateType);
-            if (_queueStateEventMouse != null)
-                _queueStateEventMouse.Invoke(null, new[] { mouse, state, -1d });
-        }
-
-        public static void MouseButton(int buttonId, bool pressed)
-        {
-             if (!IsAvailable || MouseType == null) return;
-             
-             object mouse = EnsureMouse();
-             if (mouse == null) return;
-             
-             // Use cached state or create fresh if none
-             object state = _lastMouseState ?? Activator.CreateInstance(MouseStateType);
-             
-             var buttonsField = MouseStateType.GetField("buttons");
-             if (buttonsField != null)
-             {
-                 // Get current buttons from cached state to preserve others
-                 // Assuming 'buttons' is a ushort bitmask
-                 ushort currentButtons = (ushort)buttonsField.GetValue(state);
-                 ushort mask = (ushort)(1 << buttonId);
-                 
-                 if (pressed)
-                     currentButtons |= mask;
-                 else
-                     currentButtons &= (ushort)~mask;
-                 
-                 buttonsField.SetValue(state, currentButtons); 
-             }
-             
-             // Cache it
-             _lastMouseState = state;
-             
-             if (_queueStateEventMouse == null) _queueStateEventMouse = GetQueueStateEventGeneric(MouseStateType);
-             if (_queueStateEventMouse != null)
-                _queueStateEventMouse.Invoke(null, new[] { mouse, state, -1d });
-        }
-        
-        private static object GetMouse()
-        {
-            // First check if already cached and still valid
-            if (_virtualMouse != null && IsDeviceInSystem(_virtualMouse))
-            {
-                return _virtualMouse;
-            }
-
-            // Check if InputSystem.Mouse.current is set
-            if (MouseCurrentProperty != null)
-            {
-                object mouse = MouseCurrentProperty.GetValue(null);
-                if (mouse != null) return mouse;
-            }
-
-            // Aggressive discovery in all devices
-            if (InputSystemType != null)
-            {
-                var devicesProp = InputSystemType.GetProperty("devices", BindingFlags.Public | BindingFlags.Static);
-                if (devicesProp != null)
-                {
-                    var devices = devicesProp.GetValue(null) as IEnumerable;
-                    if (devices != null)
-                    {
-                        foreach (var d in devices)
-                        {
-                            if (d != null && d.GetType().Name.Contains("Mouse"))
-                            {
-                                return d;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private static object EnsureMouse()
-        {
-            object mouse = GetMouse();
-            if (mouse != null) 
-            {
-                _virtualMouse = mouse;
-                return mouse;
-            }
-
-            if (InputSystemType != null)
-            {
-                try
-                {
-                    // Specifically look for the non-generic AddDevice(string) overload
-                    MethodInfo addDeviceMethod = null;
-                    foreach (var m in InputSystemType.GetMethods(BindingFlags.Public | BindingFlags.Static))
-                    {
-                        if (m.Name == "AddDevice" && !m.IsGenericMethodDefinition)
-                        {
-                            var parameters = m.GetParameters();
-                            if (parameters.Length >= 1 && parameters[0].ParameterType == typeof(string))
-                            {
-                                addDeviceMethod = m;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (addDeviceMethod != null)
-                    {
-                        _virtualMouse = addDeviceMethod.Invoke(null, new object[] { "Mouse", null, null });
-                    }
-                    else if (AddDeviceMethod != null && MouseType != null)
-                    {
-                        _virtualMouse = AddDeviceMethod.Invoke(null, new[] { MouseType });
-                    }
-
-                    if (_virtualMouse != null)
-                    {
-                        RealPlayLog.Info("InputSystemShim: Created virtual Mouse device.");
-                        return _virtualMouse;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    RealPlayLog.Warn($"InputSystemShim: Failed to create virtual Mouse: {ex.Message}");
-                }
-            }
-            return null;
-        }
-
-        private static MethodInfo GetQueueStateEventGeneric(Type stateType)
-        {
-            if (InputSystemType == null || stateType == null)
-            {
-                return null;
-            }
-
-            foreach (var method in InputSystemType.GetMethods(BindingFlags.Public | BindingFlags.Static))
-            {
-                if (!method.IsGenericMethodDefinition) continue;
-                if (method.Name != "QueueStateEvent") continue;
-
-                var parameters = method.GetParameters();
-                if (parameters.Length >= 2)
-                {
-                    return method.MakeGenericMethod(stateType);
-                }
-            }
-            return null;
-        }
-
-        private static MethodInfo GetQueueStateEventGeneric() => GetQueueStateEventGeneric(KeyboardStateType);
-
-        private static bool TryMapKeyCode(KeyCode key, out int inputSystemKeyValue)
-        {
-            return KeyCodeToInputSystemKey.TryGetValue(key, out inputSystemKeyValue);
-        }
+        private static bool TryMapKeyCode(KeyCode key, out int kv) => KeyCodeToInputSystemKey.TryGetValue(key, out kv);
 
         private static void WarnUnmapped(KeyCode key)
         {
-            if (WarnedUnmappedKeys.Add(key))
-            {
-                RealPlayLog.Warn($"KeyCode.{key} has no mapping to Input System Key enum.");
-            }
+            if (WarnedUnmappedKeys.Add(key)) RealPlayLog.Warn($"KeyCode.{key} has no mapping to Input System Key enum.");
         }
+
+        private static bool _isSubscribed = false;
+        private static void SubscribeToEvents()
+        {
+            if (InputSystemReflector.Types.InputSystem == null || _isSubscribed) return;
+            try
+            {
+                var managerField = InputSystemReflector.Types.InputSystem.GetField("s_Manager", BindingFlags.NonPublic | BindingFlags.Static);
+                var manager = managerField?.GetValue(null);
+                if (manager == null) return;
+
+                var onEventField = manager.GetType().GetEvent("onEvent", BindingFlags.Public | BindingFlags.Instance);
+                if (onEventField != null)
+                {
+                    var handleMethod = typeof(InputSystemShim).GetMethod("HandleInputEvent", BindingFlags.NonPublic | BindingFlags.Static);
+                    if (handleMethod == null) return;
+                    var handler = Delegate.CreateDelegate(onEventField.EventHandlerType, handleMethod);
+                    onEventField.AddEventHandler(manager, handler);
+                    _isSubscribed = true;
+                }
+            }
+            catch { }
+        }
+
+        private static void HandleInputEvent(object ptrObj, object device) { }
     }
 }

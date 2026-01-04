@@ -2,9 +2,20 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using RealPlayTester.Input;
 
 namespace RealPlayTester.Utilities
 {
+    /// <summary>
+    /// Attach this to a GameObject to provide an explicit semantic role for AI agents.
+    /// This overrides heuristic detection in SemanticProbe.
+    /// </summary>
+    public class RealPlayRoleAttribute : System.Attribute
+    {
+        public string RoleName { get; }
+        public RealPlayRoleAttribute(string roleName) => RoleName = roleName;
+    }
+
     /// <summary>
     /// Utility to dump the current scene hierarchy to a string for AI debugging.
     /// Optimized to group repetitive siblings (like tiles) to save tokens.
@@ -13,6 +24,7 @@ namespace RealPlayTester.Utilities
     {
         public static string DumpHierarchy()
         {
+            // ... (Existing logic remains)
             var sb = new StringBuilder();
             sb.AppendLine("=== Scene Hierarchy Dump ===");
             
@@ -35,6 +47,79 @@ namespace RealPlayTester.Utilities
             return sb.ToString();
         }
 
+        public static string DumpHierarchyJson()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("{");
+            sb.AppendLine("  \"scenes\": [");
+            
+            int sceneCount = SceneManager.sceneCount;
+            bool firstScene = true;
+            for (int i = 0; i < sceneCount; i++)
+            {
+                var scene = SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                if (!firstScene) sb.AppendLine(",");
+                firstScene = false;
+
+                sb.AppendLine("    {");
+                sb.AppendLine($"      \"name\": \"{EscapeJson(scene.name)}\",");
+                sb.AppendLine("      \"roots\": [");
+                
+                var roots = scene.GetRootGameObjects();
+                bool firstRoot = true;
+                foreach (var root in roots)
+                {
+                    if (!firstRoot) sb.AppendLine(",");
+                    firstRoot = false;
+                    DumpRecursiveJson(root.transform, sb, 3);
+                }
+                sb.AppendLine();
+                sb.AppendLine("      ]");
+                sb.Append("    }");
+            }
+            
+            sb.AppendLine();
+            sb.AppendLine("  ]");
+            sb.AppendLine("}");
+            return sb.ToString();
+        }
+
+        private static void DumpRecursiveJson(Transform t, StringBuilder sb, int indent)
+        {
+            string spaces = new string(' ', indent * 2);
+            var go = t.gameObject;
+            var roleName = SemanticProbe.GetRoleName(go);
+            var pos = RealInputUtility.GetScreenCenter(go);
+
+            sb.AppendLine($"{spaces}{{");
+            sb.AppendLine($"{spaces}  \"name\": \"{EscapeJson(go.name)}\",");
+            if (!string.IsNullOrEmpty(roleName)) sb.AppendLine($"{spaces}  \"role\": \"{roleName}\",");
+            sb.AppendLine($"{spaces}  \"active\": {go.activeInHierarchy.ToString().ToLower()},");
+            sb.AppendLine($"{spaces}  \"pos\": {{ \"x\": {Mathf.RoundToInt(pos.x)}, \"y\": {Mathf.RoundToInt(pos.y)} }},");
+
+            if (t.childCount > 0)
+            {
+                sb.AppendLine($"{spaces}  \"children\": [");
+                for (int i = 0; i < t.childCount; i++)
+                {
+                    if (i > 0) sb.AppendLine(",");
+                    DumpRecursiveJson(t.GetChild(i), sb, indent + 2);
+                }
+                sb.AppendLine();
+                sb.AppendLine($"{spaces}  ]");
+            }
+            
+            sb.Append($"{spaces}}}");
+        }
+
+        private static string EscapeJson(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+        }
+
         private static void DumpRecursive(Transform t, StringBuilder sb, int depth, int maxDepth)
         {
             if (depth > maxDepth)
@@ -43,57 +128,57 @@ namespace RealPlayTester.Utilities
                 return;
             }
 
-            int childCount = t.childCount;
-            for (int i = 0; i < childCount; i++)
+            for (int i = 0; i < t.childCount; i++)
             {
                 Transform child = t.GetChild(i);
-                
-                // Grouping logic: check if this child and subsequent ones are "boring" and similar
                 int groupCount = GetRepetitiveGroupCount(t, i);
-                if (groupCount > 5) // Group if more than 5 similar siblings
+                if (groupCount > 5)
                 {
-                    sb.Append(' ', (depth + 1) * 2);
-                    sb.AppendLine($"... ({groupCount} similar '{GetBaseName(child.name)}' objects)");
-                    i += groupCount - 1; // Skip the group
+                    sb.Append(' ', (depth + 1) * 2).AppendLine($"... ({groupCount} similar '{GetBaseName(child.name)}' objects)");
+                    i += groupCount - 1;
                     continue;
                 }
 
-                sb.Append(' ', (depth + 1) * 2);
-                sb.Append(child.gameObject.activeInHierarchy ? "[+] " : "[-] ");
-                sb.Append(child.name);
+                AppendObjectLine(sb, child.gameObject, depth);
+                if (child.childCount > 0) DumpRecursive(child, sb, depth + 1, maxDepth);
+            }
+        }
 
-                // Append key component info
-                var btn = child.GetComponent<Button>();
-                if (btn != null)
-                {
-                    sb.Append(" (Button");
-                    if (!btn.interactable) sb.Append(":Disabled");
-                    sb.Append(")");
-                }
+        private static void AppendObjectLine(StringBuilder sb, GameObject go, int depth)
+        {
+            sb.Append(' ', (depth + 1) * 2);
+            sb.Append(go.activeInHierarchy ? "[+] " : "[-] ");
 
-                // Check for legacy Text
-                var txt = child.GetComponent<Text>();
-                if (txt != null)
-                {
-                    sb.Append($" [Text: \"{Truncate(txt.text)}\"]");
-                }
-                
-                // Check for TMP (using reflection to avoid hard dependency)
-                var tmp = child.GetComponent("TMPro.TMP_Text");
-                if (tmp != null)
-                {
-                    var textProp = tmp.GetType().GetProperty("text");
-                    if (textProp != null)
-                    {
-                        var val = textProp.GetValue(tmp) as string;
-                        sb.Append($" [TMP: \"{Truncate(val)}\"]");
-                    }
-                }
-                sb.AppendLine();
+            var roleName = SemanticProbe.GetRoleName(go);
+            if (!string.IsNullOrEmpty(roleName)) sb.Append($"[{roleName}] ");
+            sb.Append(go.name);
 
-                if (child.childCount > 0)
+            if (!string.IsNullOrEmpty(roleName) && go.activeInHierarchy)
+            {
+                var pos = RealInputUtility.GetScreenCenter(go);
+                sb.Append($" ({Mathf.RoundToInt(pos.x)}, {Mathf.RoundToInt(pos.y)})");
+            }
+
+            AppendComponentDetails(sb, go);
+            sb.AppendLine();
+        }
+
+        private static void AppendComponentDetails(StringBuilder sb, GameObject go)
+        {
+            var btn = go.GetComponent<Button>();
+            if (btn != null && !btn.interactable) sb.Append(" (Disabled)");
+
+            var txt = go.GetComponent<UnityEngine.UI.Text>();
+            if (txt != null) sb.Append($" [\"{Truncate(txt.text)}\"]");
+
+            var tmp = go.GetComponent("TMPro.TMP_Text");
+            if (tmp != null)
+            {
+                var textProp = tmp.GetType().GetProperty("text");
+                if (textProp != null)
                 {
-                    DumpRecursive(child, sb, depth + 1, maxDepth);
+                    var val = textProp.GetValue(tmp) as string;
+                    sb.Append($" [\"{Truncate(val)}\"]");
                 }
             }
         }
@@ -142,7 +227,7 @@ namespace RealPlayTester.Utilities
             // Objects with no interesting components and no children are boring
             if (t.childCount > 0) return false;
             if (t.GetComponent<Button>() != null) return false;
-            if (t.GetComponent<Text>() != null) return false;
+            if (t.GetComponent<UnityEngine.UI.Text>() != null) return false;
             if (t.GetComponent("TMPro.TMP_Text") != null) return false;
             return true;
         }

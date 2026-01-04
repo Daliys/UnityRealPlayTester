@@ -164,77 +164,71 @@ namespace RealPlayTester.Input
             RealInputUtility.SimulateMouseMove(to);
         }
 
+        private struct PinchPoints { public Vector2 S1, S2, E1, E2; }
+        private struct PinchTargets { public GameObject T1, T2; }
+
         private static IEnumerator PinchRoutine(Vector2 center, float startDistance, float endDistance, float duration)
         {
             var es = RealInputUtility.EnsureEventSystem();
-
             var f1 = new PointerEventData(es) { pointerId = 0, button = PointerEventData.InputButton.Left };
             var f2 = new PointerEventData(es) { pointerId = 1, button = PointerEventData.InputButton.Left };
 
-            Vector2 start1 = center + Vector2.up * (startDistance * 0.5f);
-            Vector2 start2 = center - Vector2.up * (startDistance * 0.5f);
-            Vector2 end1 = center + Vector2.up * (endDistance * 0.5f);
-            Vector2 end2 = center - Vector2.up * (endDistance * 0.5f);
-
-            f1.position = start1;
-            f2.position = start2;
-
-            var results1 = RealInputUtility.Raycasts(f1);
-            var results2 = RealInputUtility.Raycasts(f2);
-            var t1 = results1.Count > 0 ? results1[0].gameObject : null;
-            var t2 = results2.Count > 0 ? results2[0].gameObject : null;
-
-            if (t1 != null)
+            var pts = new PinchPoints
             {
-                ExecuteEvents.Execute(t1, f1, ExecuteEvents.pointerEnterHandler);
-                ExecuteEvents.Execute(t1, f1, ExecuteEvents.pointerDownHandler);
-            }
-            if (t2 != null)
-            {
-                ExecuteEvents.Execute(t2, f2, ExecuteEvents.pointerEnterHandler);
-                ExecuteEvents.Execute(t2, f2, ExecuteEvents.pointerDownHandler);
-            }
+                S1 = center + Vector2.up * (startDistance * 0.5f),
+                S2 = center - Vector2.up * (startDistance * 0.5f),
+                E1 = center + Vector2.up * (endDistance * 0.5f),
+                E2 = center - Vector2.up * (endDistance * 0.5f)
+            };
 
-            RealInputUtility.SimulateMouseMove(center);
+            var targets = PinchStart(f1, f2, pts);
+            yield return PinchLoop(new PinchContext { center = center, f1 = f1, f2 = f2, targets = targets, pts = pts, duration = duration });
+            PinchEnd(f1, f2, targets);
+        }
+
+        private static PinchTargets PinchStart(PointerEventData f1, PointerEventData f2, PinchPoints pts)
+        {
+            f1.position = pts.S1;
+            f2.position = pts.S2;
+            var r1 = RealInputUtility.Raycasts(f1);
+            var r2 = RealInputUtility.Raycasts(f2);
+            var targets = new PinchTargets { T1 = r1.Count > 0 ? r1[0].gameObject : null, T2 = r2.Count > 0 ? r2[0].gameObject : null };
+
+            if (targets.T1 != null) { ExecuteEvents.Execute(targets.T1, f1, ExecuteEvents.pointerEnterHandler); ExecuteEvents.Execute(targets.T1, f1, ExecuteEvents.pointerDownHandler); }
+            if (targets.T2 != null) { ExecuteEvents.Execute(targets.T2, f2, ExecuteEvents.pointerEnterHandler); ExecuteEvents.Execute(targets.T2, f2, ExecuteEvents.pointerDownHandler); }
+
             RealInputUtility.SimulateMouseClick(true);
             RealInputUtility.SimulateDragging(true);
+            return targets;
+        }
 
+        private struct PinchContext { public Vector2 center; public PointerEventData f1; public PointerEventData f2; public PinchTargets targets; public PinchPoints pts; public float duration; }
+
+        private static IEnumerator PinchLoop(PinchContext ctx)
+        {
             float elapsed = 0f;
-            while (elapsed < duration)
+            while (elapsed < ctx.duration)
             {
                 elapsed += Time.deltaTime;
-                float t = duration > 0f ? Mathf.Clamp01(elapsed / duration) : 1f;
-                f1.position = Vector2.Lerp(start1, end1, t);
-                f2.position = Vector2.Lerp(start2, end2, t);
+                float t = ctx.duration > 0f ? Mathf.Clamp01(elapsed / ctx.duration) : 1f;
+                ctx.f1.position = Vector2.Lerp(ctx.pts.S1, ctx.pts.E1, t);
+                ctx.f2.position = Vector2.Lerp(ctx.pts.S2, ctx.pts.E2, t);
 
-                if (t1 != null)
-                {
-                    ExecuteEvents.Execute(t1, f1, ExecuteEvents.dragHandler);
-                }
+                if (ctx.targets.T1 != null) ExecuteEvents.Execute(ctx.targets.T1, ctx.f1, ExecuteEvents.dragHandler);
+                if (ctx.targets.T2 != null) ExecuteEvents.Execute(ctx.targets.T2, ctx.f2, ExecuteEvents.dragHandler);
 
-                if (t2 != null)
-                {
-                    ExecuteEvents.Execute(t2, f2, ExecuteEvents.dragHandler);
-                }
-
-                RealInputUtility.SimulateMouseMove(center);
+                RealInputUtility.SimulateMouseMove(ctx.center);
                 yield return null;
             }
+        }
 
+        private static void PinchEnd(PointerEventData f1, PointerEventData f2, PinchTargets targets)
+        {
             RealInputUtility.SimulateMouseClick(false);
             RealInputUtility.SimulateDragging(false);
 
-            if (t1 != null)
-            {
-                ExecuteEvents.ExecuteHierarchy(t1, f1, ExecuteEvents.pointerUpHandler);
-                ExecuteEvents.ExecuteHierarchy(t1, f1, ExecuteEvents.pointerClickHandler);
-            }
-
-            if (t2 != null)
-            {
-                ExecuteEvents.ExecuteHierarchy(t2, f2, ExecuteEvents.pointerUpHandler);
-                ExecuteEvents.ExecuteHierarchy(t2, f2, ExecuteEvents.pointerClickHandler);
-            }
+            if (targets.T1 != null) { ExecuteEvents.ExecuteHierarchy(targets.T1, f1, ExecuteEvents.pointerUpHandler); ExecuteEvents.ExecuteHierarchy(targets.T1, f1, ExecuteEvents.pointerClickHandler); }
+            if (targets.T2 != null) { ExecuteEvents.ExecuteHierarchy(targets.T2, f2, ExecuteEvents.pointerUpHandler); ExecuteEvents.ExecuteHierarchy(targets.T2, f2, ExecuteEvents.pointerClickHandler); }
         }
     }
 }

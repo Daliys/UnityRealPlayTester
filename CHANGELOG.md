@@ -1,6 +1,34 @@
 # Changelog
 
-## [1.8.1] - 2026-01-01
+## [2.0.0] - 2026-01-04
+### AI-Native Facade & Black Box Recorder
+### Added
+- **Nested API Facade**: Re-architected the `Tester` class into specialized, discoverable nested categories:
+    - `Tester.Interaction`: (Mouse, Keyboard, Touch) for deterministic input.
+    - `Tester.Perception`: (Find, Probe, DescribeRegion, DumpHierarchy) for scene understanding.
+    - `Tester.State`: (Capture, CaptureObject, GetDiff) for causal consequence analysis.
+    - `Tester.Await`: (Seconds, Frames, Until, Step) for flexible synchronization.
+    - `Tester.Advanced`: (Drag, Scroll, ClickButtonWithText) for complex flows.
+    - `Tester.Utility`: (GetScreenCenter, Raycast, PerformAndVerify) for common helpers.
+- **AI-Native JSON Perception**: Introduced `Tester.Perception.DumpHierarchyJson()` for coordinate-aware, LLM-optimized scene trees.
+- **Black Box Recorder**:
+    - **Unified Diagnostic Stream**: Structured log categories (`[INPUT]`, `[BLOCKER]`, `[STEP]`) with real-time raycast occlusion detection.
+    - **Failure Bundle v2**: Automated capture of state snapshots, hierarchy JSON, and categorized session logs on failure.
+- **State Tracking**: `StateTracker` API with serializable snapshots and semantic diffing to verify the impact of agent actions.
+- **Parameter Consolidation**: Introduced `PinchParams` and `ScreenPosition` structs to satisfy strict linter limits and improve API consistency.
+
+### Changed
+- **Diagnostic Compliance**: 100% adherence to project-wide code quality standards:
+    - Max 40 lines per method.
+    - Max 300 lines per file.
+    - Max 20 public members per class (achieved via modular partial classes).
+- **Modernized APIs**: Use of modern Unity performance APIs (`FindFirstObjectByType`, `FindObjectsByType`).
+
+### Fixed
+- **Suite Stability**: All primary verification tests stabilized and passing (49/49).
+- **Baseline Management**: Restored auto-saving of missing baselines in `Capture.CompareToBaseline`.
+
+## [1.8.1] - Visual Cursor Fixes
 ### Fixed
 - **Visual Cursor Visibility**: Enforced "Always-on-Top" rendering for the visual pointer by automatically claiming the maximum sorting order (32767) and maintaining the last sibling position in the hierarchy every frame.
 - **Input Interference**: Removed redundant `GraphicRaycaster` from the pointer canvas to prevent the virtual cursor from blocking UI interactions.
