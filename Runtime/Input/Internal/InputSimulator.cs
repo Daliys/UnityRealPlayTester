@@ -13,6 +13,7 @@ namespace RealPlayTester.Input.Internal
     {
         private static object _keyboardState;
         private static object _lastMouseState;
+        private static object _lastGamepadState;
 
         private static void EnsureKeyboardState()
         {
@@ -27,7 +28,6 @@ namespace RealPlayTester.Input.Internal
             {
                 if (InputSystemReflector.UpdateMethod != null)
                 {
-                    // Using Dynamic update (1)
                     InputSystemReflector.UpdateMethod.Invoke(null, new object[] { 1 }); 
                 }
                 else
@@ -35,7 +35,6 @@ namespace RealPlayTester.Input.Internal
                     InputSystemReflector.UpdateMethodNoArgs?.Invoke(null, null);
                 }
 
-                // Force physics simulation in batchmode to ensure movement happens during Waits
                 if (Application.isBatchMode || !Application.isPlaying)
                 {
                     if (RealPlaySettings.AutoSimulatePhysics3D)
@@ -64,54 +63,50 @@ namespace RealPlayTester.Input.Internal
             {
                 object keyEnum = Enum.ToObject(InputSystemReflector.Types.KeyEnum, inputSystemKeyValue);
                 EnsureKeyboardState();
-                
-                // Update persistent state
                 InputSystemReflector.KeyboardStateSetMethod.Invoke(_keyboardState, new[] { keyEnum, (object)down });
                 
-                double time = -1.0;
-                try 
-                {
-                    var timeProp = InputSystemReflector.Types.InputSystem.GetProperty("currentTime", BindingFlags.Public | BindingFlags.Static);
-                    if (timeProp != null) time = (double)timeProp.GetValue(null);
-                } 
-                catch { }
-
-                var parameters = InputSystemReflector.QueueStateEventKeyboard.GetParameters();
-                if (parameters.Length == 3)
-                    InputSystemReflector.QueueStateEventKeyboard.Invoke(null, new[] { keyboard, _keyboardState, time });
-                else if (parameters.Length == 2)
-                    InputSystemReflector.QueueStateEventKeyboard.Invoke(null, new[] { keyboard, _keyboardState });
-                else
-                    InputSystemReflector.QueueStateEventKeyboard.Invoke(null, new[] { keyboard, _keyboardState, time, (object)null });
-                
+                InvokeQueueMethod(InputSystemReflector.QueueStateEventKeyboard, keyboard, _keyboardState);
                 UpdateInput();
             }
-            catch (Exception ex) 
-            { 
-                RealPlayLog.Warn($"InputSimulator: QueueKeyState failed: {ex}"); 
-            }
+            catch (Exception ex) { RealPlayLog.Warn($"InputSimulator: QueueKeyState failed: {ex}"); }
             return Task.CompletedTask;
         }
 
         public static Task QueueMouseState(Vector2 position, int button, bool down, bool isMove)
         {
-            if (InputSystemReflector.Types.InputSystem == null) return Task.CompletedTask;
+            if (InputSystemReflector.Types.InputSystem == null || InputSystemReflector.QueueStateEventMouse == null) return Task.CompletedTask;
             object mouse = VirtualDeviceManager.EnsureMouse();
             if (mouse == null) return Task.CompletedTask;
             
             try
             {
-                var queueMethod = InputSystemReflector.GetQueueStateEventGeneric(InputSystemReflector.Types.MouseState);
-                if (queueMethod == null) return Task.CompletedTask;
-
                 object state = _lastMouseState ?? Activator.CreateInstance(InputSystemReflector.Types.MouseState);
                 ApplyMouseStateChanges(state, position, button, down, isMove);
                 _lastMouseState = state;
                 
-                InvokeQueueMethod(queueMethod, mouse, state);
+                InvokeQueueMethod(InputSystemReflector.QueueStateEventMouse, mouse, state);
                 if (Tester.Settings.EnableInputHeartbeat) UpdateInput();
             }
             catch (Exception ex) { RealPlayLog.Warn($"InputSimulator: QueueMouseState failed: {ex.Message}"); }
+            return Task.CompletedTask;
+        }
+
+        public static Task QueueGamepadState(uint buttons, Vector2 leftStick, Vector2 rightStick)
+        {
+            if (InputSystemReflector.Types.InputSystem == null || InputSystemReflector.QueueStateEventGamepad == null) return Task.CompletedTask;
+            object gamepad = VirtualDeviceManager.EnsureGamepad();
+            if (gamepad == null) return Task.CompletedTask;
+
+            try
+            {
+                object state = _lastGamepadState ?? Activator.CreateInstance(InputSystemReflector.Types.GamepadState);
+                ApplyGamepadStateChanges(state, buttons, leftStick, rightStick);
+                _lastGamepadState = state;
+
+                InvokeQueueMethod(InputSystemReflector.QueueStateEventGamepad, gamepad, state);
+                if (Tester.Settings.EnableInputHeartbeat) UpdateInput();
+            }
+            catch (Exception ex) { RealPlayLog.Warn($"InputSimulator: QueueGamepadState failed: {ex.Message}"); }
             return Task.CompletedTask;
         }
 
@@ -136,8 +131,17 @@ namespace RealPlayTester.Input.Internal
             }
         }
 
+        private static void ApplyGamepadStateChanges(object state, uint buttons, Vector2 leftStick, Vector2 rightStick)
+        {
+            var type = InputSystemReflector.Types.GamepadState;
+            type.GetField("buttons")?.SetValue(state, buttons);
+            type.GetField("leftStick")?.SetValue(state, leftStick);
+            type.GetField("rightStick")?.SetValue(state, rightStick);
+        }
+
         private static void InvokeQueueMethod(MethodInfo queueMethod, object device, object state)
         {
+            if (queueMethod == null) return;
             var parameters = queueMethod.GetParameters();
             if (parameters.Length == 3)
                 queueMethod.Invoke(null, new[] { device, state, -1.0 });
@@ -148,5 +152,6 @@ namespace RealPlayTester.Input.Internal
         }
 
         public static void ClearMouseState() => _lastMouseState = null;
+        public static void ClearGamepadState() => _lastGamepadState = null;
     }
 }

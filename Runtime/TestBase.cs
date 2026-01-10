@@ -40,13 +40,16 @@ namespace RealPlayTester.Core
 
         internal async Task Execute()
         {
+            RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Lifecycle", "Starting SetUp");
             await SetUp();
             try
             {
+                RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Lifecycle", "Starting Run");
                 await Run();
             }
             finally
             {
+                RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Lifecycle", "Starting TearDown");
                 await TearDown();
             }
         }
@@ -54,6 +57,12 @@ namespace RealPlayTester.Core
         protected RealPlayTesterHost Host
         {
             get { return RealPlayTesterHost.Instance; }
+        }
+
+        protected void Step(string message)
+        {
+            RealPlayLog.Info($"[Step] {message}");
+            RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Step", message);
         }
 
         protected void Log(string message)

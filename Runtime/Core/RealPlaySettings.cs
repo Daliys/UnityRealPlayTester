@@ -2,12 +2,17 @@ using UnityEngine;
 
 namespace RealPlayTester.Core
 {
+    public enum PreferredInputMode { Auto, Mouse, Touch, Gamepad }
+
     /// <summary>
     /// Global settings for the RealPlayTester framework.
     /// Can be configured at runtime or via static defaults.
     /// </summary>
     public static class RealPlaySettings
     {
+        /// <summary>The input method preferred for high-level Perform() calls.</summary>
+        public static PreferredInputMode PreferredMode = PreferredInputMode.Auto;
+
         /// <summary>Set to true to show a red dot representing the simulated mouse cursor.</summary>
         public static bool ShowVisualPointer = true;
 
@@ -41,6 +46,21 @@ namespace RealPlayTester.Core
         /// Default is 0.016f (approx 60fps).
         /// </summary>
         public static float InputUpdateRate = 0.016f;
+
+        /// <summary>If true, disable stack traces for Info logs to save space.</summary>
+        public static bool DisableLogStackTraces = false;
+
+        /// <summary>If true, Semantic DOM will only include objects visible in the viewport.</summary>
+        public static bool FilterDOMToViewport = false;
+
+        /// <summary>Velocity below this is considered 'stopped' for SteadyState.</summary>
+        public static float IdleVelocityEpsilon = 0.05f;
+
+        /// <summary>If true, SteadyState will ignore non-transitioning looping animations.</summary>
+        public static bool IgnoreLoopingAnimations = true;
+
+        /// <summary>Objects with these prefixes will be ignored by SteadyState checks.</summary>
+        public static string[] AmbientTags = { "[Ambient]", "vfx_", "Particle" };
  
         /// <summary>
         /// Initialize settings based on environment.
@@ -49,12 +69,18 @@ namespace RealPlayTester.Core
         {
             if (Application.isBatchMode)
             {
+                RealPlayTester.Utilities.PerformanceMonitor.IsEnabled = false;
+
                 // Sensible defaults for batchmode/CI
                 ForceBatchmodeVisibility = true;
                 MirrorLogsToStdout = true;
                 EnableInputHeartbeat = true;
                 AutoSimulatePhysics2D = true;
                 AutoSimulatePhysics3D = true;
+                DisableLogStackTraces = true;
+                FilterDOMToViewport = true;
+                
+                RealPlayTester.Utilities.PerformanceMonitor.IsEnabled = false;
             }
         }
     }

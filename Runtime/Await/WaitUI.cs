@@ -14,29 +14,51 @@ namespace RealPlayTester.Await
 
             float startTime = Time.realtimeSinceStartup;
             float timeout = timeoutSeconds ?? 10f;
+            float lastLogTime = startTime;
 
             while (true)
             {
-                var obj = GameObject.Find(name);
+                // Find object including inactive ones to provide better diagnostic traces
+                var obj = FindObjectIncludingInactive(name);
                 if (IsFullyVisibleAndInteractable(obj)) return;
 
-                if (Time.realtimeSinceStartup - startTime >= timeout)
+                float elapsed = Time.realtimeSinceStartup - startTime;
+                string trace = AnalyzeVisibilityAlphaChain(obj, name);
+
+                if (elapsed >= timeout)
                 {
-                    string trace = AnalyzeVisibilityAlphaChain(obj, name);
-                    throw new TimeoutException($"Wait.ForUIVisible timed out waiting for '{name}'. {trace}");
+                    throw new TimeoutException($"Wait.ForUIVisible timed out waiting for '{name}' after {timeout}s. {trace}");
+                }
+
+                if (elapsed > 2f && Time.realtimeSinceStartup - lastLogTime > 2f)
+                {
+                    RealPlayLog.Info($"[Wait] Still waiting for UI '{name}' to be visible. {trace}");
+                    lastLogTime = Time.realtimeSinceStartup;
                 }
 
                 await Task.Yield();
             }
         }
 
+        private static GameObject FindObjectIncludingInactive(string name)
+        {
+            var all = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var go in all)
+            {
+                if (go.name == name) return go;
+            }
+            return null;
+        }
+
         public static Task ForInteractable<T>(string textFilter = null, float? timeoutSeconds = null) where T : Component
         {
             if (!RealPlayEnvironment.IsEnabled) return Task.CompletedTask;
 
+            string desc = $"Component<{typeof(T).Name}>" + (textFilter != null ? $" with text '{textFilter}'" : "");
+
             return Until(() =>
             {
-                var candidates = GameObject.FindObjectsByType<T>(FindObjectsSortMode.None);
+                var candidates = UnityEngine.Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
                 foreach (var c in candidates)
                 {
                      if (!c.gameObject.activeInHierarchy) continue;
@@ -49,7 +71,7 @@ namespace RealPlayTester.Await
                      else return true;
                 }
                 return false;
-            }, timeoutSeconds);
+            }, timeoutSeconds, desc);
         }
 
         private static bool HasMatchingText(Component c, string textFilter)
@@ -75,6 +97,11 @@ namespace RealPlayTester.Await
         {
             if (obj == null || !obj.activeInHierarchy) return false;
 
+            // 1. Cull check
+            var canvasRenderer = obj.GetComponent<CanvasRenderer>();
+            if (canvasRenderer != null && canvasRenderer.cull) return false;
+
+            // 2. Technical Check (CanvasGroups)
             var groups = obj.GetComponentsInParent<CanvasGroup>();
             foreach (var g in groups)
             {
@@ -91,6 +118,11 @@ namespace RealPlayTester.Await
                     return false;
                 }
             }
+
+            // 3. Logical Check (Custom Scripts)
+            var logic = RealPlayTester.Utilities.InteractionLogic.CheckLogicalInteractivity(obj);
+            if (logic.IsBlocked) return false;
+
             return true;
         }
 
@@ -99,6 +131,11 @@ namespace RealPlayTester.Await
             if (obj == null) return $"Object '{targetName}' not found in scene.";
 
             var sb = new System.Text.StringBuilder();
+            
+            // Check logic first
+            var logic = RealPlayTester.Utilities.InteractionLogic.CheckLogicalInteractivity(obj);
+            if (logic.IsBlocked) sb.Append($"[LOGIC BLOCKED: {logic.Reason}] ");
+
             sb.Append("Visibility Trace: ");
             
             var current = obj.transform;
@@ -115,6 +152,9 @@ namespace RealPlayTester.Await
                     if (!cg.interactable) sb.Append(", Non-Interactable");
                 }
                 
+                var cr = go.GetComponent<CanvasRenderer>();
+                if (cr != null && cr.cull) sb.Append(", CULLED");
+
                 if (current.localScale.sqrMagnitude < 0.0001f) sb.Append(", Scale:0");
                 
                 sb.Append(") -> ");

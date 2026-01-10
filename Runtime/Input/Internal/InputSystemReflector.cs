@@ -25,10 +25,16 @@ namespace RealPlayTester.Input.Internal
             public static readonly Type InputDevice = Type.GetType("UnityEngine.InputSystem.InputDevice, Unity.InputSystem");
             public static readonly Type InputUpdate = Type.GetType("UnityEngine.InputSystem.LowLevel.InputUpdateType, Unity.InputSystem");
             public static readonly Type InputSettings = Type.GetType("UnityEngine.InputSystem.InputSettings, Unity.InputSystem");
+            
+            // Gamepad Support
+            public static readonly Type Gamepad = Type.GetType("UnityEngine.InputSystem.Gamepad, Unity.InputSystem");
+            public static readonly Type GamepadState = Type.GetType("UnityEngine.InputSystem.LowLevel.GamepadState, Unity.InputSystem");
+            public static readonly Type GamepadButtonEnum = Type.GetType("UnityEngine.InputSystem.LowLevel.GamepadButton, Unity.InputSystem");
         }
 
         public static readonly MethodInfo QueueStateEventKeyboard = GetQueueStateEventGeneric(Types.KeyboardState);
         public static readonly MethodInfo QueueStateEventMouse = GetQueueStateEventGeneric(Types.MouseState);
+        public static readonly MethodInfo QueueStateEventGamepad = GetQueueStateEventGeneric(Types.GamepadState);
         
         public static readonly MethodInfo KeyboardStateSetMethod = Types.KeyboardState != null && Types.KeyEnum != null
             ? Types.KeyboardState.GetMethod("Set", new[] { Types.KeyEnum, typeof(bool) })

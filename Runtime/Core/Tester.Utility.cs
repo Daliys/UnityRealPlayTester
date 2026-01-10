@@ -45,6 +45,18 @@ namespace RealPlayTester.Core
                 await Wait.Until(check, timeout);
                 if (!check()) Assert.Fail(failMsg ?? "Verification failed after action.");
             }
+
+            /// <summary>Records a high-level event breadcrumb for AI timeline analysis.</summary>
+            public static void RecordBreadcrumb(string type, string message)
+            {
+                if (RealPlayEnvironment.IsEnabled) RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb(type, message);
+            }
+
+            /// <summary>Marks a logical test step in the AI timeline.</summary>
+            public static void TestStep(string message)
+            {
+                if (RealPlayEnvironment.IsEnabled) RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Step", message);
+            }
         }
     }
 }

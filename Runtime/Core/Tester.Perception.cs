@@ -63,6 +63,21 @@ namespace RealPlayTester.Core
             
             /// <summary>Detailed JSON hierarchy dump.</summary>
             public static string DumpHierarchyJson() => RealPlayEnvironment.IsEnabled ? VisualTreeLogger.DumpHierarchyJson() : string.Empty;
+
+            /// <summary>Captures a semantic DOM of the current scene.</summary>
+            public static string DumpSemanticDOM() => RealPlayEnvironment.IsEnabled ? RealPlayTester.Core.Perception.RealPlaySemanticDOMDumper.Dump(RealPlaySettings.FilterDOMToViewport) : string.Empty;
+
+            /// <summary>Checks if a target object is occluded from the main camera view.</summary>
+            public static bool IsOccluded(GameObject target, out string blocker)
+            {
+                if (!RealPlayEnvironment.IsEnabled) { blocker = string.Empty; return false; }
+                var result = RealPlayTester.Core.Perception.RealPlayOcclusionRaycaster.CheckOcclusion(target);
+                blocker = result.BlockingObjectName;
+                return result.IsOccluded;
+            }
+
+            /// <summary>Captures a screenshot with a coordinate grid for AI analysis.</summary>
+            public static Task CaptureVisionSnapshot(string fileName) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Core.Perception.RealPlayComputerVisionInterface.CaptureVisionSnapshot(fileName) : Task.CompletedTask;
         }
     }
 }

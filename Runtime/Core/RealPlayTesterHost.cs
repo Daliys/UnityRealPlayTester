@@ -69,11 +69,7 @@ namespace RealPlayTester.Core
         {
             get
             {
-                if (_instance == null)
-                {
-                    EnsureHost();
-                }
-
+                if (_instance == null) EnsureHost();
                 return _instance;
             }
         }
@@ -86,7 +82,6 @@ namespace RealPlayTester.Core
                 {
                     _mainContext = SynchronizationContext.Current ?? new SynchronizationContext();
                 }
-
                 return _mainContext;
             }
         }
@@ -94,11 +89,28 @@ namespace RealPlayTester.Core
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureHost()
         {
-            if (_instance != null)
-            {
-                return;
-            }
+            RealPlaySettings.Initialize();
+            if (_instance != null) return;
 
+            ApplyGlobalSettings();
+            CleanupReports();
+            FindOrCreateHostInstance();
+
+            _mainContext = SynchronizationContext.Current ?? new SynchronizationContext();
+        }
+
+        private static void ApplyGlobalSettings()
+        {
+            RealPlaySettings.Initialize();
+            if (RealPlaySettings.DisableLogStackTraces)
+            {
+                Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
+                Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
+            }
+        }
+
+        private static void FindOrCreateHostInstance()
+        {
             var existing = GameObject.Find(nameof(RealPlayTesterHost));
             if (existing != null)
             {
@@ -113,24 +125,36 @@ namespace RealPlayTester.Core
                 if (Application.isPlaying)
                 {
                     DontDestroyOnLoad(go);
-                    
-                    // Initialize built-in visual aids
-                    var pointer = go.AddComponent<RealPlayTester.Input.VisualPointer>();
-                    pointer.Initialize();
-
-                    var anchors = go.AddComponent<RealPlayTester.Input.VisualAnchorManager>();
-                    anchors.Initialize();
-
-                    var heatmap = go.AddComponent<RealPlayTester.Input.InteractionHeatmap>();
-                    heatmap.Initialize();
-
-                    RealPlayTester.Diagnostics.LogInterceptor.Initialize();
-                    
-                    _instance.StartCoroutine(HeartbeatRoutine());
+                    InitializeRuntimeServices(_instance);
                 }
             }
+        }
 
-            _mainContext = SynchronizationContext.Current ?? new SynchronizationContext();
+        private static void InitializeRuntimeServices(RealPlayTesterHost host)
+        {
+            host.gameObject.AddComponent<RealPlayTester.Utilities.SceneCache>().Initialize();
+            host.gameObject.AddComponent<RealPlayTester.Input.VisualPointer>().Initialize();
+            host.gameObject.AddComponent<RealPlayTester.Input.VisualAnchorManager>().Initialize();
+            host.gameObject.AddComponent<RealPlayTester.Input.InteractionHeatmap>().Initialize();
+
+            RealPlayTester.Diagnostics.LogInterceptor.Initialize();
+            host.StartCoroutine(HeartbeatRoutine());
+        }
+
+        private static void CleanupReports()
+        {
+            try
+            {
+                string path = RealPlayEnvironment.TestReportsPath;
+                if (!System.IO.Directory.Exists(path)) return;
+
+                var files = System.IO.Directory.GetFiles(path);
+                foreach (var file in files) System.IO.File.Delete(file);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[RealPlayTester] Failed to cleanup reports: {ex.Message}");
+            }
         }
 
         private static IEnumerator HeartbeatRoutine()
@@ -165,17 +189,12 @@ namespace RealPlayTester.Core
 
         public void RunOnMainThread(Action action)
         {
-            if (action == null)
-            {
-                return;
-            }
-
+            if (action == null) return;
             if (SynchronizationContext.Current == MainContext)
             {
                 action();
                 return;
             }
-
             MainContext.Post(_ => action(), null);
         }
 
@@ -216,20 +235,8 @@ namespace RealPlayTester.Core
     public static class RealPlayExecutionContext
     {
         private static readonly AsyncLocal<CancellationToken> _token = new AsyncLocal<CancellationToken>();
-
-        public static CancellationToken Token
-        {
-            get { return _token.Value; }
-        }
-
-        public static void SetToken(CancellationToken token)
-        {
-            _token.Value = token;
-        }
-
-        public static void Clear()
-        {
-            _token.Value = CancellationToken.None;
-        }
+        public static CancellationToken Token => _token.Value;
+        public static void SetToken(CancellationToken token) => _token.Value = token;
+        public static void Clear() => _token.Value = CancellationToken.None;
     }
 }

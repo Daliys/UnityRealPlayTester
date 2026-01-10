@@ -50,6 +50,7 @@ namespace RealPlayTester.Assert
 
             string screenshotPath = ScreenshotUtility.CaptureFailureScreenshot();
             FailureOverlay.Show(message, screenshotPath);
+            RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Assertion", $"FAILED: {message} (Screenshot: {screenshotPath})");
             Time.timeScale = 0f;
             throw new AssertionException("RealPlayTester assertion failed", ComposeMessage(message, screenshotPath));
         }

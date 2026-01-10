@@ -58,7 +58,8 @@ namespace RealPlayTester.Utilities
                 catch (System.Exception ex)
                 {
                     RealPlayLog.Error($"Visual Health Alert: {ex.Message}");
-                    // Assert.Fail already handles overlays and pauses if enabled
+                    _isRunning = false;
+                    Stop();
                 }
             }
         }

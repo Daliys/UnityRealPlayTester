@@ -100,51 +100,44 @@ namespace RealPlayTester.Await
         /// </summary>
         /// <param name="predicate">Condition to check each frame.</param>
         /// <param name="timeoutSeconds">Optional timeout in realtime seconds.</param>
-        public static async Task Until(Func<bool> predicate, float? timeoutSeconds = null)
+        /// <param name="description">Reason for waiting, used in timeout messages.</param>
+        public static async Task Until(Func<bool> predicate, float? timeoutSeconds = null, string description = null)
         {
-            if (!RealPlayEnvironment.IsEnabled)
-            {
-                return;
-            }
-
-            if (predicate == null)
-            {
-                return;
-            }
+            if (!RealPlayEnvironment.IsEnabled) return;
+            if (predicate == null) return;
 
             float startTime = Time.realtimeSinceStartup;
             float timeout = timeoutSeconds ?? float.MaxValue;
             var token = RealPlayExecutionContext.Token;
+            float lastLogTime = startTime;
             
             while (!predicate())
             {
                 token.ThrowIfCancellationRequested();
-                if (Time.realtimeSinceStartup - startTime >= timeout)
+                float elapsed = Time.realtimeSinceStartup - startTime;
+
+                if (elapsed >= timeout)
                 {
-                    throw new TimeoutException("Wait.Until timed out.");
+                    throw new TimeoutException($"Wait.Until timed out after {timeout}s. {(description != null ? $"Reason: {description}" : "")}");
+                }
+
+                // Periodic logging for long waits (every 2s)
+                if (elapsed > 2f && Time.realtimeSinceStartup - lastLogTime > 2f && !string.IsNullOrEmpty(description))
+                {
+                    RealPlayLog.Info($"[Wait] Still waiting for: {description} ({elapsed:F1}s elapsed)");
+                    lastLogTime = Time.realtimeSinceStartup;
                 }
 
                 await Task.Yield();
             }
         }
 
-
-
-
-
-        public static Task While(Func<bool> predicate, float? timeoutSeconds = null)
+        public static Task While(Func<bool> predicate, float? timeoutSeconds = null, string description = null)
         {
-            if (!RealPlayEnvironment.IsEnabled)
-            {
-                return Task.CompletedTask;
-            }
+            if (!RealPlayEnvironment.IsEnabled) return Task.CompletedTask;
+            if (predicate == null) return Task.CompletedTask;
 
-            if (predicate == null)
-            {
-                return Task.CompletedTask;
-            }
-
-            return Until(() => !predicate(), timeoutSeconds);
+            return Until(() => !predicate(), timeoutSeconds, description != null ? $"Not({description})" : null);
         }
 
 

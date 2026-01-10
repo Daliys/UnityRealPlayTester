@@ -7,12 +7,13 @@ using RealPlayTester.Core;
 namespace RealPlayTester.Input.Internal
 {
     /// <summary>
-    /// Internal manager for virtual simulation devices (Keyboard, Mouse, etc).
+    /// Internal manager for virtual simulation devices (Keyboard, Mouse, Gamepad).
     /// </summary>
     internal static class VirtualDeviceManager
     {
         public static object VirtualKeyboard;
         public static object VirtualMouse;
+        public static object VirtualGamepad;
 
         public static object EnsureKeyboard()
         {
@@ -26,6 +27,13 @@ namespace RealPlayTester.Input.Internal
             object mouse = GetMouse();
             if (mouse != null) { VirtualMouse = mouse; return mouse; }
             return CreateDevice("Mouse", ref VirtualMouse, InputSystemReflector.Types.Mouse);
+        }
+
+        public static object EnsureGamepad()
+        {
+            object gamepad = GetGamepad();
+            if (gamepad != null) { VirtualGamepad = gamepad; return gamepad; }
+            return CreateDevice("Gamepad", ref VirtualGamepad, InputSystemReflector.Types.Gamepad);
         }
 
         public static object GetKeyboard()
@@ -52,10 +60,22 @@ namespace RealPlayTester.Input.Internal
             return null;
         }
 
+        public static object GetGamepad()
+        {
+            if (CheckCachedDevice(VirtualGamepad, "Gamepad", out var cached)) return cached;
+            VirtualGamepad = FindDevice("Gamepad", "Gamepad") ?? VirtualGamepad;
+            if (VirtualGamepad != null && IsDeviceInSystem(VirtualGamepad))
+            {
+                EnableDevice(VirtualGamepad);
+                return VirtualGamepad;
+            }
+            return null;
+        }
+
         private static bool CheckCachedDevice(object device, string typeName, out object result)
         {
             result = null;
-            if (device != null && device.GetType().Name == typeName && IsDeviceInSystem(device))
+            if (device != null && device.GetType().Name.Contains(typeName) && IsDeviceInSystem(device))
             {
                 EnableDevice(device);
                 result = device;
@@ -104,8 +124,9 @@ namespace RealPlayTester.Input.Internal
         public static bool IsCurrent(object device)
         {
             if (device == null) return false;
-            if (device.GetType().Name.Contains("Keyboard")) return InputSystemReflector.KeyboardCurrentProperty?.GetValue(null) == device;
-            if (device.GetType().Name.Contains("Mouse")) return InputSystemReflector.MouseCurrentProperty?.GetValue(null) == device;
+            string name = device.GetType().Name;
+            if (name.Contains("Keyboard")) return InputSystemReflector.KeyboardCurrentProperty?.GetValue(null) == device;
+            if (name.Contains("Mouse")) return InputSystemReflector.MouseCurrentProperty?.GetValue(null) == device;
             return false;
         }
 

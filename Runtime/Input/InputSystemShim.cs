@@ -9,6 +9,14 @@ using RealPlayTester.Input.Internal;
 
 namespace RealPlayTester.Input
 {
+    public enum GamepadButton
+    {
+        DpadUp = 0, DpadDown = 1, DpadLeft = 2, DpadRight = 3,
+        North = 4, South = 5, West = 6, East = 7,
+        LeftStick = 8, RightStick = 9, LeftShoulder = 10, RightShoulder = 11,
+        Start = 12, Select = 13, LeftTrigger = 32, RightTrigger = 33 
+    }
+
     /// <summary>
     /// Reflection-based facade for Unity's new Input System.
     /// Provides a high-level API for simulating input.
@@ -61,19 +69,18 @@ namespace RealPlayTester.Input
         };
 
         private static readonly HashSet<KeyCode> WarnedUnmappedKeys = new HashSet<KeyCode>();
+        private static uint _currentGamepadButtons = 0;
+        private static Vector2 _currentLeftStick = Vector2.zero;
+        private static Vector2 _currentRightStick = Vector2.zero;
 
-        public static bool IsAvailable => InputSystemReflector.Types.InputSystem != null && InputSystemReflector.QueueStateEventKeyboard != null;
+        public static bool IsAvailable => InputSystemReflector.Types.InputSystem != null;
 
         public static void InitializeDevices()
         {
             if (!IsAvailable) return;
-            RealPlaySettings.Initialize();
-            InputSimulator.UpdateInput();
-            
             VirtualDeviceManager.EnsureKeyboard();
             VirtualDeviceManager.EnsureMouse();
-
-            SubscribeToEvents();
+            VirtualDeviceManager.EnsureGamepad();
         }
 
         public static void UpdateInput() => InputSimulator.UpdateInput();
@@ -103,13 +110,27 @@ namespace RealPlayTester.Input
         public static Task MouseMove(Vector2 position) => InputSimulator.QueueMouseState(position, -1, false, true);
         public static void MouseButton(int button = 0, bool down = true) => _ = InputSimulator.QueueMouseState(Vector2.zero, button, down, false);
 
+        public static Task GamepadButton(GamepadButton button, bool down)
+        {
+            if (down) _currentGamepadButtons |= (uint)(1 << (int)button);
+            else _currentGamepadButtons &= ~(uint)(1 << (int)button);
+            return InputSimulator.QueueGamepadState(_currentGamepadButtons, _currentLeftStick, _currentRightStick);
+        }
+
+        public static Task GamepadStick(bool left, Vector2 value)
+        {
+            if (left) _currentLeftStick = value;
+            else _currentRightStick = value;
+            return InputSimulator.QueueGamepadState(_currentGamepadButtons, _currentLeftStick, _currentRightStick);
+        }
+
         public static bool GetKeyHeld(KeyCode key)
         {
             if (!IsAvailable) return false;
             object keyboard = VirtualDeviceManager.GetKeyboard();
             if (keyboard == null || InputSystemReflector.KeyboardItemProperty == null) return false;
-            
             if (!TryMapKeyCode(key, out int kv)) return false;
+            
             object keyEnum = Enum.ToObject(InputSystemReflector.Types.KeyEnum, kv);
             object control = InputSystemReflector.KeyboardItemProperty.GetValue(keyboard, new[] { keyEnum });
             if (control == null) return false;
@@ -124,6 +145,7 @@ namespace RealPlayTester.Input
             object keyboard = VirtualDeviceManager.GetKeyboard();
             if (keyboard == null || InputSystemReflector.KeyboardItemProperty == null || InputSystemReflector.WasPressedThisFrameProperty == null) return false;
             if (!TryMapKeyCode(key, out int kv)) return false;
+            
             object kEnum = Enum.ToObject(InputSystemReflector.Types.KeyEnum, kv);
             object ctrl = InputSystemReflector.KeyboardItemProperty.GetValue(keyboard, new[] { kEnum });
             return ctrl != null && (bool)InputSystemReflector.WasPressedThisFrameProperty.GetValue(ctrl);
@@ -131,8 +153,8 @@ namespace RealPlayTester.Input
 
         public static void ClearEvents()
         {
-            InputSystemReflector.Types.InputSystem?.GetMethod("Reset", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, null);
             InputSimulator.ClearMouseState();
+            InputSimulator.ClearGamepadState();
             InitializeDevices();
         }
 
@@ -142,30 +164,5 @@ namespace RealPlayTester.Input
         {
             if (WarnedUnmappedKeys.Add(key)) RealPlayLog.Warn($"KeyCode.{key} has no mapping to Input System Key enum.");
         }
-
-        private static bool _isSubscribed = false;
-        private static void SubscribeToEvents()
-        {
-            if (InputSystemReflector.Types.InputSystem == null || _isSubscribed) return;
-            try
-            {
-                var managerField = InputSystemReflector.Types.InputSystem.GetField("s_Manager", BindingFlags.NonPublic | BindingFlags.Static);
-                var manager = managerField?.GetValue(null);
-                if (manager == null) return;
-
-                var onEventField = manager.GetType().GetEvent("onEvent", BindingFlags.Public | BindingFlags.Instance);
-                if (onEventField != null)
-                {
-                    var handleMethod = typeof(InputSystemShim).GetMethod("HandleInputEvent", BindingFlags.NonPublic | BindingFlags.Static);
-                    if (handleMethod == null) return;
-                    var handler = Delegate.CreateDelegate(onEventField.EventHandlerType, handleMethod);
-                    onEventField.AddEventHandler(manager, handler);
-                    _isSubscribed = true;
-                }
-            }
-            catch { }
-        }
-
-        private static void HandleInputEvent(object ptrObj, object device) { }
     }
 }

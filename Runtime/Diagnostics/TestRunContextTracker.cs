@@ -79,35 +79,55 @@ namespace RealPlayTester.Diagnostics
         }
 
         /// <summary>
-        /// Updates the last action for the active test.
+        /// Updates the last action for the active test and records a breadcrumb.
         /// </summary>
         public static void UpdateAction(string action)
         {
-            UpdateContext(ctx => ctx.LastAction = action);
+            UpdateContext(ctx => {
+                ctx.LastAction = action;
+                ctx.Breadcrumbs.Add(new Breadcrumb("Action", action));
+            });
         }
 
         /// <summary>
-        /// Updates the last panel interaction for the active test.
+        /// Updates the last panel interaction for the active test and records a breadcrumb.
         /// </summary>
         public static void UpdatePanel(string panelName)
         {
-            UpdateContext(ctx => ctx.LastPanel = panelName);
+            UpdateContext(ctx => {
+                ctx.LastPanel = panelName;
+                ctx.Breadcrumbs.Add(new Breadcrumb("Panel", $"Panel changed to: {panelName}"));
+            });
         }
 
         /// <summary>
-        /// Updates the last placement attempt for the active test.
+        /// Updates the last placement attempt for the active test and records a breadcrumb.
         /// </summary>
         public static void UpdatePlacementAttempt(Vector2Int position, string definitionId, string result)
         {
-            UpdateContext(ctx => ctx.LastPlacementAttempt = new PlacementAttempt(position, definitionId, result));
+            UpdateContext(ctx => {
+                ctx.LastPlacementAttempt = new PlacementAttempt(position, definitionId, result);
+                ctx.Breadcrumbs.Add(new Breadcrumb("Placement", $"Placed {definitionId} at {position} (Result: {result})"));
+            });
         }
 
         /// <summary>
-        /// Updates the current AI intent for the active test.
+        /// Updates the current AI intent for the active test and records a breadcrumb.
         /// </summary>
         public static void UpdateIntent(string intent)
         {
-            UpdateContext(ctx => ctx.LastIntent = intent);
+            UpdateContext(ctx => {
+                ctx.LastIntent = intent;
+                ctx.Breadcrumbs.Add(new Breadcrumb("Intent", intent));
+            });
+        }
+
+        /// <summary>
+        /// Records a generic high-level event breadcrumb.
+        /// </summary>
+        public static void RecordBreadcrumb(string type, string message)
+        {
+            UpdateContext(ctx => ctx.Breadcrumbs.Add(new Breadcrumb(type, message)));
         }
 
         private static void UpdateContext(Action<TestRunContext> update)

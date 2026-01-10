@@ -31,6 +31,7 @@ namespace RealPlayTester.Diagnostics
         public string LastIntent { get; set; }
         public PlacementAttempt LastPlacementAttempt { get; set; }
         public List<LogEntry> Logs { get; } = new List<LogEntry>();
+        public List<Breadcrumb> Breadcrumbs { get; } = new List<Breadcrumb>();
 
         public TestRunContext()
         {
@@ -47,15 +48,13 @@ namespace RealPlayTester.Diagnostics
 #endif
         }
 
-        /// <summary>
-        /// Exports context as JSON string.
-        /// </summary>
         public string ToJson()
         {
             var sb = new StringBuilder();
             sb.AppendLine("{");
             AppendMetadataJson(sb);
             AppendPlacementJson(sb);
+            AppendBreadcrumbsJson(sb);
             AppendLogsJson(sb);
             sb.AppendLine("}");
             return sb.ToString();
@@ -92,13 +91,26 @@ namespace RealPlayTester.Diagnostics
             }
         }
 
+        private void AppendBreadcrumbsJson(StringBuilder sb)
+        {
+            sb.AppendLine($"  \"breadcrumbs\": [");
+            for (int i = 0; i < Breadcrumbs.Count; i++)
+            {
+                var crumb = Breadcrumbs[i];
+                sb.Append($"    {{ \"frame\": {crumb.Frame}, \"time\": {crumb.Timestamp:F3}, \"type\": \"{crumb.Type}\", \"message\": \"{EscapeJson(crumb.Message)}\" }}");
+                if (i < Breadcrumbs.Count - 1) sb.Append(",");
+                sb.AppendLine();
+            }
+            sb.AppendLine("  ],");
+        }
+
         private void AppendLogsJson(StringBuilder sb)
         {
             sb.AppendLine($"  \"logs\": [");
             for (int i = 0; i < Logs.Count; i++)
             {
                 var log = Logs[i];
-                sb.Append($"    {{ \"frame\": {log.Frame}, \"time\": {log.Timestamp:F3}, \"type\": \"{log.Type}\", \"severity\": \"{log.Severity}\", \"message\": \"{EscapeJson(log.Message)}\" }}");
+                sb.Append($"    {{ \"frame\": {log.Frame}, \"time\": {log.Timestamp:F3}, \"type\": \"{log.Type}\", \"severity\": \"{log.Severity}\", \"message\": \"{EscapeJson(log.Message)}\", \"repeats\": {log.RepeatCount} }}");
                 if (i < Logs.Count - 1) sb.Append(",");
                 sb.AppendLine();
             }
@@ -116,6 +128,7 @@ namespace RealPlayTester.Diagnostics
             AppendMetadataMarkdown(sb);
             AppendEnvironmentMarkdown(sb);
             AppendStateMarkdown(sb);
+            AppendBreadcrumbsMarkdown(sb);
             
             return sb.ToString();
         }
@@ -163,6 +176,19 @@ namespace RealPlayTester.Diagnostics
                 sb.AppendLine($"- **Definition ID**: {LastPlacementAttempt.DefinitionId}");
                 sb.AppendLine($"- **Result**: {LastPlacementAttempt.Result}");
             }
+            sb.AppendLine();
+        }
+
+        private void AppendBreadcrumbsMarkdown(StringBuilder sb)
+        {
+            sb.AppendLine("## 🥖 Breadcrumbs (High-Level Timeline)");
+            sb.AppendLine("| Frame | Time | Type | Message |");
+            sb.AppendLine("|-------|------|------|---------|");
+            foreach (var crumb in Breadcrumbs)
+            {
+                sb.AppendLine($"| {crumb.Frame} | {crumb.Timestamp:F2}s | **{crumb.Type}** | {crumb.Message} |");
+            }
+            sb.AppendLine();
         }
 
         private string EscapeJson(string str)
@@ -179,6 +205,25 @@ namespace RealPlayTester.Diagnostics
     }
 
     /// <summary>
+    /// A single high-level event in the test timeline.
+    /// </summary>
+    public class Breadcrumb
+    {
+        public int Frame { get; set; }
+        public float Timestamp { get; set; }
+        public string Type { get; set; }
+        public string Message { get; set; }
+
+        public Breadcrumb(string type, string message)
+        {
+            Frame = UnityEngine.Time.frameCount;
+            Timestamp = UnityEngine.Time.time;
+            Type = type;
+            Message = message;
+        }
+    }
+
+    /// <summary>
     /// A single log entry in the unified diagnostic stream.
     /// </summary>
     public class LogEntry
@@ -189,6 +234,7 @@ namespace RealPlayTester.Diagnostics
         public string Message { get; set; }
         public string StackTrace { get; set; }
         public LogType Severity { get; set; }
+        public int RepeatCount { get; set; } = 1;
 
         public LogEntry(string type, string message, string stackTrace = "", LogType severity = LogType.Log)
         {

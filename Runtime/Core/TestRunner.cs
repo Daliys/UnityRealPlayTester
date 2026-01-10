@@ -171,6 +171,7 @@ namespace RealPlayTester.Core
             if (!string.IsNullOrEmpty(attr.Scene) && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != attr.Scene)
             {
                 RealPlayLog.Info($"[FRAMEWORK] Loading scene: {attr.Scene}");
+                RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Scene", $"Loading scene: {attr.Scene}");
                 var op = UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(attr.Scene);
                 while (op != null && !op.isDone)
                 {

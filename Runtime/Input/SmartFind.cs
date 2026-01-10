@@ -1,69 +1,97 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using RealPlayTester.Core;
+using RealPlayTester.Core.Perception;
+using RealPlayTester.Utilities;
 
 namespace RealPlayTester.Input
 {
     /// <summary>
-    /// AI-friendly object finder that uses fuzzy matching logic.
+    /// AI-friendly object finder that uses fuzzy matching and spatial ranking to resolve Z-order ambiguity.
     /// </summary>
     public static class SmartFind
     {
+        private struct Candidate
+        {
+            public GameObject go;
+            public float score;
+        }
+
         public static GameObject Object(string fuzzyName)
         {
             if (string.IsNullOrEmpty(fuzzyName)) return null;
-
-            var exact = GameObject.Find(fuzzyName);
-            if (exact != null) return exact;
-
-            return ScanForMatch(fuzzyName);
+            return ScanAndRank(fuzzyName);
         }
 
-        private static GameObject ScanForMatch(string fuzzyName)
+        private static GameObject ScanAndRank(string fuzzyName)
         {
-            var all = Resources.FindObjectsOfTypeAll<GameObject>();
-            GameObject partialMatch = null;
+            var all = SceneCache.Instance.AllActiveObjects;
+            var candidates = new List<Candidate>();
 
             foreach (var go in all)
             {
-                if (go.hideFlags != HideFlags.None || !go.scene.IsValid()) continue;
-
-                string name = go.name;
-                if (string.Equals(name, fuzzyName, StringComparison.OrdinalIgnoreCase))
-                {
-                    var prioritized = HandleScrollingPriority(go, fuzzyName, true);
-                    if (prioritized != null) return prioritized;
-                    partialMatch = go;
-                }
+                if (go == null) continue;
                 
-                if (partialMatch == null && name.IndexOf(fuzzyName, StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    var prioritized = HandleScrollingPriority(go, fuzzyName, false);
-                    if (prioritized != null) return prioritized;
-                    partialMatch = go;
-                }
+                float matchScore = GetMatchScore(go.name, fuzzyName);
+                if (matchScore <= 0) continue;
+
+                float priorityScore = matchScore + CalculateSpatialPriority(go);
+                candidates.Add(new Candidate { go = go, score = priorityScore });
             }
-            return partialMatch;
+
+            if (candidates.Count == 0) return null;
+
+            // Sort by score descending and pick best.
+            return candidates.OrderByDescending(c => c.score).ThenByDescending(c => c.go.GetInstanceID()).First().go;
         }
 
-        private static GameObject HandleScrollingPriority(GameObject go, string query, bool isExact)
+        private static float GetMatchScore(string name, string query)
         {
-            bool isScrollingQuery = query.IndexOf("Scroll", StringComparison.OrdinalIgnoreCase) >= 0;
-            if (!isScrollingQuery) return isExact && go.activeInHierarchy ? go : null;
-
-            if (go.GetComponent<ScrollRect>() != null) return go;
-            
-            string name = go.name;
-            if (name.IndexOf("bar", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                name.IndexOf("Handle", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                name.IndexOf("Area", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return null;
-            }
-
-            return isExact && go.activeInHierarchy ? go : null;
+            if (string.Equals(name, query, StringComparison.OrdinalIgnoreCase)) return 5000f;
+            if (name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0) return 1000f;
+            return 0f;
         }
 
+        private static float CalculateSpatialPriority(GameObject go)
+        {
+            float score = 0f;
+
+            // 1. Visibility Priority (HUGE BOOST)
+            var occlusion = RealPlayOcclusionRaycaster.CheckOcclusion(go);
+            if (!occlusion.IsOccluded) score += 10000f;
+
+            // 2. Logical Interactivity (HUGE PENALTY if blocked)
+            var logic = RealPlayTester.Utilities.InteractionLogic.CheckLogicalInteractivity(go);
+            if (logic.IsBlocked) score -= 20000f;
+
+            // 3. UI Layer Priority
+            var canvas = go.GetComponentInParent<Canvas>();
+            if (canvas != null)
+            {
+                // UI objects are almost always prioritized over world objects
+                score += 50000f; 
+                score += canvas.sortingOrder * 100f;
+                score += GetHierarchyDepth(go.transform) * 50f;
+            }
+
+            // 3. World Depth Priority
+            if (Camera.main != null)
+            {
+                float dist = Vector3.Distance(Camera.main.transform.position, go.transform.position);
+                score += Mathf.Max(0, 100f - dist);
+            }
+
+            return score;
+        }
+
+        private static int GetHierarchyDepth(Transform t)
+        {
+            int depth = 0;
+            while (t.parent != null) { depth++; t = t.parent; }
+            return depth;
+        }
     }
 }

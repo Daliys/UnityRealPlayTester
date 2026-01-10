@@ -69,6 +69,7 @@ namespace RealPlayTester.Core
 
             try
             {
+                await HardReset.Execute();
                 await PrepareEnvironment(testCase.Asset, token);
                 (passed, error, attempt) = await ExecuteWithRetries(testCase, token);
             }

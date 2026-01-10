@@ -14,6 +14,8 @@ namespace RealPlayTester.Await
         {
             if (!RealPlayEnvironment.IsEnabled) return Task.CompletedTask;
 
+            string desc = $"Physics stability (velocity < {velocityThreshold})";
+
             return Until(() =>
             {
                 var bodies = GameObject.FindObjectsByType<Rigidbody>(FindObjectsSortMode.None);

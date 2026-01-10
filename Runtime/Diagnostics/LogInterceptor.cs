@@ -26,11 +26,25 @@ namespace RealPlayTester.Diagnostics
         [System.ThreadStatic]
         private static bool _isProcessing;
 
+        private static string _lastMessage;
+        private static LogType _lastType;
+        private static int _lastIndex = -1;
+
         private static void HandleLog(string message, string stackTrace, LogType type)
         {
             if (_isProcessing) return;
             var context = TestRunContextTracker.Current;
             if (context == null) return;
+
+            // Deduplication
+            if (_lastIndex >= 0 && _lastIndex < context.Logs.Count && message == _lastMessage && type == _lastType)
+            {
+                var entry = context.Logs[_lastIndex];
+                entry.RepeatCount++;
+                entry.Frame = UnityEngine.Time.frameCount;
+                entry.Timestamp = UnityEngine.Time.time;
+                return;
+            }
 
             _isProcessing = true;
             try
@@ -43,7 +57,11 @@ namespace RealPlayTester.Diagnostics
                 else if (message.Contains("[HEARTBEAT]")) category = "Heartbeat";
                 else if (message.StartsWith("[RealPlayTester]")) category = "Library";
 
-                context.Logs.Add(new LogEntry(category, message, stackTrace, type));
+                var newEntry = new LogEntry(category, message, stackTrace, type);
+                context.Logs.Add(newEntry);
+                _lastMessage = message;
+                _lastType = type;
+                _lastIndex = context.Logs.Count - 1;
             }
             finally
             {
@@ -58,7 +76,17 @@ namespace RealPlayTester.Diagnostics
         {
             var context = TestRunContextTracker.Current;
             if (context == null) return;
-            context.Logs.Add(new LogEntry(type, message));
+
+            if (_lastIndex >= 0 && _lastIndex < context.Logs.Count && message == _lastMessage)
+            {
+                context.Logs[_lastIndex].RepeatCount++;
+                return;
+            }
+
+            var entry = new LogEntry(type, message);
+            context.Logs.Add(entry);
+            _lastMessage = message;
+            _lastIndex = context.Logs.Count - 1;
         }
     }
 }
