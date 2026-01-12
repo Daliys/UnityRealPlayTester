@@ -106,5 +106,16 @@ namespace RealPlayTester.Core
             public static void Clear() => RealPlayTester.Core.EventTracker.Clear();
             public static bool WasFired(string eventName, int min = 1) => RealPlayTester.Core.EventTracker.WasFired(eventName, min);
         }
+
+        public static class Navigation
+        {
+             private static readonly RealPlayTester.Core.Navigation.NavigationGraph _graph = new RealPlayTester.Core.Navigation.NavigationGraph();
+
+             public static void RegisterPath(string from, string to, Func<Task> navigationAction)
+                 => _graph.RegisterPath(from, to, navigationAction);
+
+             public static Task<bool> Navigate(string from, string to)
+                 => RealPlayEnvironment.IsEnabled ? _graph.Navigate(from, to) : Task.FromResult(false);
+        }
     }
 }

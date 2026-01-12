@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using RealPlayTester.Input;
 using RealPlayTester.Utilities;
+using RealPlayTester.Core.Perception;
 
 namespace RealPlayTester.Core
 {
@@ -14,30 +15,37 @@ namespace RealPlayTester.Core
             /// <summary>
             /// Performs a high-level semantic action on a target object.
             /// Intelligently chooses between Mouse, Touch, and Gamepad simulation based on RealPlaySettings.PreferredMode.
+            /// Returns a Natural Language Summary of the causal reaction.
             /// </summary>
-            public static async Task Perform(string intent, string targetName)
+            public static async Task<string> Perform(string intent, string targetName)
             {
-                if (!RealPlayEnvironment.IsEnabled) return;
+                if (!RealPlayEnvironment.IsEnabled) return "Environment Disabled";
                 var target = Perception.Find(targetName);
                 if (target == null)
                 {
-                    RealPlayLog.Warn($"[Interaction] Perform('{intent}') failed: Target '{targetName}' not found.");
-                    return;
+                    string msg = $"[Interaction] Perform('{intent}') failed: Target '{targetName}' not found.";
+                    RealPlayLog.Warn(msg);
+                    return msg;
                 }
-                await Perform(intent, target);
+                return await Perform(intent, target);
             }
 
             /// <summary>
             /// Performs a high-level semantic action on a target object.
+            /// Returns a Natural Language Summary of the causal reaction.
             /// </summary>
-            public static async Task Perform(string intent, GameObject target)
+            public static async Task<string> Perform(string intent, GameObject target)
             {
-                if (!RealPlayEnvironment.IsEnabled) return;
+                if (!RealPlayEnvironment.IsEnabled) return "Environment Disabled";
+
+                // Capture State Before
+                var stateBefore = StateDiffer.CaptureActiveState(StateDiffer.CaptureState());
 
                 RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Intent", $"Perform '{intent}' on '{(target != null ? target.name : "null")}' (Mode: {RealPlaySettings.PreferredMode})");
 
                 if (target != null) CheckLogicalBlocking(target);
 
+                // Perform Action
                 switch (intent.ToLowerInvariant())
                 {
                     case "select":
@@ -60,6 +68,24 @@ namespace RealPlayTester.Core
                         RealPlayLog.Warn($"[Interaction] Unknown intent: '{intent}'");
                         break;
                 }
+
+                // Wait for reaction (heuristic: wait for 1-2 frames or a small time for UI to update)
+                // RealPlayTester actions usually encompass some wait, but let's add a small steady state wait if needed?
+                // The underlying actions (Mouse.ClickObject) usually have some delay.
+                // Let's add a short wait to ensure frame update.
+                await Task.Yield();
+                await Task.Yield();
+
+                // Capture State After
+                var stateAfter = StateDiffer.CaptureActiveState(StateDiffer.CaptureState());
+
+                // Diff
+                string summary = StateDiffer.GetDiff(stateBefore, stateAfter, $"{intent} '{target?.name}'");
+
+                // Log to Unified Stream
+                RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Reaction", summary);
+
+                return summary;
             }
 
             private static void CheckLogicalBlocking(GameObject target)

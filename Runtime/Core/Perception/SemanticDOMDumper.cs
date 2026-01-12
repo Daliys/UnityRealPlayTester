@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using RealPlayTester.Input;
 using RealPlayTester.Utilities;
+using UnityEngine.EventSystems;
 
 namespace RealPlayTester.Core.Perception
 {
@@ -22,6 +23,7 @@ namespace RealPlayTester.Core.Perception
         public string BlockingObject;
         public bool LogicalBlocked;
         public string BlockedReason;
+        public List<string> Affordances = new List<string>();
         public List<SemanticNode> Children = new List<SemanticNode>();
     }
 
@@ -82,7 +84,8 @@ namespace RealPlayTester.Core.Perception
                 Interactable = IsInteractable(go),
                 ScreenRect = GetScreenRect(go),
                 Text = GetTextValue(go),
-                ZDepth = t.position.z
+                ZDepth = t.position.z,
+                Affordances = GetAffordances(go)
             };
 
             var occlusion = RealPlayOcclusionRaycaster.CheckOcclusion(go);
@@ -94,6 +97,108 @@ namespace RealPlayTester.Core.Perception
             node.BlockedReason = logic.Reason;
 
             return node;
+        }
+
+        private static List<string> GetAffordances(GameObject go)
+        {
+            var affordances = new HashSet<string>();
+
+            // 1. Standard UI Components
+            if (go.GetComponent<Button>() != null && go.GetComponent<Button>().interactable)
+            {
+                affordances.Add("Click");
+                affordances.Add("Submit");
+            }
+
+            if (go.GetComponent<Toggle>() != null && go.GetComponent<Toggle>().interactable)
+            {
+                affordances.Add("Click");
+            }
+
+            if (go.GetComponent<Slider>() != null && go.GetComponent<Slider>().interactable)
+            {
+                affordances.Add("Drag");
+            }
+
+            if (go.GetComponent<Scrollbar>() != null && go.GetComponent<Scrollbar>().interactable)
+            {
+                affordances.Add("Drag");
+                affordances.Add("Scroll");
+            }
+
+            if (go.GetComponent<ScrollRect>() != null)
+            {
+                affordances.Add("Scroll");
+                affordances.Add("Drag");
+            }
+
+            if (go.GetComponent<InputField>() != null && go.GetComponent<InputField>().interactable)
+            {
+                affordances.Add("Type");
+                affordances.Add("Click");
+                affordances.Add("Submit");
+            }
+
+            // TMPro InputField support via reflection to avoid direct dependency if not available
+            var tmpInput = go.GetComponent("TMPro.TMP_InputField");
+            if (tmpInput != null)
+            {
+                var interactableProp = tmpInput.GetType().GetProperty("interactable");
+                bool isInteractable = interactableProp == null || (bool)interactableProp.GetValue(tmpInput);
+                if (isInteractable)
+                {
+                    affordances.Add("Type");
+                    affordances.Add("Click");
+                    affordances.Add("Submit");
+                }
+            }
+
+            // 2. EventTriggers
+            var et = go.GetComponent<EventTrigger>();
+            if (et != null)
+            {
+                foreach (var entry in et.triggers)
+                {
+                    switch (entry.eventID)
+                    {
+                        case EventTriggerType.PointerClick:
+                            affordances.Add("Click");
+                            break;
+                        case EventTriggerType.PointerEnter:
+                            affordances.Add("Hover");
+                            break;
+                        case EventTriggerType.Submit:
+                            affordances.Add("Submit");
+                            break;
+                        case EventTriggerType.Drag:
+                        case EventTriggerType.BeginDrag:
+                            affordances.Add("Drag");
+                            break;
+                        case EventTriggerType.Scroll:
+                            affordances.Add("Scroll");
+                            break;
+                        case EventTriggerType.PointerDown:
+                            // PointerDown is often a precursor to LongPress or Click
+                            // We'll optimistically add LongPress if it's there, as Click is usually explicit
+                            affordances.Add("LongPress");
+                            break;
+                    }
+                }
+            }
+
+            // 3. Custom / IPointer Handlers (MonoBehaviours implementing interfaces)
+            // This is broader, but helps if no EventTrigger is used
+            var components = go.GetComponents<MonoBehaviour>();
+            foreach (var comp in components)
+            {
+                if (comp is IPointerClickHandler) affordances.Add("Click");
+                if (comp is IDragHandler) affordances.Add("Drag");
+                if (comp is IScrollHandler) affordances.Add("Scroll");
+                if (comp is ISubmitHandler) affordances.Add("Submit");
+                if (comp is IPointerEnterHandler) affordances.Add("Hover");
+            }
+
+            return new List<string>(affordances);
         }
 
         private static bool IsVisibleInViewport(GameObject go, Plane[] planes)
