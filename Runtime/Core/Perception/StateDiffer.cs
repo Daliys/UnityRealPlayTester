@@ -114,13 +114,24 @@ namespace RealPlayTester.Core.Perception
                 }
             }
 
-            // Diff Active (Simple appearance check)
+            // Diff Active (Appeared)
             foreach (var kvp in after.ActiveStates)
             {
                 if (kvp.Value && (!before.ActiveStates.ContainsKey(kvp.Key) || !before.ActiveStates[kvp.Key]))
                 {
                     // Item became active
                     sb.Append($"'{GetShortName(kvp.Key)}' appeared, ");
+                    changed = true;
+                }
+            }
+
+            // Diff Active (Disappeared)
+            foreach (var kvp in before.ActiveStates)
+            {
+                if (kvp.Value && (!after.ActiveStates.ContainsKey(kvp.Key) || !after.ActiveStates[kvp.Key]))
+                {
+                    // Item became inactive or missing from snapshot (destroyed/disabled)
+                    sb.Append($"'{GetShortName(kvp.Key)}' disappeared, ");
                     changed = true;
                 }
             }

@@ -1,4 +1,4 @@
-# RealPlayTester (v2.1)
+# RealPlayTester (v2.2)
 
 ## Overview
 RealPlayTester is a high-fidelity automation library designed exclusively for **Autonomous AI Agents** and **LLM-driven testing**. It provides agents with "eyes" (semantic probes), "ears" (structured log streams), and "hands" (deterministic human-like input) to navigate and test Unity applications as a human would.
@@ -8,25 +8,33 @@ RealPlayTester is a high-fidelity automation library designed exclusively for **
 
 ---
 
-## 🤖 AI-Native Design Principles (v2.1 Enhancements)
+## 🤖 AI-Native Design Principles (v2.2 Enhancements)
 Unlike traditional frameworks designed for humans, RealPlayTester prioritize **context-rich observability**:
 
-### 🧠 Spatial Ranking Engine (`SmartFind`)
-The "Ghost Hands" are now spatially aware. When an agent requests an object by name, the library uses a weighted scoring system to pick the best candidate:
-- **Visibility First**: Objects currently visible to the camera get a massive priority boost (+10,000 pts).
-- **Z-Order Resolution**: Automatically prioritizes the topmost UI element or the closest 3D world object.
-- **Logic Awareness**: Blocked objects (e.g., a "Buy" button you can't afford) are penalized, making the AI prefer unblocked alternatives.
+### 🎯 Interaction Affordance Map
+AI agents no longer need to guess. The semantic DOM now explicitly lists what actions are possible for every element:
+- **Affordances**: `["Click", "Drag", "Type", "LongPress", "Scroll"]`
+- **Source**: Automatically derived from standard UI components (`Button`, `Slider`, `Toggle`) and `EventTrigger` configurations.
+- **Benefit**: Reduces "token waste" by preventing invalid action attempts (e.g., trying to "Type" into a Label).
 
-### 👁️ "Logical Sight" (Ghost Interactivity Fix)
-AI agents can now see beyond standard Unity properties. The library probes custom C# scripts to find hidden interaction rules:
-- **Interface Support**: Developers can implement `IInteractableLogic` to report why an interaction is blocked (e.g., "Need Level 5").
-- **Heuristic Probing**: Automatically detects common patterns like `IsLocked` or `CanInteract()` via reflection.
-- **Semantic DOM**: Logical block reasons are exported in the hierarchy JSON, allowing LLMs to "reason" about why they can't click something.
+### ⚡ Causal Reaction Summaries (Feedback Loop)
+Understanding consequences is critical for learning.
+- **Automated Diffing**: `Perform()` now captures state before and after an action (Text, Active State, Slider Value).
+- **Natural Language Output**: Returns a summary like `"Action: Click 'Buy' -> Result: Gold changed 100->50, Inventory Item appeared."`
+- **Unified Stream**: These summaries are also logged to the diagnostic stream as breadcrumbs.
 
-### ⏳ Explainable Waiters
-Synchronization is no longer a "black box". If a wait times out, the library provides a **Visibility Trace**:
-- **Alpha Chains**: Shows the exact parent in the hierarchy that is hiding the object (e.g., `Parent(INACTIVE) -> Child(Alpha:0)`).
-- **Logic Traces**: Reports if an object is technically visible but logically blocked by a script.
+### 🖼️ Visual Annotation Overlays (Vision Helpers)
+To help Vision Models (GPT-4o, Claude 3.5) "see" the UI structure:
+- **Diagnostic Screenshots**: `Tester.Screenshot.CaptureWithAnnotations` generates an image with bright bounding boxes and labels (`#A1`, `#B2`) baked in.
+- **Grounding**: The library returns a mapping of `Label -> GameObject Name`, bridging pixels to code.
+
+### 🧭 Navigation Graph
+- **Waypoints**: Register high-level paths: `Tester.Navigation.RegisterPath("MainMenu", "Settings", async () => await Click("SettingsBtn"))`.
+- **Teleport**: `Tester.Navigation.Navigate("MainMenu", "Audio")` replays the recorded interaction sequence to ensure valid state transitions.
+
+### 🧟 "Ghost" Input Validation (Pre-Flight)
+- **Think Before Acting**: `Tester.Interaction.PreFlight(intent, target)` simulates the action without performing it.
+- **Checks**: Verifies hierarchy active state, UI interactability, occlusion, and custom logic (`IAffordanceValidator`).
 
 ---
 
@@ -55,42 +63,47 @@ public class MyTest : RealPlayTest
 {
     protected override async Task Run()
     {
-        // 1. Logic-aware wait: will wait until both visible AND logic allows interaction
-        await Tester.Await.ForUIVisible("StartButton");
+        // 1. Ghost Check: Can I actually click this?
+        var check = await Tester.Interaction.PreFlight("Click", "StartButton");
+        if (!check.Success) Debug.LogWarning($"Blocked: {check.BlockReason}");
+
+        // 2. Perform with Causal Feedback
+        string result = await Tester.Interaction.Perform("Click", "StartButton");
+        // Output: "Action: Click 'StartButton' -> Result: MenuPanel disappeared, GameHUD appeared."
         
-        // 2. Spatial Ranking: will automatically pick the visible 'StartButton' over hidden ones
-        await Tester.Interaction.Perform("Select", "StartButton");
-        
-        // 3. Performance Guard: check if the previous click caused a massive allocation
-        var state = Tester.Perception.DumpHierarchyJson();
-        Tester.Assert.IsNotNull(state, "Scene state should be accessible");
+        // 3. Vision Helper
+        Tester.Screenshot.CaptureWithAnnotations("Diagnose_MainMenu");
     }
 }
 ```
 
 ---
 
-## 🏗️ Core AI API (v2.1)
+## 🏗️ Core AI API (v2.2)
 
 ### 🕹️ Tester.Interaction
 | Method | Description |
 |--------|-------------|
-| `Perform(intent, target)` | High-level intent (Select, Submit, Cancel) with logical block detection. |
+| `Perform(intent, target)` | Executes intent & returns Causal Summary string. |
+| `PreFlight(intent, target)` | dry-run validation returning Success/Blocked + Reason. |
 | `Mouse.MoveToCenter(GO)` | Precision move to object screen center. |
-| `Gestures.*` | Human-like multi-touch (Pinch, Twist, Swipe). |
 
 ### 👁️ Tester.Perception
 | Method | Description |
 |--------|-------------|
-| `DumpHierarchyJson()` | Export scene as minified, LLM-optimized JSON including logic states. |
+| `DumpHierarchyJson()` | Export scene as minified, LLM-optimized JSON including logic & affordances. |
 | `ProbeScreen(Vector2)` | Get semantic and logical info for a specific pixel. |
-| `GetActionableElements()` | JSON list of targets that are both technically and logically clickable. |
 
-### ⏳ Tester.Await
+### 🧭 Tester.Navigation
 | Method | Description |
 |--------|-------------|
-| `ForSteadyState()` | Wait for physics/anim stability, ignoring ambient motion. |
-| `ForUIVisible(name)` | Wait for target to be visible, scaled, and logically unblocked. |
+| `RegisterPath(from, to, action)` | Define how to get from A to B. |
+| `Navigate(from, to)` | Replay interactions to transition state. |
+
+### 📸 Tester.Screenshot
+| Method | Description |
+|--------|-------------|
+| `CaptureWithAnnotations()` | Get texture with baked #A1 labels for Vision Models. |
 
 ---
 

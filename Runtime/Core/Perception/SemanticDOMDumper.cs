@@ -140,17 +140,21 @@ namespace RealPlayTester.Core.Perception
             }
 
             // TMPro InputField support via reflection to avoid direct dependency if not available
-            var tmpInput = go.GetComponent("TMPro.TMP_InputField");
-            if (tmpInput != null)
+            var tmpInputType = Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
+            if (tmpInputType != null)
             {
-                var interactableProp = tmpInput.GetType().GetProperty("interactable");
-                bool isInteractable = interactableProp == null || (bool)interactableProp.GetValue(tmpInput);
-                if (isInteractable)
-                {
-                    affordances.Add("Type");
-                    affordances.Add("Click");
-                    affordances.Add("Submit");
-                }
+                 var tmpInput = go.GetComponent(tmpInputType);
+                 if (tmpInput != null)
+                 {
+                    var interactableProp = tmpInputType.GetProperty("interactable");
+                    bool isInteractable = interactableProp == null || (bool)interactableProp.GetValue(tmpInput);
+                    if (isInteractable)
+                    {
+                        affordances.Add("Type");
+                        affordances.Add("Click");
+                        affordances.Add("Submit");
+                    }
+                 }
             }
 
             // 2. EventTriggers
@@ -304,11 +308,15 @@ namespace RealPlayTester.Core.Perception
             var txt = go.GetComponent<UnityEngine.UI.Text>();
             if (txt != null) return txt.text;
 
-            var tmp = go.GetComponent("TMPro.TMP_Text");
-            if (tmp != null)
+            var tmpType = Type.GetType("TMPro.TMP_Text, Unity.TextMeshPro");
+            if (tmpType != null)
             {
-                var textProp = tmp.GetType().GetProperty("text");
-                if (textProp != null) return textProp.GetValue(tmp) as string;
+                var tmp = go.GetComponent(tmpType);
+                if (tmp != null)
+                {
+                    var textProp = tmpType.GetProperty("text");
+                    if (textProp != null) return textProp.GetValue(tmp) as string;
+                }
             }
             return null;
         }

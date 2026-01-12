@@ -51,6 +51,7 @@ namespace RealPlayTester.Core
             Dictionary<string, string> map = new Dictionary<string, string>();
             int counter = 1;
             char series = 'A';
+            int scale = 3; // 3x scale for visibility on 1080p+ screens
 
             foreach (var go in targets)
             {
@@ -62,10 +63,12 @@ namespace RealPlayTester.Core
                 string label = $"#{series}{counter}";
                 map[label] = go.name;
 
+                // Draw Box
                 DrawBox(tex, rect, Color.yellow);
 
-                // Draw Label Top-Left of Box
-                DrawText(tex, (int)rect.x, (int)rect.yMax - 8, label, Color.red);
+                // Draw Label Top-Left of Box with Scale
+                // Offset Y by (charHeight + padding) * scale
+                DrawText(tex, (int)rect.x, (int)rect.yMax - (8 * scale), label, Color.red, scale);
 
                 counter++;
                 if (counter > 9)
@@ -85,6 +88,7 @@ namespace RealPlayTester.Core
             int xMax = Mathf.Clamp((int)rect.xMax, 0, tex.width - 1);
             int yMax = Mathf.Clamp((int)rect.yMax, 0, tex.height - 1);
 
+            // Simple 1px box for now (could scale thickness too if needed)
             for (int x = xMin; x <= xMax; x++)
             {
                 tex.SetPixel(x, yMin, color);
@@ -97,7 +101,7 @@ namespace RealPlayTester.Core
             }
         }
 
-        private static void DrawText(Texture2D tex, int x, int y, string text, Color color)
+        private static void DrawText(Texture2D tex, int x, int y, string text, Color color, int scale = 1)
         {
             int charWidth = 3;
             int charHeight = 5;
@@ -111,32 +115,32 @@ namespace RealPlayTester.Core
                 {
                     for (int cCol = 0; cCol < charWidth; cCol++)
                     {
-                        // Flip Y for bitmap reading vs texture writing
-                        // bitmap[0,0] is top-left, we want to write it at y+height-r?
-                        // Let's assume bitmap[0,0] is top-left. Texture y is bottom-up.
-                        // So row 0 of bitmap goes to y + charHeight - 1.
-
                         if (bitmap[r, cCol])
                         {
-                            int px = currentX + cCol;
-                            int py = y + (charHeight - 1 - r);
-
-                            if (px >= 0 && px < tex.width && py >= 0 && py < tex.height)
+                            // Scale the pixel
+                            for (int sy = 0; sy < scale; sy++)
                             {
-                                tex.SetPixel(px, py, color);
+                                for (int sx = 0; sx < scale; sx++)
+                                {
+                                    int px = currentX + (cCol * scale) + sx;
+                                    int py = y + ((charHeight - 1 - r) * scale) + sy;
+
+                                    if (px >= 0 && px < tex.width && py >= 0 && py < tex.height)
+                                    {
+                                        tex.SetPixel(px, py, color);
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                currentX += charWidth + spacing;
+                currentX += (charWidth * scale) + (spacing * scale);
             }
         }
 
         private static bool[,] GetCharBitmap(char c)
         {
             // 3x5 Bitmap Font
-            bool[,] b = new bool[5, 3];
-
             switch (char.ToUpperInvariant(c))
             {
                 case '#': return new bool[,] { {false,true,false}, {true,true,true}, {false,true,false}, {true,true,true}, {false,true,false} };
@@ -150,10 +154,34 @@ namespace RealPlayTester.Core
                 case '7': return new bool[,] { {true,true,true}, {false,false,true}, {false,true,false}, {false,true,false}, {false,true,false} };
                 case '8': return new bool[,] { {true,true,true}, {true,false,true}, {true,true,true}, {true,false,true}, {true,true,true} };
                 case '9': return new bool[,] { {true,true,true}, {true,false,true}, {true,true,true}, {false,false,true}, {true,true,true} };
+
                 case 'A': return new bool[,] { {false,true,false}, {true,false,true}, {true,true,true}, {true,false,true}, {true,false,true} };
                 case 'B': return new bool[,] { {true,true,false}, {true,false,true}, {true,true,false}, {true,false,true}, {true,true,false} };
-                // Limited set for now (A-Z requires full map, but we only strictly use A-Z for series and 0-9 for count)
-                // Assuming we won't go past 'Z'.
+                case 'C': return new bool[,] { {true,true,true}, {true,false,false}, {true,false,false}, {true,false,false}, {true,true,true} };
+                case 'D': return new bool[,] { {true,true,false}, {true,false,true}, {true,false,true}, {true,false,true}, {true,true,false} };
+                case 'E': return new bool[,] { {true,true,true}, {true,false,false}, {true,true,true}, {true,false,false}, {true,true,true} };
+                case 'F': return new bool[,] { {true,true,true}, {true,false,false}, {true,true,true}, {true,false,false}, {true,false,false} };
+                case 'G': return new bool[,] { {true,true,true}, {true,false,false}, {true,false,true}, {true,false,true}, {true,true,true} };
+                case 'H': return new bool[,] { {true,false,true}, {true,false,true}, {true,true,true}, {true,false,true}, {true,false,true} };
+                case 'I': return new bool[,] { {true,true,true}, {false,true,false}, {false,true,false}, {false,true,false}, {true,true,true} };
+                case 'J': return new bool[,] { {false,false,true}, {false,false,true}, {false,false,true}, {true,false,true}, {true,true,true} };
+                case 'K': return new bool[,] { {true,false,true}, {true,false,true}, {true,true,false}, {true,false,true}, {true,false,true} };
+                case 'L': return new bool[,] { {true,false,false}, {true,false,false}, {true,false,false}, {true,false,false}, {true,true,true} };
+                case 'M': return new bool[,] { {true,false,true}, {true,true,true}, {true,true,true}, {true,false,true}, {true,false,true} };
+                case 'N': return new bool[,] { {true,true,true}, {true,false,true}, {true,false,true}, {true,false,true}, {true,false,true} };
+                case 'O': return new bool[,] { {true,true,true}, {true,false,true}, {true,false,true}, {true,false,true}, {true,true,true} };
+                case 'P': return new bool[,] { {true,true,true}, {true,false,true}, {true,true,true}, {true,false,false}, {true,false,false} };
+                case 'Q': return new bool[,] { {true,true,true}, {true,false,true}, {true,false,true}, {true,true,true}, {false,false,true} };
+                case 'R': return new bool[,] { {true,true,true}, {true,false,true}, {true,true,false}, {true,false,true}, {true,false,true} };
+                case 'S': return new bool[,] { {true,true,true}, {true,false,false}, {true,true,true}, {false,false,true}, {true,true,true} };
+                case 'T': return new bool[,] { {true,true,true}, {false,true,false}, {false,true,false}, {false,true,false}, {false,true,false} };
+                case 'U': return new bool[,] { {true,false,true}, {true,false,true}, {true,false,true}, {true,false,true}, {true,true,true} };
+                case 'V': return new bool[,] { {true,false,true}, {true,false,true}, {true,false,true}, {true,false,true}, {false,true,false} };
+                case 'W': return new bool[,] { {true,false,true}, {true,false,true}, {true,true,true}, {true,true,true}, {true,false,true} };
+                case 'X': return new bool[,] { {true,false,true}, {true,false,true}, {false,true,false}, {true,false,true}, {true,false,true} };
+                case 'Y': return new bool[,] { {true,false,true}, {true,false,true}, {true,true,true}, {false,true,false}, {false,true,false} };
+                case 'Z': return new bool[,] { {true,true,true}, {false,false,true}, {false,true,false}, {true,false,false}, {true,true,true} };
+
                 default:
                     // Fallback block
                     return new bool[,] { {true,true,true}, {true,true,true}, {true,true,true}, {true,true,true}, {true,true,true} };

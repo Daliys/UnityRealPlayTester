@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.2.0] - 2026-01-14
+### AI Interaction & Vision Enhancements
+### Added
+- **Interaction Affordance Map**: `DumpHierarchyJson` now includes an `Affordances` list (Click, Drag, Type, etc.) for each element, allowing AI agents to know exactly what actions are possible without trial-and-error.
+- **Causal Reaction Summaries**: `Tester.Interaction.Perform` now returns a natural language summary of state changes (e.g., "Text 'Gold' changed to '50', Slider 'Volume' changed 0.5->0.8") to provide immediate causal feedback.
+- **Visual Annotation Overlays**: Added `Tester.Screenshot.CaptureWithAnnotations` which draws high-contrast bounding boxes and labels (#A1, #B2) directly onto the image, enabling Vision Models (GPT-4o, Claude) to reference objects by coordinate-mapped labels.
+- **Navigation Graph**: Introduced `Tester.Navigation` API to manually register and replay interaction paths ("Waypoints") between game states.
+- **Ghost Input Validation (PreFlight)**: Added `Tester.Interaction.PreFlight(intent, target)` to "dry run" interactions. Checks active state, UI interactability, occlusion, and custom logic (`IAffordanceValidator`) to predict success or failure.
+
 ## [2.1.0] - 2026-01-10
 ### Logical Sight & Spatial Priority Engine
 ### Added
@@ -16,7 +25,7 @@
         - **World Depth**: Prioritizes objects closer to the camera.
         - **Logic Status**: -20,000 pts penalty for logically blocked objects.
 - **"Idle Motion" Stability Heuristics**:
-    - `Wait.ForSteadyState` now intelligently bypasses ambient motion.
+    - `Wait.ForSteadyState` now intelligently ignores ambient motion (wind, breathing idles, VFX) using tags (`[Ambient]`) and velocity thresholds.
     - **Ambient Filtering**: Automatically ignores objects tagged with `[Ambient]`, `vfx_`, or `Particle`.
     - **Velocity Thresholds**: Added `RealPlaySettings.IdleVelocityEpsilon` to ignore micro-physics jitter.
     - **Animation Awareness**: Looping animations (idle/breathing) no longer block progress; only active **transitions** cause a wait.

@@ -70,8 +70,18 @@ namespace RealPlayTester.Core
                 // 4. Raycast Target Check (for UI)
                 if (IsUI(target) && !IsRaycastTarget(target))
                 {
-                     // Not necessarily a block if we are clicking a child, but often a reason for failure
-                     // Relaxed check: look for ANY raycast target in children? No, usually specific target.
+                     // If targeting a specific UI element that isn't a raycast target, interaction might fail
+                     // unless it has a child that is a target (e.g. Button component on a parent, image on child).
+                     // However, usually we target the interactable itself.
+                     // If the object has an interactable component (Button, Toggle) but no Graphic with raycastTarget=true, it can't be clicked.
+
+                     // Exception: standard Selectable doesn't strictly need RaycastTarget if navigated via keyboard/gamepad,
+                     // but for "Click" intent it does.
+                     if (intent.Equals("Click", StringComparison.InvariantCultureIgnoreCase) ||
+                         intent.Equals("Tap", StringComparison.InvariantCultureIgnoreCase))
+                     {
+                         return Task.FromResult(new PreFlightResult { Success = false, BlockReason = "Target is not a RaycastTarget (raycastTarget=false or missing Graphic)" });
+                     }
                 }
 
                 // 5. Occlusion Check
