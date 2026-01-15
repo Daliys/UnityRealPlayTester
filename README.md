@@ -8,7 +8,7 @@ RealPlayTester is an **AI-Native Automation Framework** for Unity. It provides L
 Your primary way of "seeing" the world is through the **Semantic DOM**.
 
 ### `Perception.DumpHierarchyJson()`
-Returns a tree of `SemanticNode` objects representing the current scene state. Use this to find targets and understand their affordances.
+Returns a tree of `SemanticNode` objects. **This is your primary observation loop.**
 
 **JSON Schema:**
 ```json
@@ -18,89 +18,87 @@ Returns a tree of `SemanticNode` objects representing the current scene state. U
   "Active": true,               // Activation state
   "Interactable": true,         // Combined UI/Logic interaction state
   "ScreenRect": { "x": 0, "y": 0, "width": 100, "height": 50 }, // Pixel coordinates
-  "Text": "ATTACK",             // Text content (from Text/TMP components)
+  "Text": "ATTACK",             // Text content
   "ZDepth": 10.5,               // Distance from camera
   "IsOccluded": false,          // True if hidden behind another object
-  "LogicalBlocked": false,      // True if a script prevents interaction (e.g., isLocked)
+  "LogicalBlocked": false,      // True if a script prevents interaction
+  "BlockedReason": "No Ammo",   // Why it's blocked (if LogicalBlocked is true)
   "Affordances": ["Click"],     // Valid actions for this object
-  "Children": []                // Child nodes in hierarchy
+  "Children": []                // Child nodes
 }
 ```
 
-### Perception Helpers:
-- `Find(fuzzyName)`: Spatial fuzzy search. Ranks results by visibility, sorting order, and depth.
-- `Probe(Vector2)`: Returns semantic metadata for the object at specific pixel coordinates.
-- `DescribeRegion(Rect)`: Lists all interactable objects within a specific screen area.
-- `IsOccluded(GameObject)`: Performs a physical raycast check to see if an object is blocked.
+### 🧠 Token Management (Context Optimization)
+To prevent massive JSON dumps from overflowing your context window, use:
+- `Tester.Settings.FilterDOMToViewport = true;` (Only see what's on screen).
+- `Tester.Settings.CollapseRepetitiveSiblings = true;` (Groups 50+ tiles into one node).
 
 ---
 
 ## 🕹️ Motor Controls (`Tester.Interaction`)
-Deterministic hardware-level simulation. Prefer `Perform` for automatic feedback loops.
+Deterministic hardware-level simulation. **Prefer `Perform` for automatic causal reasoning.**
 
 ### `Interaction.Perform(intent, target)`
-Executes a high-level intent (`click`, `drag`, `type`, `submit`) and returns a **Causal Reaction Summary**.
-- **Example**: `await Perform("click", "Btn_Start")` -> `"Action: Click 'Btn_Start' -> Result: MainMenu hidden, GamePanel appeared."`
+Executes an intent and returns a **Causal Reaction Summary**.
+- **Supported Intents**: `click`, `drag`, `type`, `submit`, `hover`.
+- **Feedback**: Returns a string: `"Action: Click 'Btn_Start' -> Result: MainMenu hidden, GameHUD appeared."`
 
-### Direct Inputs:
-- `Mouse.Click(Vector2)` / `Mouse.Drag(from, to, duration)`
-- `Keyboard.Type(text)` / `Keyboard.Press(KeyCode)` / `Keyboard.Held(KeyCode)`
-- `Touch.Tap(Vector2)` / `Touch.Swipe(from, to)` / `Touch.Pinch(center, start, end)`
-- `Gamepad.Click(GamepadButton)` / `Gamepad.MoveStick(leftStick, Vector2)`
+### `Interaction.PreFlight(intent, target)`
+A "dry-run" validation. Returns `Success/Blocked + Reason`. **Use this to "think before acting"** and save tokens on failed interactions.
 
 ---
 
 ## ⏳ Synchronization (`Tester.Await`)
-Unity is async. Use these to wait for the world to catch up to your actions.
+Unity is async. **Always wait for the world to settle.**
 
-- `ForSteadyState()`: **Essential.** Waits until physics, animations, and hierarchy stop changing. Ignores ambient motion (wind, breathing).
-- `ForUIVisible(name)`: Waits for an object to be active and have alpha > 0.
-- `Seconds(n, unscaled: true)`: Real-time wait. Use `unscaled: true` to bypass `Time.timeScale = 0` (paused game).
-- `SceneLoaded(name)` / `ForLoadingComplete()`: Use when transitioning between levels.
-- `ForStablePhysics()`: Waits until all rigidbodies come to rest.
+- `ForSteadyState()`: **Mandatory** after clicks that trigger animations or loading. Waits until physics and UI stop moving.
+- `ForUIVisible(name)`: Waits for an object to exist and have `alpha > 0`.
+- `Seconds(n, unscaled: true)`: Real-time wait. Use to bypass game pauses.
 
 ---
 
-## ⚖️ Judgment & Verification (`Tester.Assert`)
-Hardware-validated assertions for verifying game state.
+## ✍️ Authoring Tests (For AI-Generated Code)
+When asked to write a test, use this exact structure:
 
-- `IsVisible(GO)`: Performs both frustum and occlusion raycast checks.
-- `ScreenElementVisible(name)`: Verifies presence and visibility of an object by name.
-- `AreEqual(expected, actual)` / `IsTrue(cond)`: Standard logical assertions.
-- `StateMatches(stateObject, baselineJson)`: Deep object state verification.
-- `NoUnexpectedErrors()`: Fails the test if any `LogType.Error` or `Exception` was caught.
+```csharp
+using System.Threading.Tasks;
+using UnityEngine;
+using RealPlayTester.Core;
+using RealPlayTester.Input;
+using RealPlayTester.Await;
 
----
+[PlayModeTest(Scene = "MainGame", TimeScale = 1.0f)]
+public class MyGeneratedTest : RealPlayTest
+{
+    protected override async Task Run()
+    {
+        // 1. Wait for stability
+        await Wait.ForSteadyState();
 
-## 🧭 Strategy & Memory (`Tester.State`, `Tester.Navigation`)
-- `State.Capture()`: Takes a full-scene state snapshot.
-- `State.GetDiff(before, after)`: Explains what changed between two snapshots in natural language.
-- `Navigation.Navigate(from, to)`: Replays a learned path between two game states.
-- `Navigation.SaveToFile(path)`: Persists learned navigation maps for future sessions.
-
----
-
-## 🛠️ Diagnostics & Performance
-- `Screenshot.CaptureWithAnnotations()`: Generates a texture with bright boxes and IDs (`#A1`, `#B2`) for Vision LLMs.
-- `Performance.StartMonitoring()`: Tracks FPS spikes and `GC.Alloc` violations.
-- `Utility.TestStep(msg)` / `RecordBreadcrumb(msg)`: Injects logical steps into the diagnostic timeline.
-- `Utility.Debug.Breakpoint()`: Pauses execution and waits for `Space` key (useful for human inspection).
-
----
-
-## ⚙️ Settings (`Tester.Settings`)
-Adjust these to tune your "Vision" and "Hands":
-- `PreferredMode`: `Mouse`, `Touch`, or `Gamepad`.
-- `FilterDOMToViewport`: If true, `DumpHierarchyJson` only includes objects the camera can see.
-- `CollapseRepetitiveSiblings`: If true, groups 50+ similar tiles into one "CollapsedGroup" node to save tokens.
-- `AutoSimulatePhysics`: If true, `Physics.Simulate()` runs during `Await` calls in batchmode.
+        // 2. Perform action with feedback
+        string result = await Tester.Interaction.Perform("click", "StartBtn");
+        
+        // 3. Verify
+        Tester.Assert.IsVisible(GameObject.Find("Player"));
+    }
+}
+```
 
 ---
 
-## 🚀 Execution & CLI
-- **F9**: Run all play tests.
-- **P**: Interactive UI Demo.
-- CLI: `-runRealTests` (batchmode runner), `-realplay-stdout` (stream logs to console).
+## 🔍 Advanced Debugging (Logical Sight)
+You can detect why interactions fail using these fields in the JSON:
+1.  **`LogicalBlocked`**: Set by scripts implementing `IInteractableLogic`.
+2.  **`IsOccluded`**: Set by raycasters. If `true`, something is physically blocking your target.
+3.  **`Affordances`**: If `click` isn't in this list, the object has no event handlers.
+
+---
+
+## 🚀 Workflow & CLI
+- **F9**: Discover and run all `RealPlayTest` assets.
+- **P**: UI Interaction Demo.
+- **Reports**: Found in `ProjectRoot/TestReports/`. Includes `diagnostics.json` and `failure_screenshot.png`.
+- **CLI**: `-runRealTests -realplay-stdout` for headless CI monitoring.
 
 ---
 **License**: MIT | **Author**: Daliys
