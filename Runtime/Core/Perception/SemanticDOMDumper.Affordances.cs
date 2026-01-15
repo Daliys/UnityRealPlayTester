@@ -11,6 +11,8 @@ namespace RealPlayTester.Core.Perception
 {
     public static partial class RealPlaySemanticDOMDumper
     {
+        private static readonly Dictionary<Type, List<string>> _heuristicCache = new Dictionary<Type, List<string>>();
+
         private static List<string> GetAffordances(GameObject go)
         {
             var affordances = new HashSet<string>();
@@ -117,16 +119,26 @@ namespace RealPlayTester.Core.Perception
         private static void CheckMethodHeuristics(MonoBehaviour comp, HashSet<string> affordances)
         {
             var type = comp.GetType();
+            if (_heuristicCache.TryGetValue(type, out var cached))
+            {
+                foreach (var a in cached) affordances.Add(a);
+                return;
+            }
+
             var methods = type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly);
-            
+            var found = new List<string>();
+
             foreach (var m in methods)
             {
                 string name = m.Name.ToLower();
-                if (name.Contains("onclick")) affordances.Add("Click");
-                if (name.Contains("onsubmit")) affordances.Add("Submit");
-                if (name.Contains("onselect")) affordances.Add("Select");
-                if (name.Contains("onvaluechanged") || name.Contains("onscroll")) affordances.Add("Scroll");
+                if (name.Contains("onclick")) found.Add("Click");
+                if (name.Contains("onsubmit")) found.Add("Submit");
+                if (name.Contains("onselect")) found.Add("Select");
+                if (name.Contains("onvaluechanged") || name.Contains("onscroll")) found.Add("Scroll");
             }
+
+            _heuristicCache[type] = found;
+            foreach (var a in found) affordances.Add(a);
         }
     }
 }

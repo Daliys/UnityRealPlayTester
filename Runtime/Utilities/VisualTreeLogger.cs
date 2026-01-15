@@ -28,6 +28,9 @@ namespace RealPlayTester.Utilities
             var sb = new StringBuilder();
             sb.AppendLine("=== Scene Hierarchy Dump ===");
             
+            // O016: Update once before starting dump
+            Canvas.ForceUpdateCanvases();
+
             int sceneCount = SceneManager.sceneCount;
             for (int i = 0; i < sceneCount; i++)
             {
@@ -86,7 +89,7 @@ namespace RealPlayTester.Utilities
 
             if (!string.IsNullOrEmpty(roleName) && go.activeInHierarchy)
             {
-                var pos = RealInputUtility.GetScreenCenter(go);
+                var pos = RealInputUtility.GetScreenCenter(go, null, false);
                 sb.Append($" ({Mathf.RoundToInt(pos.x)}, {Mathf.RoundToInt(pos.y)})");
             }
 

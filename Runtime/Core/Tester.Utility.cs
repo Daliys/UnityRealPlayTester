@@ -26,7 +26,7 @@ namespace RealPlayTester.Core
             }
 
             /// <summary>Center mouse/pointer to middle of screen.</summary>
-            public static Task ResetCursor() => RealPlayEnvironment.IsEnabled ? Interaction.Mouse.ClickPercent(0.5f, 0.5f) : Task.CompletedTask;
+            public static Task ResetCursor() => RealPlayEnvironment.IsEnabled ? Interaction.Mouse.MoveTo(new Vector2(Screen.width / 2f, Screen.height / 2f)) : Task.CompletedTask;
 
             /// <summary>Visual debugging helpers.</summary>
             public static class Debug

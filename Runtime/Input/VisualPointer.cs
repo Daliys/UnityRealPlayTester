@@ -8,10 +8,15 @@ namespace RealPlayTester.Input
     /// </summary>
     internal class VisualPointer : MonoBehaviour
     {
-        private RectTransform _rectTransform;
-        private Image _image;
-        private Outline _outline;
+        private class CursorInstance
+        {
+            public RectTransform Rect;
+            public Image Img;
+            public Outline Outline;
+        }
 
+        private readonly System.Collections.Generic.Dictionary<int, CursorInstance> _cursors = new System.Collections.Generic.Dictionary<int, CursorInstance>();
+        
         private static readonly Color IdleColor = new Color(1f, 0f, 0f, 0.6f);
         private static readonly Color PressColor = new Color(1f, 1f, 0f, 0.9f); // Yellow when pressed
         private static readonly Vector2 NormalSize = new Vector2(20, 20);
@@ -33,75 +38,91 @@ namespace RealPlayTester.Input
             _canvas.sortingOrder = 32767; // Max standard sorting order
             _canvas.additionalShaderChannels = AdditionalCanvasShaderChannels.None;
 
-            var cursorGo = new GameObject("Cursor", typeof(Image));
-            cursorGo.transform.SetParent(canvasGo.transform);
-            _rectTransform = cursorGo.GetComponent<RectTransform>();
-            _rectTransform.sizeDelta = NormalSize;
-            
-            _image = cursorGo.GetComponent<Image>();
-            _image.color = IdleColor;
-            _image.raycastTarget = false;
-
-            _outline = cursorGo.AddComponent<Outline>();
-            _outline.effectColor = Color.white;
-            _outline.effectDistance = new Vector2(2, 2);
-
-            // Start invisible
-            _image.enabled = false;
-            _outline.enabled = false;
-
             FixURPCamera();
+        }
+
+        private CursorInstance CreateCursor(int id)
+        {
+            var cursorGo = new GameObject($"Cursor_{id}", typeof(Image));
+            cursorGo.transform.SetParent(_canvas.transform);
+            var rect = cursorGo.GetComponent<RectTransform>();
+            rect.sizeDelta = NormalSize;
+            
+            var img = cursorGo.GetComponent<Image>();
+            img.color = IdleColor;
+            img.raycastTarget = false;
+
+            var outline = cursorGo.AddComponent<Outline>();
+            outline.effectColor = Color.white;
+            outline.effectDistance = new Vector2(2, 2);
+
+            return new CursorInstance { Rect = rect, Img = img, Outline = outline };
         }
 
         private void FixURPCamera()
         {
-            var cam = Camera.main;
-            if (cam == null) return;
-
-            // Check if we are in URP
-            var urpType = System.Type.GetType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
-            if (urpType != null)
-            {
-                // STABILITY FIX: Use GetComponent instead of adding blindly
-                var existing = cam.GetComponent(urpType);
-                if (existing == null)
-                {
-                    // Only add if it's strictly required for rendering and we are in URP context
-                    // For now, let's just log a warning instead of modifying the game's camera
-                    // cam.gameObject.AddComponent(urpType);
-                    // RealPlayLog.Info("URP detected; you may need to add UniversalAdditionalCameraData to your Main Camera for visual debugging.");
-                }
-            }
+            // ...
         }
 
         private float _lastSortTime;
 
         private void Update()
         {
-            // Only visible if simulation is active or we recently had one
-            bool shouldBeVisible = RealPlayTester.Core.Tester.Settings.ShowVisualPointer;
-            
-            _image.enabled = shouldBeVisible;
-            _outline.enabled = shouldBeVisible;
-
-            if (shouldBeVisible)
+            if (!RealPlayTester.Core.Tester.Settings.ShowVisualPointer)
             {
-                // PERFORMANCE FIX: Periodically enforce top-most sorting instead of every frame
-                if (Time.unscaledTime - _lastSortTime > 1.0f)
-                {
-                    if (_canvas != null)
-                    {
-                        if (_canvas.sortingOrder != 32767) _canvas.sortingOrder = 32767;
-                        if (transform.parent == null) transform.SetAsLastSibling();
-                    }
-                    _lastSortTime = Time.unscaledTime;
-                }
+                HideAllCursors();
+                return;
+            }
 
-                _rectTransform.position = RealInputUtility.LastSimulatedPosition;
-                
-                bool isPressed = RealInputUtility.IsSimulatedButtonPressed || RealInputUtility.IsSimulatedDragging;
-                _image.color = isPressed ? PressColor : IdleColor;
-                _rectTransform.sizeDelta = Vector2.Lerp(_rectTransform.sizeDelta, isPressed ? PressSize : NormalSize, Time.unscaledDeltaTime * 15f);
+            SyncCursorsWithActivePointers();
+            EnforceTopMostSorting();
+        }
+
+        private void HideAllCursors()
+        {
+            foreach (var c in _cursors.Values) { c.Img.enabled = false; c.Outline.enabled = false; }
+        }
+
+        private void SyncCursorsWithActivePointers()
+        {
+            var active = RealInputUtility.GetActivePointers();
+            
+            // Cleanup stale
+            var toRemove = new System.Collections.Generic.List<int>();
+            foreach (var id in _cursors.Keys) if (!active.ContainsKey(id)) toRemove.Add(id);
+            foreach (var id in toRemove) { Destroy(_cursors[id].Rect.gameObject); _cursors.Remove(id); }
+
+            // Update active
+            foreach (var kvp in active)
+            {
+                if (!_cursors.TryGetValue(kvp.Key, out var c)) { c = CreateCursor(kvp.Key); _cursors[kvp.Key] = c; }
+                UpdateCursorState(c, kvp.Key, kvp.Value);
+            }
+        }
+
+        private void UpdateCursorState(CursorInstance c, int id, Vector2 pos)
+        {
+            c.Img.enabled = true;
+            c.Outline.enabled = true;
+            c.Rect.position = pos;
+
+            bool isPressed = RealInputUtility.IsSimulatedButtonPressed || RealInputUtility.IsSimulatedDragging;
+            if (id != -1) isPressed = true; 
+
+            c.Img.color = isPressed ? PressColor : IdleColor;
+            c.Rect.sizeDelta = Vector2.Lerp(c.Rect.sizeDelta, isPressed ? PressSize : NormalSize, Time.unscaledDeltaTime * 15f);
+        }
+
+        private void EnforceTopMostSorting()
+        {
+            if (Time.unscaledTime - _lastSortTime > 1.0f)
+            {
+                if (_canvas != null)
+                {
+                    if (_canvas.sortingOrder != 32767) _canvas.sortingOrder = 32767;
+                    if (transform.parent == null) transform.SetAsLastSibling();
+                }
+                _lastSortTime = Time.unscaledTime;
             }
         }
     }

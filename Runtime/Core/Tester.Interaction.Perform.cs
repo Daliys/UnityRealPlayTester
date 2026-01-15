@@ -55,15 +55,19 @@ namespace RealPlayTester.Core
                 // STABILITY FIX: Use unscaled wait for causality feedback
                 await Wait.Seconds(0.05f, unscaled: true);
 
+                // RELIABILITY FIX: Target might be destroyed during wait (C002)
+                bool targetDestroyed = target == null;
+                string targetName = targetDestroyed ? "DestroyedObject" : target.name;
+
                 // Capture State After
                 var stateAfter = StateTracker.Capture();
                 string toState = RealPlayTester.UI.PanelStateMonitor.GetActiveStateName();
                 
-                string summary = StateTracker.GetDiff(stateBefore, stateAfter, $"{intent} '{target?.name}'");
+                string summary = StateTracker.GetDiff(stateBefore, stateAfter, $"{intent} '{targetName}'");
                 RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Reaction", summary);
 
                 // Auto-Discovery: Learn navigation path
-                if (target != null) Navigation.RecordStateTransition(fromState, toState, intent, target.name);
+                if (!targetDestroyed) Navigation.RecordStateTransition(fromState, toState, intent, targetName);
 
                 return summary;
             }
@@ -139,6 +143,24 @@ namespace RealPlayTester.Core
                     default:
                         await Mouse.ClickObject(target);
                         break;
+                }
+
+                // NEW: MEGA_010 heuristic invocation if standard events didn't trigger everything
+                // Or rather, always try to invoke OnClick if it exists, to support non-event-system components.
+                InvokeHeuristicMethod(target, "OnClick");
+            }
+
+            private static void InvokeHeuristicMethod(GameObject target, string methodName)
+            {
+                var comps = target.GetComponents<MonoBehaviour>();
+                foreach (var c in comps)
+                {
+                    if (c == null) continue;
+                    var method = c.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                    if (method != null && method.GetParameters().Length == 0)
+                    {
+                        method.Invoke(c, null);
+                    }
                 }
             }
 

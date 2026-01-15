@@ -15,6 +15,14 @@ namespace RealPlayTester.Input.Internal
         private static object _lastMouseState;
         private static object _lastGamepadState;
 
+        private static FieldInfo _mousePositionField;
+        private static FieldInfo _mouseButtonsField;
+        private static FieldInfo _gamepadButtonsField;
+        private static FieldInfo _gamepadLeftStickField;
+        private static FieldInfo _gamepadRightStickField;
+
+        private static float _physicsAccumulator = 0f;
+
         private static void EnsureKeyboardState()
         {
             if (_keyboardState == null && InputSystemReflector.Types.KeyboardState != null)
@@ -37,16 +45,24 @@ namespace RealPlayTester.Input.Internal
 
                 if ((Application.isBatchMode || !Application.isPlaying) && Time.timeScale > 0)
                 {
-                    if (RealPlaySettings.AutoSimulatePhysics3D)
-                    {
-                        try { if (Physics.simulationMode != SimulationMode.Script) Physics.simulationMode = SimulationMode.Script; } catch { }
-                        Physics.Simulate(Time.fixedDeltaTime * Time.timeScale);
-                    }
+                    // M015: Use accumulator for deterministic physics in batchmode
+                    _physicsAccumulator += Time.unscaledDeltaTime * Time.timeScale;
+                    float step = Time.fixedDeltaTime;
 
-                    if (RealPlaySettings.AutoSimulatePhysics2D)
+                    while (_physicsAccumulator >= step)
                     {
-                        try { if (Physics2D.simulationMode != SimulationMode2D.Script) Physics2D.simulationMode = SimulationMode2D.Script; } catch { }
-                        Physics2D.Simulate(Time.fixedDeltaTime * Time.timeScale);
+                        if (RealPlaySettings.AutoSimulatePhysics3D)
+                        {
+                            try { if (Physics.simulationMode != SimulationMode.Script) Physics.simulationMode = SimulationMode.Script; } catch { }
+                            Physics.Simulate(step);
+                        }
+
+                        if (RealPlaySettings.AutoSimulatePhysics2D)
+                        {
+                            try { if (Physics2D.simulationMode != SimulationMode2D.Script) Physics2D.simulationMode = SimulationMode2D.Script; } catch { }
+                            Physics2D.Simulate(step);
+                        }
+                        _physicsAccumulator -= step;
                     }
                 }
             }
@@ -114,19 +130,19 @@ namespace RealPlayTester.Input.Internal
         {
             if (isMove)
             {
-                var posField = InputSystemReflector.Types.MouseState.GetField("position");
-                posField?.SetValue(state, position);
+                if (_mousePositionField == null) _mousePositionField = InputSystemReflector.Types.MouseState.GetField("position");
+                _mousePositionField?.SetValue(state, position);
             }
 
             if (button >= 0)
             {
-                var buttonsField = InputSystemReflector.Types.MouseState.GetField("buttons");
-                if (buttonsField != null)
+                if (_mouseButtonsField == null) _mouseButtonsField = InputSystemReflector.Types.MouseState.GetField("buttons");
+                if (_mouseButtonsField != null)
                 {
-                    ushort buttons = (ushort)buttonsField.GetValue(state);
+                    ushort buttons = (ushort)_mouseButtonsField.GetValue(state);
                     if (down) buttons |= (ushort)(1 << button);
                     else buttons &= (ushort)~(1 << button);
-                    buttonsField.SetValue(state, buttons);
+                    _mouseButtonsField.SetValue(state, buttons);
                 }
             }
         }
@@ -134,9 +150,13 @@ namespace RealPlayTester.Input.Internal
         private static void ApplyGamepadStateChanges(object state, uint buttons, Vector2 leftStick, Vector2 rightStick)
         {
             var type = InputSystemReflector.Types.GamepadState;
-            type.GetField("buttons")?.SetValue(state, buttons);
-            type.GetField("leftStick")?.SetValue(state, leftStick);
-            type.GetField("rightStick")?.SetValue(state, rightStick);
+            if (_gamepadButtonsField == null) _gamepadButtonsField = type.GetField("buttons");
+            if (_gamepadLeftStickField == null) _gamepadLeftStickField = type.GetField("leftStick");
+            if (_gamepadRightStickField == null) _gamepadRightStickField = type.GetField("rightStick");
+
+            _gamepadButtonsField?.SetValue(state, buttons);
+            _gamepadLeftStickField?.SetValue(state, leftStick);
+            _gamepadRightStickField?.SetValue(state, rightStick);
         }
 
         private static void InvokeQueueMethod(MethodInfo queueMethod, object device, object state)

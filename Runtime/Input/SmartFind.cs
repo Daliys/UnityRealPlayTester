@@ -101,7 +101,7 @@ namespace RealPlayTester.Input
             float score = 0f;
 
             // 1. Visibility Priority (HUGE BOOST)
-            var occlusion = RealPlayOcclusionRaycaster.CheckOcclusion(go);
+            var occlusion = RealPlayOcclusionRaycaster.CheckOcclusion(go, false);
             if (!occlusion.IsOccluded) score += 10000f;
 
             // 2. Logical Interactivity (HUGE PENALTY if blocked)

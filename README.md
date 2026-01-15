@@ -1,4 +1,4 @@
-# RealPlayTester (v2.4)
+# RealPlayTester (v2.4.2)
 
 ## Overview
 RealPlayTester is a high-fidelity automation library designed exclusively for **Autonomous AI Agents** and **LLM-driven testing**. It provides agents with "eyes" (semantic probes), "ears" (structured log streams), and "hands" (deterministic human-like input) to navigate and test Unity applications as a human would.

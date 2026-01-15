@@ -12,6 +12,13 @@ namespace RealPlayTester.Await
     {
         private static int _lastHierarchyHash;
 
+        private class TransformState
+        {
+            public Vector3 position;
+            public Quaternion rotation;
+            public Vector3 scale;
+        }
+
         /// <summary>
         /// Waits until the scene reaches a "Steady State". Provides detailed reasoning if timeout occurs.
         /// Handles 'Idle Motion' by ignoring tagged ambient objects and looping animations.
@@ -24,7 +31,7 @@ namespace RealPlayTester.Await
             float startTime = Time.realtimeSinceStartup;
             int currentStableFrames = 0;
             _lastHierarchyHash = 0;
-            var lastPositions = new Dictionary<int, Vector3>();
+            var lastStates = new Dictionary<int, TransformState>();
             string lastReason = "None";
             float lastLogTime = startTime;
 
@@ -36,7 +43,7 @@ namespace RealPlayTester.Await
                     throw new TimeoutException($"Wait.ForSteadyState timed out after {timeout}s. Stability: {currentStableFrames}/{stableFrames}. Last reason: {lastReason}");
                 }
 
-                if (IsSteady(epsilon, lastPositions, out lastReason)) 
+                if (IsSteady(epsilon, lastStates, out lastReason)) 
                 {
                     currentStableFrames++;
                 }
@@ -56,20 +63,20 @@ namespace RealPlayTester.Await
             RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Wait", $"Steady state reached after {stableFrames} frames.");
         }
 
-        private static bool IsSteady(float epsilon, Dictionary<int, Vector3> lastPositions, out string reason)
+        private static bool IsSteady(float epsilon, Dictionary<int, TransformState> lastStates, out string reason)
         {
             if (!IsPhysics3DSteady(epsilon, out reason)) return false;
             if (!IsPhysics2DSteady(epsilon, out reason)) return false;
             if (!IsAnimationsSteady(out reason)) return false;
             if (!IsHierarchySteady(out reason)) return false;
             if (!IsParticlesSteady(out reason)) return false;
-            if (!IsTransformsSteady(epsilon, lastPositions, out reason)) return false;
+            if (!IsTransformsSteady(epsilon, lastStates, out reason)) return false;
             
             reason = "Steady";
             return true;
         }
 
-        private static bool IsTransformsSteady(float epsilon, Dictionary<int, Vector3> lastPositions, out string reason)
+        private static bool IsTransformsSteady(float epsilon, Dictionary<int, TransformState> lastStates, out string reason)
         {
             var all = SceneCache.Instance.AllActiveObjects;
             reason = null;
@@ -80,18 +87,19 @@ namespace RealPlayTester.Await
                 if (go == null || IsAmbient(go)) continue;
                 
                 int id = go.GetInstanceID();
-                Vector3 pos = go.transform.position;
+                var t = go.transform;
 
-                if (lastPositions.TryGetValue(id, out Vector3 lastPos))
+                if (lastStates.TryGetValue(id, out var last))
                 {
-                    float distSq = (pos - lastPos).sqrMagnitude;
-                    if (distSq > epsilon * epsilon)
-                    {
-                        reason = $"Transform '{go.name}' is moving (d={Mathf.Sqrt(distSq):F4})";
-                        anyMoved = true;
-                    }
+                    if (Vector3.SqrMagnitude(t.position - last.position) > epsilon * epsilon) { reason = $"Pos '{go.name}' moving"; anyMoved = true; }
+                    if (Quaternion.Angle(t.rotation, last.rotation) > epsilon * 10f) { reason = $"Rot '{go.name}' moving"; anyMoved = true; }
+                    if (Vector3.SqrMagnitude(t.localScale - last.scale) > epsilon * epsilon) { reason = $"Scale '{go.name}' moving"; anyMoved = true; }
                 }
-                lastPositions[id] = pos;
+                else lastStates[id] = new TransformState();
+
+                lastStates[id].position = t.position;
+                lastStates[id].rotation = t.rotation;
+                lastStates[id].scale = t.localScale;
             }
 
             return !anyMoved;

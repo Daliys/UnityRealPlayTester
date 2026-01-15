@@ -46,7 +46,7 @@ namespace RealPlayTester.Core.Perception
                 var roots = scene.GetRootGameObjects();
                 foreach (var go in roots)
                 {
-                    var captured = CaptureRecursive(go.transform, viewportFilter, planes);
+                    var captured = CaptureRecursive(go.transform, viewportFilter, planes, 0);
                     if (captured != null) sceneNode.Children.Add(captured);
                 }
                 
@@ -56,17 +56,20 @@ namespace RealPlayTester.Core.Perception
             return SerializeNode(root);
         }
 
-        private static SemanticNode CaptureRecursive(Transform t, bool viewportFilter, Plane[] planes)
+        private static SemanticNode CaptureRecursive(Transform t, bool viewportFilter, Plane[] planes, int depth)
         {
             var go = t.gameObject;
             if (!go.activeInHierarchy) return null;
+
+            // M002: Hard depth limit to prevent StackOverflow
+            if (depth > 50) return null;
 
             bool isVisible = !viewportFilter || IsVisibleInViewport(go, planes);
             
             // Optimization: Skip deep children if parent is tiny or far outside viewport
             if (viewportFilter && !isVisible && t.childCount > 50) return null; 
 
-            var capturedChildren = CaptureChildren(t, viewportFilter, planes, isVisible);
+            var capturedChildren = CaptureChildren(t, viewportFilter, planes, isVisible, depth + 1);
 
             if (viewportFilter && !isVisible && capturedChildren.Count == 0) return null;
 
@@ -75,7 +78,7 @@ namespace RealPlayTester.Core.Perception
             return node;
         }
 
-        private static List<SemanticNode> CaptureChildren(Transform t, bool viewportFilter, Plane[] planes, bool isParentVisible)
+        private static List<SemanticNode> CaptureChildren(Transform t, bool viewportFilter, Plane[] planes, bool isParentVisible, int depth)
         {
             var capturedChildren = new List<SemanticNode>();
             for (int i = 0; i < t.childCount; i++)
@@ -93,7 +96,7 @@ namespace RealPlayTester.Core.Perception
                     }
                 }
 
-                var captured = CaptureRecursive(childTransform, viewportFilter, planes);
+                var captured = CaptureRecursive(childTransform, viewportFilter, planes, depth);
                 if (captured != null) capturedChildren.Add(captured);
             }
             return capturedChildren;

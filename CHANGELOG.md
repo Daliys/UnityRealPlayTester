@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.4.2] - 2026-01-15
+### Refinement & Perception Precision
+### Added
+- **2D Occlusion Support**: Implemented `Physics2D.GetRayIntersection` in `RealPlayOcclusionRaycaster`. The tester now correctly identifies blockers with 2D colliders, improving reliability in 2D and hybrid projects.
+
+### Fixed
+- **Discovery Performance**: Optimized `SmartFind` by eliminating redundant `Canvas.ForceUpdateCanvases()` calls. Updates are now orchestrated once per discovery scan rather than once per candidate, significantly reducing CPU spikes during object finding.
+- **Compilation Stability**: Resolved a missing namespace issue in `WaitUI.cs` related to `SceneCache`.
+- **Test Integrity**: Updated `PerceptionFeatureTests` to correctly handle batchmode visibility overrides, ensuring raycasting logic is verified even in headless CI environments.
+
 ## [2.4.1] - 2026-01-15
 ### Professionalization & Robustness (100 Issue Resolution)
 ### Added

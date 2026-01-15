@@ -109,20 +109,26 @@ namespace RealPlayTester.Diagnostics
             var context = TestRunContextTracker.Current;
             if (context == null) return;
 
-            int count = context.GetLogCount();
-            if (_lastIndex >= 0 && _lastIndex < count && message == _lastMessage)
+            lock (_lock)
             {
-                var log = context.GetLogAt(_lastIndex);
-                if (log != null)
-                {
-                    log.RepeatCount++;
-                    return;
-                }
-            }
+                // M011: Enforce same log cap as regular logs
+                if (context.GetLogCount() > 1000) return;
 
-            var entry = new LogEntry(type, message);
-            context.AddLog(entry);
-            UpdateLastLog(message, LogType.Log, context.GetLogCount() - 1);
+                int count = context.GetLogCount();
+                if (_lastIndex >= 0 && _lastIndex < count && message == _lastMessage)
+                {
+                    var log = context.GetLogAt(_lastIndex);
+                    if (log != null)
+                    {
+                        log.RepeatCount++;
+                        return;
+                    }
+                }
+
+                var entry = new LogEntry(type, message);
+                context.AddLog(entry);
+                UpdateLastLog(message, LogType.Log, context.GetLogCount() - 1);
+            }
         }
     }
 }

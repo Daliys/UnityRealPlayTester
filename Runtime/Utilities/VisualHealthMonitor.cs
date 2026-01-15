@@ -50,7 +50,7 @@ namespace RealPlayTester.Utilities
         {
             while (_isRunning)
             {
-                yield return new WaitForSeconds(CheckInterval);
+                yield return new WaitForSecondsRealtime(CheckInterval);
                 try
                 {
                     RealPlayTester.Assert.Assert.NoMissingMaterials("Continuous Visual Monitor detected an error.");

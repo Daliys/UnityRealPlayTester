@@ -75,7 +75,8 @@ namespace RealPlayTester.UI
             foreach (var group in parentGroups)
             {
                 if (group.gameObject == panel) continue;
-                if (group.alpha < state.Alpha) state.Alpha = group.alpha;
+                // O025: Correct composition is multiplicative
+                state.Alpha *= group.alpha;
                 if (!group.interactable) state.Interactable = false;
                 if (group.ignoreParentGroups) break;
             }

@@ -15,11 +15,6 @@ namespace RealPlayTester.Input
         /// <summary>
         /// Simulates a two-finger pinch or spread gesture.
         /// </summary>
-        /// <param name="center">The center point of the gesture in screen coordinates.</param>
-        /// <param name="startDistance">Initial distance between fingers.</param>
-        /// <param name="endDistance">Final distance between fingers.</param>
-        /// <param name="angle">Rotation angle of the finger axis (in degrees).</param>
-        /// <param name="duration">How long the gesture takes.</param>
         public static async Task Pinch(Vector2 center, float startDistance, float endDistance, float angle = 0f, float duration = 0.5f)
         {
             if (!RealPlayEnvironment.IsEnabled) return;
@@ -31,11 +26,6 @@ namespace RealPlayTester.Input
         /// <summary>
         /// Simulates a two-finger rotation (twist) gesture.
         /// </summary>
-        /// <param name="center">Center of rotation.</param>
-        /// <param name="distance">Distance between the two fingers.</param>
-        /// <param name="startAngle">Initial angle in degrees.</param>
-        /// <param name="endAngle">Final angle in degrees.</param>
-        /// <param name="duration">How long the rotation takes.</param>
         public static async Task Twist(Vector2 center, float distance, float startAngle, float endAngle, float duration = 0.5f)
         {
             if (!RealPlayEnvironment.IsEnabled) return;
@@ -69,20 +59,31 @@ namespace RealPlayTester.Input
             float elapsed = 0f;
             GameObject t1 = null, t2 = null;
 
-            while (elapsed < duration)
+            try
             {
-                float t = duration > 0 ? Mathf.Clamp01(elapsed / duration) : 1f;
-                float currentDist = Mathf.Lerp(startDist, endDist, t);
-                f1.position = center + dir * (currentDist * 0.5f);
-                f2.position = center - dir * (currentDist * 0.5f);
+                while (elapsed < duration)
+                {
+                    float t = duration > 0 ? Mathf.Clamp01(elapsed / duration) : 1f;
+                    float currentDist = Mathf.Lerp(startDist, endDist, t);
+                    f1.position = center + dir * (currentDist * 0.5f);
+                    f2.position = center - dir * (currentDist * 0.5f);
 
-                if (elapsed == 0f) (t1, t2) = StartGesture(f1, f2);
-                UpdateGesture(t1, t2, f1, f2);
+                    RealInputUtility.UpdatePointerPosition(f1.pointerId, f1.position);
+                    RealInputUtility.UpdatePointerPosition(f2.pointerId, f2.position);
 
-                elapsed += Time.deltaTime;
-                yield return null;
+                    if (elapsed == 0f) (t1, t2) = StartGesture(f1, f2);
+                    UpdateGesture(t1, t2, f1, f2);
+
+                    elapsed += Time.deltaTime;
+                    yield return null;
+                }
             }
-            EndGesture(t1, t2, f1, f2);
+            finally
+            {
+                EndGesture(t1, t2, f1, f2);
+                RealInputUtility.RemovePointer(f1.pointerId);
+                RealInputUtility.RemovePointer(f2.pointerId);
+            }
         }
 
         private static IEnumerator TwistRoutine(Vector2 center, float distance, float startAngle, float endAngle, float duration)
@@ -94,21 +95,32 @@ namespace RealPlayTester.Input
             float elapsed = 0f;
             GameObject t1 = null, t2 = null;
 
-            while (elapsed < duration)
+            try
             {
-                float t = duration > 0 ? Mathf.Clamp01(elapsed / duration) : 1f;
-                float currentAngle = Mathf.Lerp(startAngle, endAngle, t);
-                Vector2 dir = Quaternion.Euler(0, 0, currentAngle) * Vector2.up;
-                f1.position = center + dir * (distance * 0.5f);
-                f2.position = center - dir * (distance * 0.5f);
+                while (elapsed < duration)
+                {
+                    float t = duration > 0 ? Mathf.Clamp01(elapsed / duration) : 1f;
+                    float currentAngle = Mathf.Lerp(startAngle, endAngle, t);
+                    Vector2 dir = Quaternion.Euler(0, 0, currentAngle) * Vector2.up;
+                    f1.position = center + dir * (distance * 0.5f);
+                    f2.position = center - dir * (distance * 0.5f);
 
-                if (elapsed == 0f) (t1, t2) = StartGesture(f1, f2);
-                UpdateGesture(t1, t2, f1, f2);
+                    RealInputUtility.UpdatePointerPosition(f1.pointerId, f1.position);
+                    RealInputUtility.UpdatePointerPosition(f2.pointerId, f2.position);
 
-                elapsed += Time.deltaTime;
-                yield return null;
+                    if (elapsed == 0f) (t1, t2) = StartGesture(f1, f2);
+                    UpdateGesture(t1, t2, f1, f2);
+
+                    elapsed += Time.deltaTime;
+                    yield return null;
+                }
             }
-            EndGesture(t1, t2, f1, f2);
+            finally
+            {
+                EndGesture(t1, t2, f1, f2);
+                RealInputUtility.RemovePointer(f1.pointerId);
+                RealInputUtility.RemovePointer(f2.pointerId);
+            }
         }
 
         private static (GameObject, GameObject) StartGesture(PointerEventData f1, PointerEventData f2)

@@ -27,6 +27,18 @@ namespace RealPlayTester.Utilities
     /// </summary>
     public static class SemanticProbe
     {
+        private static Type _tmpTextType;
+        private static Type _tmpInputFieldType;
+        private static Type _tmpDropdownType;
+        private static readonly System.Collections.Generic.Dictionary<Type, string> _roleAttributeCache = new System.Collections.Generic.Dictionary<Type, string>();
+
+        private static void EnsureTypes()
+        {
+            if (_tmpTextType == null) _tmpTextType = Type.GetType("TMPro.TMP_Text, Unity.TextMeshPro");
+            if (_tmpInputFieldType == null) _tmpInputFieldType = Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
+            if (_tmpDropdownType == null) _tmpDropdownType = Type.GetType("TMPro.TMP_Dropdown, Unity.TextMeshPro");
+        }
+
         public static string GetRoleName(GameObject go)
         {
             if (go == null) return string.Empty;
@@ -36,8 +48,15 @@ namespace RealPlayTester.Utilities
             foreach (var comp in components)
             {
                 if (comp == null) continue;
-                var attr = System.Attribute.GetCustomAttribute(comp.GetType(), typeof(RealPlayRoleAttribute)) as RealPlayRoleAttribute;
-                if (attr != null) return attr.RoleName;
+                var type = comp.GetType();
+                if (_roleAttributeCache.TryGetValue(type, out var cached)) return cached;
+
+                var attr = System.Attribute.GetCustomAttribute(type, typeof(RealPlayRoleAttribute)) as RealPlayRoleAttribute;
+                if (attr != null)
+                {
+                    _roleAttributeCache[type] = attr.RoleName;
+                    return attr.RoleName;
+                }
             }
 
             var role = GetRole(go);
@@ -62,12 +81,13 @@ namespace RealPlayTester.Utilities
 
         private static SemanticRole TryGetUIComponentRole(GameObject go)
         {
+            EnsureTypes();
             if (go.GetComponent<Button>()) return SemanticRole.Button;
             if (go.GetComponent<Toggle>()) return SemanticRole.Toggle;
             if (go.GetComponent<Slider>()) return SemanticRole.ValueSlider;
             if (go.GetComponent<ScrollRect>()) return SemanticRole.ScrollArea;
-            if (go.GetComponent<InputField>() || go.GetComponent("TMPro.TMP_InputField")) return SemanticRole.InputField;
-            if (go.GetComponent<Dropdown>() || go.GetComponent("TMPro.TMP_Dropdown")) return SemanticRole.Dropdown;
+            if (go.GetComponent<InputField>() || (_tmpInputFieldType != null && go.GetComponent(_tmpInputFieldType))) return SemanticRole.InputField;
+            if (go.GetComponent<Dropdown>() || (_tmpDropdownType != null && go.GetComponent(_tmpDropdownType))) return SemanticRole.Dropdown;
             return SemanticRole.None;
         }
 
@@ -111,11 +131,15 @@ namespace RealPlayTester.Utilities
             var txt = go.GetComponent<UnityEngine.UI.Text>();
             if (txt != null) return txt.text;
 
-            var tmp = go.GetComponent("TMPro.TMP_Text");
-            if (tmp != null)
+            EnsureTypes();
+            if (_tmpTextType != null)
             {
-                var prop = tmp.GetType().GetProperty("text");
-                return prop?.GetValue(tmp) as string;
+                var tmp = go.GetComponent(_tmpTextType);
+                if (tmp != null)
+                {
+                    var prop = _tmpTextType.GetProperty("text");
+                    return prop?.GetValue(tmp) as string;
+                }
             }
             return null;
         }

@@ -23,6 +23,10 @@ namespace RealPlayTester.Input
             var old = transform.Find("HeatmapCanvas");
             if (old != null) DestroyImmediate(old.gameObject);
 
+            // M012: Ensure lists are cleared during re-initialization
+            _points.Clear();
+            _pool.Clear();
+
             var canvasGo = new GameObject("HeatmapCanvas", typeof(Canvas), typeof(CanvasScaler));
             canvasGo.transform.SetParent(transform);
             _canvas = canvasGo.GetComponent<Canvas>();

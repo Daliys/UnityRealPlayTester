@@ -107,7 +107,6 @@ namespace RealPlayTester.Await
             if (!RealPlayEnvironment.IsEnabled) return;
             if (predicate == null) return;
 
-            string originalStack = Environment.StackTrace; // CAPTURE STACK
             float startTime = Time.realtimeSinceStartup;
             float timeout = timeoutSeconds ?? float.MaxValue;
             var token = RealPlayExecutionContext.Token;
@@ -120,6 +119,7 @@ namespace RealPlayTester.Await
 
                 if (elapsed >= timeout)
                 {
+                    string originalStack = Environment.StackTrace; // O017: Capture only on timeout
                     string predicateName = predicate.Method?.Name ?? "unnamed";
                     string finalDesc = description ?? $"Condition '{predicateName}'";
                     throw new TimeoutException($"Wait.Until timed out after {timeout}s. Reason: {finalDesc}\nOriginal Stack:\n{originalStack}");

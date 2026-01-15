@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using RealPlayTester.Core;
+using RealPlayTester.Utilities;
 
 namespace RealPlayTester.Await
 {
@@ -42,13 +43,10 @@ namespace RealPlayTester.Await
 
         private static GameObject FindObjectIncludingInactive(string name)
         {
-            // Use SceneCache if available, but it only tracks active objects.
-            // For inactive objects, we need a slower scan, but let's try to find it efficiently.
-            
-            var all = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var all = SceneCache.Instance.AllObjects;
             foreach (var go in all)
             {
-                if (go.name == name) return go;
+                if (go != null && go.name == name) return go;
             }
             return null;
         }
@@ -61,12 +59,13 @@ namespace RealPlayTester.Await
 
             return Until(() =>
             {
-                // PERFORMANCE FIX: Only scan candidates of type T
-                var candidates = UnityEngine.Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-                foreach (var c in candidates)
+                // PERFORMANCE FIX: Use AllObjects from SceneCache instead of FindObjectsByType
+                var all = SceneCache.Instance.AllObjects;
+                foreach (var go in all)
                 {
-                     if (!c.gameObject.activeInHierarchy) continue;
-                     if (!IsFullyVisibleAndInteractable(c.gameObject)) continue;
+                     if (go == null || !go.activeInHierarchy) continue;
+                     if (!go.TryGetComponent<T>(out var c)) continue;
+                     if (!IsFullyVisibleAndInteractable(go)) continue;
                      
                      if (!string.IsNullOrEmpty(textFilter))
                      {

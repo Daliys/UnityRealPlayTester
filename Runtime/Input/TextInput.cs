@@ -81,9 +81,11 @@ namespace RealPlayTester.Input
         {
             if (InputSystemShim.IsAvailable)
             {
-                if (TryMapCharToKeyCode(c, out KeyCode code))
+                if (TryMapCharToKeyCode(c, out KeyCode code, out bool shift))
                 {
+                    if (shift) await InputSystemShim.QueueKeyState(KeyCode.LeftShift, true);
                     await Press.Key(code, 0.05f);
+                    if (shift) await InputSystemShim.QueueKeyState(KeyCode.LeftShift, false);
                     await Task.Yield();
                     return;
                 }
@@ -96,15 +98,45 @@ namespace RealPlayTester.Input
             await ApplyToTMPField(target, c);
         }
 
-        private static bool TryMapCharToKeyCode(char c, out KeyCode code)
+        private static bool TryMapCharToKeyCode(char c, out KeyCode code, out bool shift)
         {
-            if (char.IsLetter(c)) { code = (KeyCode)Enum.Parse(typeof(KeyCode), char.ToUpper(c).ToString()); return true; }
+            shift = false;
+            if (char.IsLower(c)) { code = (KeyCode)Enum.Parse(typeof(KeyCode), char.ToUpper(c).ToString()); return true; }
+            if (char.IsUpper(c)) { code = (KeyCode)Enum.Parse(typeof(KeyCode), c.ToString()); shift = true; return true; }
             if (char.IsDigit(c)) { code = (KeyCode)Enum.Parse(typeof(KeyCode), "Alpha" + c); return true; }
-            if (c == ' ') { code = KeyCode.Space; return true; }
-            if (c == '\n' || c == '\r') { code = KeyCode.Return; return true; }
-            if (c == (char)8) { code = KeyCode.Backspace; return true; }
-            code = KeyCode.None;
-            return false;
+            
+            if (TryMapSpecialChar(c, out code)) return true;
+            return TryMapShiftedChar(c, out code, out shift);
+        }
+
+        private static bool TryMapSpecialChar(char c, out KeyCode code)
+        {
+            code = c switch {
+                ' ' => KeyCode.Space, '\n' => KeyCode.Return, '\r' => KeyCode.Return,
+                (char)8 => KeyCode.Backspace, '.' => KeyCode.Period, ',' => KeyCode.Comma,
+                '/' => KeyCode.Slash, '-' => KeyCode.Minus, '=' => KeyCode.Equals,
+                ';' => KeyCode.Semicolon, '\'' => KeyCode.Quote, '[' => KeyCode.LeftBracket,
+                ']' => KeyCode.RightBracket, '\\' => KeyCode.Backslash, '`' => KeyCode.BackQuote,
+                _ => KeyCode.None
+            };
+            return code != KeyCode.None;
+        }
+
+        private static bool TryMapShiftedChar(char c, out KeyCode code, out bool shift)
+        {
+            shift = true;
+            code = c switch {
+                '!' => KeyCode.Alpha1, '@' => KeyCode.Alpha2, '#' => KeyCode.Alpha3,
+                '$' => KeyCode.Alpha4, '%' => KeyCode.Alpha5, '^' => KeyCode.Alpha6,
+                '&' => KeyCode.Alpha7, '*' => KeyCode.Alpha8, '(' => KeyCode.Alpha9,
+                ')' => KeyCode.Alpha0, '_' => KeyCode.Minus, '+' => KeyCode.Equals,
+                ':' => KeyCode.Semicolon, '"' => KeyCode.Quote, '<' => KeyCode.Comma,
+                '>' => KeyCode.Period, '?' => KeyCode.Slash, '{' => KeyCode.LeftBracket,
+                '}' => KeyCode.RightBracket, '|' => KeyCode.Backslash, '~' => KeyCode.BackQuote,
+                _ => KeyCode.None
+            };
+            if (code == KeyCode.None) shift = false;
+            return code != KeyCode.None;
         }
 
         private static GameObject FindBestInputTarget()

@@ -20,7 +20,7 @@ namespace RealPlayTester.Core
 
             // 1. Reset Time state (Critical for tests that use slow-mo or pause)
             Time.timeScale = 1.0f;
-            Time.fixedDeltaTime = 0.02f; // Default
+            Time.fixedDeltaTime = RealPlaySettings.OriginalFixedDeltaTime; // M018: Use project-specific default
 
             // 2. Kill Tweens (Attempt to find DOTween via reflection)
             KillAllTweens();
@@ -28,12 +28,13 @@ namespace RealPlayTester.Core
             // 3. Clear Input Buffers and Devices
             InputSystemShim.ClearEvents();
             RealPlayTester.Input.Internal.VirtualDeviceManager.CleanupDevices();
+            EventTracker.Clear(); // M017: Ensure events don't leak between tests
 
             // 4. Sanitize DontDestroyOnLoad (Except for our core host)
             CleanupPersistentObjects();
 
             // 5. Reset Framework Settings to Defaults
-            RealPlaySettings.Initialize();
+            RealPlaySettings.Initialize(true);
 
             // 6. Clear Caches and Heatmap
             SceneCache.Instance.ForceRefresh();

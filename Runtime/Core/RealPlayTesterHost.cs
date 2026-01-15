@@ -64,6 +64,8 @@ namespace RealPlayTester.Core
     {
         private static RealPlayTesterHost _instance;
         private static SynchronizationContext _mainContext;
+        private static readonly object _initLock = new object();
+        private static volatile bool _isInitialized = false;
 
         public static RealPlayTesterHost Instance
         {
@@ -93,19 +95,29 @@ namespace RealPlayTester.Core
             _mainContext = SynchronizationContext.Current;
         }
 
-        private static bool _isInitialized = false;
-
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureHost()
         {
-            RealPlaySettings.Initialize();
             if (_instance != null && _isInitialized) return;
 
-            ApplyGlobalSettings();
-            CleanupReports();
-            FindOrCreateHostInstance();
+            lock (_initLock)
+            {
+                if (_instance != null && _isInitialized) return;
 
-            _mainContext = SynchronizationContext.Current ?? new SynchronizationContext();
+                RealPlaySettings.Initialize();
+                ApplyGlobalSettings();
+                CleanupReports();
+                
+                if (Application.isPlaying)
+                {
+                    FindOrCreateHostInstance();
+                }
+
+                if (_mainContext == null)
+                {
+                    _mainContext = SynchronizationContext.Current ?? new SynchronizationContext();
+                }
+            }
         }
 
         private static void ApplyGlobalSettings()

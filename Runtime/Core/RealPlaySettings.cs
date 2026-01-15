@@ -72,14 +72,35 @@ namespace RealPlayTester.Core
         public static bool EnableNavigationLearning = false;
  
         private static bool _isInitialized = false;
+        public static float OriginalFixedDeltaTime { get; private set; } = 0.02f;
  
         /// <summary>
         /// Initialize settings based on environment.
         /// </summary>
-        public static void Initialize()
+        public static void Initialize(bool force = false)
         {
-            if (_isInitialized) return;
+            if (_isInitialized && !force) return;
             _isInitialized = true;
+
+            OriginalFixedDeltaTime = Time.fixedDeltaTime;
+
+            // Defaults
+            PreferredMode = PreferredInputMode.Auto;
+            ShowVisualPointer = true;
+            ShowVisualAnchors = false;
+            ShowInteractionHeatmap = false;
+            ForceBatchmodeVisibility = false;
+            EnableInputHeartbeat = true;
+            MirrorLogsToStdout = false;
+            AutoSimulatePhysics2D = true;
+            AutoSimulatePhysics3D = true;
+            InputUpdateRate = 0.016f;
+            DisableLogStackTraces = false;
+            FilterDOMToViewport = false;
+            CollapseRepetitiveSiblings = true;
+            IdleVelocityEpsilon = 0.05f;
+            IgnoreLoopingAnimations = true;
+            EnableNavigationLearning = false;
 
             if (Application.isBatchMode)
             {
@@ -93,7 +114,7 @@ namespace RealPlayTester.Core
                 AutoSimulatePhysics2D = true;
                 AutoSimulatePhysics3D = true;
                 DisableLogStackTraces = true;
-                FilterDOMToViewport = true;
+                // M007: Do NOT force FilterDOMToViewport = true here as it blinds the AI to logical objects in CI.
             }
         }
     }

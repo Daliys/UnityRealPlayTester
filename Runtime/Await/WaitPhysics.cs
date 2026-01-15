@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using UnityEngine;
 using RealPlayTester.Core;
+using RealPlayTester.Utilities;
 
 namespace RealPlayTester.Await
 {
@@ -18,17 +19,17 @@ namespace RealPlayTester.Await
 
             return Until(() =>
             {
-                var bodies = GameObject.FindObjectsByType<Rigidbody>(FindObjectsSortMode.None);
+                var bodies = SceneCache.Instance.Rigidbodies3D;
                 foreach (var rb in bodies)
                 {
-                    if (rb.isKinematic || rb.IsSleeping()) continue;
+                    if (rb == null || rb.isKinematic || rb.IsSleeping()) continue;
                     if (rb.linearVelocity.sqrMagnitude > velocityThreshold * velocityThreshold) return false;
                 }
                 
-                var bodies2D = GameObject.FindObjectsByType<Rigidbody2D>(FindObjectsSortMode.None);
+                var bodies2D = SceneCache.Instance.Rigidbodies2D;
                 foreach (var rb in bodies2D)
                 {
-                    if (rb.bodyType == RigidbodyType2D.Kinematic || rb.IsSleeping()) continue;
+                    if (rb == null || rb.bodyType == RigidbodyType2D.Kinematic || rb.IsSleeping()) continue;
                     if (rb.linearVelocity.sqrMagnitude > velocityThreshold * velocityThreshold) return false;
                 }
                 
