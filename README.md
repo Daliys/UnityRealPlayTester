@@ -1,129 +1,98 @@
-# RealPlayTester (v2.4.2)
+# RealPlayTester (v2.4.2) - Manual for AI Agents
 
-## Overview
-RealPlayTester is a high-fidelity automation library designed exclusively for **Autonomous AI Agents** and **LLM-driven testing**. It provides agents with "eyes" (semantic probes), "ears" (structured log streams), and "hands" (deterministic human-like input) to navigate and test Unity applications as a human would.
-
-**Compatibility**: Unity 6000.2+ | URP / Built-in | Editor | Development Builds
-**Orientation**: **AI-Native** (Optimized for JSON-parsing and vision-based reasoning)
+RealPlayTester is an **AI-Native Automation Framework** for Unity. It is designed to be used by LLM-based agents (e.g., Claude 3.5, GPT-4o) to navigate, observe, and test games.
 
 ---
 
-## 🤖 AI-Native Design Principles
-Unlike traditional frameworks designed for humans, RealPlayTester prioritizes **context-rich observability**:
+## 🤖 How to use this library (AI Instructions)
 
-### 🎯 Interaction Affordance Map
-The semantic DOM explicitly lists possible actions for every element, reducing token waste:
-- **Affordances**: `["Click", "Drag", "Type", "LongPress", "Scroll"]`
-- **Logic Blocks**: Detects script-level blocks like `bool IsLocked` via reflection.
+### 1. Observe the World (`Tester.Perception`)
+**Your primary tool is `DumpHierarchyJson()`.** 
+This returns a **Semantic DOM** (Document Object Model) of the Unity scene. Instead of raw coordinates, use this JSON tree to understand the spatial and logical relationship between objects.
 
-### ⚡ Causal Reaction Summaries
-`Perform()` captures state before and after an action, returning a natural language summary:
-- `"Action: Click 'Buy' -> Result: Gold changed 100->50, Inventory Item appeared."`
+*   **`Name`**: Unique or fuzzy identifier for finding objects.
+*   **`Role`**: Semantic category (e.g., `Button`, `InputField`, `ValueSlider`).
+*   **`ScreenRect`**: Pixel coordinates `(x, y, width, height)`. Use for vision-grounding.
+*   **`Affordances`**: A list of valid actions (e.g., `["Click", "Type"]`). **Check this before acting.**
+*   **`LogicalBlocked`**: If `true`, internal game logic (e.g., `isLocked`) prevents interaction. Read `BlockedReason`.
+*   **`IsOccluded`**: If `true`, the object is hidden behind another UI element or 3D object.
 
-### 🖼️ Visual Annotation Overlays
-`Tester.Screenshot.CaptureWithAnnotations` generates images with bright bounding boxes and labels (`#A1`, `#B2`) baked in for Vision Models (GPT-4o, Claude 3.5).
+### 2. Interact deterministically (`Tester.Interaction`)
+**Prefer `Perform(intent, target)` over raw inputs.**
+`Perform` captures the state before and after your action, returning a **Causal Reaction Summary**.
 
-### 🧭 Navigation Graph
-Register paths and allow agents to replay complex sequences:
-- `Tester.Navigation.Navigate("MainMenu", "Audio")`
+*   **Syntax**: `await Tester.Interaction.Perform("click", "StartButton");`
+*   **Feedback**: Returns a string like: `"Action: Click 'StartButton' -> Result: MainMenu hidden, LoadingScreen appeared."` Use this to verify your action worked.
+*   **Fuzzy Matching**: You don't need exact paths. `Find("Start")` will use spatial ranking to find the most relevant "Start" button (prioritizing visible, non-occluded, top-layer UI).
 
----
+### 3. Handle Time and Physics (`Tester.Await`)
+Unity is asynchronous. Never assume a screen transition is instant.
 
-## 🏗️ Core AI API Reference
+*   **`ForSteadyState()`**: Call this after any major action. It waits until physics, animations, and hierarchy changes stop.
+*   **`ForUIVisible(name)`**: Specifically waits for an object to be active and have `alpha > 0`.
+*   **`Seconds(n, unscaled: true)`**: Use `unscaled: true` to wait in real-time, even if the game is paused (`Time.timeScale = 0`).
 
-### 🕹️ Tester.Interaction
-Deterministic input simulation mimicking hardware events.
+### 4. Verify Success (`Tester.Assert`)
+Use hardware-validated assertions.
 
-| Method | Description |
-|--------|-------------|
-| `Perform(intent, target)` | High-level action. Returns causal summary. Intent: `click`, `drag`, `type`, `submit`. |
-| `PreFlight(intent, target)` | Dry-run validation. Returns `Success/Blocked + Reason`. Checks visibility, occlusion, and logic. |
-| `Mouse.Click(Vector2)` | Simulates hardware mouse click at pixel coordinates. |
-| `Mouse.Drag(from, to, duration)` | Precision drag simulation. |
-| `Keyboard.Type(text)` | High-speed character injection into focused input fields. |
-| `Keyboard.Press(KeyCode)` | Simulates physical key press. |
-| `Touch.Tap(Vector2)` | Simulates mobile touch event. |
-| `Gamepad.Click(GamepadButton)` | Simulates controller input. |
-
-### 👁️ Tester.Perception
-The agent's "eyes" into the scene hierarchy and physics.
-
-| Method | Description |
-|--------|-------------|
-| `DumpHierarchyJson()` | **Primary Tool.** Returns minified JSON of the entire scene (Semantic DOM). |
-| `Find(fuzzyName)` | Uses fuzzy matching and spatial ranking to find the best GameObject match. |
-| `Probe(Vector2)` | Returns semantic info for the object at a specific pixel. |
-| `IsOccluded(GameObject)` | Raycasts to check if object is blocked by UI or World geometry. |
-| `DescribeRegion(Rect)` | Lists all interactable elements within a screen area. |
-
-### ⏳ Tester.Await
-Advanced synchronization helpers.
-
-| Method | Description |
-|--------|-------------|
-| `ForSteadyState()` | Waits until physics, animations, and hierarchy stop changing (ignores ambient motion). |
-| `ForUIVisible(name)` | Robust wait for UI elements, including those in inactive hierarchies. |
-| `Until(predicate)` | Custom polling wait. |
-| `Seconds(n, unscaled:true)` | Real-time wait (immune to `Time.timeScale = 0`). |
-
-### 📊 Tester.State & Assert
-Verification and consequence analysis.
-
-| Method | Description |
-|--------|-------------|
-| `Capture()` | Takes a serializable snapshot of the entire game state. |
-| `GetDiff(before, after)` | Returns human-readable delta between two state snapshots. |
-| `Assert.IsVisible(GO)` | Hardware-verified visibility check. |
-| `Assert.ScreenElementVisible(name)` | Visual grounding assertion. |
+*   **`Assert.IsVisible(go)`**: Performs a frustum and raycast check to ensure the object is actually rendered on screen.
+*   **`Assert.ScreenElementVisible(name)`**: Combines fuzzy finding with visibility validation.
 
 ---
 
-## 📄 Semantic DOM JSON Schema
-`DumpHierarchyJson()` returns a tree of `SemanticNode` objects:
+## 📄 API Reference Table
 
+| Feature | Method | Recommended Agent Usage |
+| :--- | :--- | :--- |
+| **Observation** | `Perception.DumpHierarchyJson()` | Call this every "turn" to refresh your mental model of the scene. |
+| **Validation** | `Interaction.PreFlight(intent, target)` | Call before `Perform` to check for occlusions or logic blocks without wasting a "turn". |
+| **Action** | `Interaction.Perform(intent, target)` | Your main interaction tool. Interprets `click`, `drag`, `type`, `submit`. |
+| **Wait** | `Await.ForSteadyState()` | Essential after clicking buttons that trigger loading or animations. |
+| **Logic** | `Perception.IsOccluded(target)` | Use to debug why a click might be failing at a specific coordinate. |
+| **State** | `State.GetDiff(before, after)` | Use to generate natural language explanations of what changed in the game. |
+
+---
+
+## 🛠️ Execution Context
+
+### Play Mode Controls
+*   **`F9`**: Discovery Mode. Forces the framework to find and run all `RealPlayTest` assets.
+*   **`P`**: Interactive Demo. Runs a scripted sequence of common UI interactions.
+
+### Command Line Interface (CI/CD)
+```bash
+Unity.exe -projectPath . -runRealTests -realplay-stdout --tags=Smoke
+```
+*   `-runRealTests`: Auto-exit with failure count as exit code.
+*   `-realplay-stdout`: Pipes internal `RealPlayLog` entries to the shell for real-time AI monitoring.
+
+---
+
+## 💡 Pro-Tips for AI Agents
+1.  **Don't "Teleport"**: The library simulates real hardware. If you click at `(0,0)` and then `(1000,1000)`, the cursor will move across the screen, potentially triggering `OnPointerEnter` events on objects in between.
+2.  **Z-Order Priority**: `SmartFind` (used by `Perform`) automatically ranks UI elements above world objects. If a button is on top of a 3D chest, `Perform("click", "Button")` will correctly hit the button.
+3.  **Alpha Transparency**: Objects with `alpha < 0.05` are considered "Invisible" by `ForUIVisible`.
+4.  **Physics Simulations**: In batchmode (headless), the library automatically calls `Physics.Simulate()` during waits to ensure physics-based game logic progresses.
+
+---
+
+## JSON Node Example (Input for your Reasoning)
 ```json
 {
-  "Name": "Button_Start",
-  "Role": "Button",
+  "Name": "HealthSlider",
+  "Role": "ValueSlider",
   "Active": true,
   "Interactable": true,
-  "ScreenRect": { "x": 100, "y": 200, "width": 50, "height": 30 },
-  "Text": "START GAME",
+  "ScreenRect": { "x": 50, "y": 50, "width": 200, "height": 20 },
+  "Text": "85%",
+  "ZDepth": 0.0,
   "IsOccluded": false,
   "LogicalBlocked": false,
-  "Affordances": ["Click", "Hover"],
+  "Affordances": ["Drag", "Hover"],
   "Children": []
 }
 ```
 
 ---
-
-## 🛠️ Execution & Workflow
-
-### Hotkeys (Play Mode)
-- **`F9`**: Run all discovered `RealPlayTest` assets in the project.
-- **`P`**: Trigger internal UI Interaction Demo.
-
-### CLI Arguments
-- `-runRealTests`: Executes all tests and quits with exit code = failure count.
-- `--tags=Smoke,Core`: Filter tests by assigned tags.
-- `-realplay-stdout`: Redirects all internal library logs to standard output.
-
----
-
-## 💡 AI Best Practices for Agents
-1. **Prefer `Perform()` over raw `Click()`**: It provides the causal feedback loop necessary for reasoning about the game's response.
-2. **Use `PreFlight()` before acting**: Save tokens and time by checking if an object is occluded or logically disabled before attempting interaction.
-3. **Wait for Steady State**: Always call `await Tester.Await.ForSteadyState()` after loading scenes or opening complex panels to ensure input hits valid targets.
-4. **Leverage Affordances**: Use the `Affordances` list in the JSON dump to determine valid actions rather than guessing.
-5. **Fuzzy Search**: `Tester.Perception.Find("Start")` is highly optimized to resolve Z-order ambiguity and pick the most relevant "Start" button.
-
----
-
-## Installation
-1. Copy the `Assets/UnityRealPlayTester/` folder into your project.
-2. Ensure the `RealPlayTester.asmdef` is referenced by your test assemblies.
-3. No additional configuration required.
-
-## License
-MIT - Created by Daliys.
+**License**: MIT
+**Created by**: Daliys
