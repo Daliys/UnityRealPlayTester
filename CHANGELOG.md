@@ -1,23 +1,20 @@
 # Changelog
 
 ## [2.4.0] - 2026-01-15
-### Game of Life Demo & Hardening
+### Hardening & Optimization
 ### Added
-- **Game of Life Demo**: Added a complete "Game of Life" sample project under `Assets/GameOfLife` to demonstrate complex UI interactions and state validation using MVVM.
-- **Integration Test Suite**: Added `GameOfLifeIntegrationTests` to verify `RealPlayTester` behavior in a full game loop.
-- **Stress Tests**: Added rapid clicking, massive typing, and large-scale state captures to verify library robustness.
-- **Editor Tooling**: Added `RealPlayRunner` and `SceneGenerator` for automated environment setup.
+- **Hierarchy Optimization Engine**: Introduced `HierarchyHelpers` to intelligently group repetitive sibling objects (tiles, grid cells, list items) in both JSON and Text dumps, significantly reducing token usage for AI agents.
+- **Enhanced Perception Facade**: Exposed `PreferredMode` and `CollapseRepetitiveSiblings` in `Tester.Settings` for easier runtime configuration of agent "vision".
 
 ### Fixed
-- **Wait Stability**: Implemented unscaled time fallback in `Wait.Seconds` when `Time.timeScale` is extremely low (< 0.01) to prevent automation hangs.
-- **Namespace Ambiguity**: Renamed `RealPlayTester.Input.Text` to `TextInput` to resolve naming collisions with `UnityEngine.UI.Text`.
-- **Input System Integration**: `RealInputUtility` now correctly prioritizes `InputSystemUIInputModule` when the new Input System is active, preventing initialization exceptions.
-- **System Consolidation**: Merged `StateDiffer` logic into `StateTracker` and removed redundant files.
+- **Wait Stability**: Implemented unscaled time fallback in `Wait.Seconds` when `Time.timeScale` is extremely low (< 0.01) to prevent automation hangs during slow-motion or paused states.
+- **Namespace Ambiguity**: Renamed internal `Text` interaction class to `TextInput` to resolve naming collisions with `UnityEngine.UI.Text`.
+- **Input System Integration**: `RealInputUtility` now correctly prioritizes `InputSystemUIInputModule` when the new Input System is active, preventing `InvalidOperationException` during EventSystem initialization.
+- **System Consolidation**: Merged `StateDiffer` logic into `StateTracker` and removed redundant files to simplify the perception pipeline.
 
 ### Changed
-- **Stable State Keys**: `StateTracker` now uses unique hierarchy paths (e.g., `Parent/Child:0`) instead of heuristic roles for stable diffing across state changes.
-- **Hierarchy Optimization**: Introduced `HierarchyHelpers` to group repetitive siblings (tiles, grid cells) in both JSON and Text dumps, significantly reducing token usage for AI agents.
-- **API Facade**: Exposed `PreferredMode` in `Tester.Settings` for easier runtime configuration.
+- **Stable State Keys**: `StateTracker` now uses unique hierarchy paths (e.g., `Parent/Child:0`) instead of heuristic roles for state identification, ensuring consistent diffing even when heuristic roles change.
+- **Linter Compliance**: Refactored core perception and state tracking methods to satisfy strict 40-line method limits.
 
 ## [2.3.0] - 2026-01-14
 ### Persistence, Disambiguation & Robustness
