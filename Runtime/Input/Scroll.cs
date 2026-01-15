@@ -25,7 +25,7 @@ namespace RealPlayTester.Input
                 float t = duration > 0f ? Mathf.Clamp01(elapsed / duration) : 1f;
                 scrollRect.verticalNormalizedPosition = Mathf.Lerp(start, 0f, t);
                 await Task.Yield();
-                elapsed += Time.deltaTime;
+                elapsed += Time.unscaledDeltaTime;
             }
 
             scrollRect.verticalNormalizedPosition = 0f;

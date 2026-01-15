@@ -2,9 +2,12 @@ using System;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using RealPlayTester.Input;
 using RealPlayTester.Utilities;
 using RealPlayTester.Core.Perception;
+using RealPlayTester.Diagnostics;
+using RealPlayTester.Await;
 
 namespace RealPlayTester.Core
 {
@@ -38,6 +41,8 @@ namespace RealPlayTester.Core
             {
                 if (!RealPlayEnvironment.IsEnabled) return "Environment Disabled";
 
+                if (IsInteractionBlocked(intent, target)) return "Action Blocked";
+
                 // Capture State Before
                 string fromState = RealPlayTester.UI.PanelStateMonitor.GetActiveStateName();
                 var stateBefore = StateTracker.Capture();
@@ -47,8 +52,8 @@ namespace RealPlayTester.Core
 
                 await DispatchIntent(intent, target);
 
-                await Task.Yield();
-                await Task.Yield();
+                // STABILITY FIX: Use unscaled wait for causality feedback
+                await Wait.Seconds(0.05f, unscaled: true);
 
                 // Capture State After
                 var stateAfter = StateTracker.Capture();
@@ -61,6 +66,18 @@ namespace RealPlayTester.Core
                 if (target != null) Navigation.RecordStateTransition(fromState, toState, intent, target.name);
 
                 return summary;
+            }
+
+            private static bool IsInteractionBlocked(string intent, GameObject target)
+            {
+                if (target == null) return false;
+                var validator = target.GetComponent<IAffordanceValidator>();
+                if (validator != null && !validator.CanInteract(intent))
+                {
+                    RealPlayLog.Warn($"[Interaction] Perform '{intent}' on '{target.name}' blocked: {validator.GetBlockReason()}");
+                    return true;
+                }
+                return false;
             }
 
             private static async Task DispatchIntent(string intent, GameObject target)
@@ -78,6 +95,10 @@ namespace RealPlayTester.Core
                     case "cancel":
                     case "back":
                         await ExecuteCancelIntent();
+                        break;
+                    case "drag":
+                    case "slide":
+                        if (target != null) await Mouse.Drag(target, target.transform.position + Vector3.right * 100f); // Default drag
                         break;
                     case "move":
                     case "hover":
@@ -126,37 +147,39 @@ namespace RealPlayTester.Core
                 if (target != null)
                 {
                     var inputField = target.GetComponent<InputField>();
-                    var tmpType = Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
-                    var isTMP = tmpType != null && target.GetComponent(tmpType) != null;
-
-                    if (inputField != null || isTMP)
+                    if (inputField != null)
                     {
-                        await Keyboard.Press(KeyCode.Return);
+                        inputField.OnPointerClick(new PointerEventData(EventSystem.current));
+                        await Press.Key(KeyCode.Return, 0.1f);
+                        return;
+                    }
+                    
+                    var tmpType = System.Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
+                    var tmp = tmpType != null ? target.GetComponent(tmpType) : null;
+                    if (tmp != null)
+                    {
+                        var pointerData = new PointerEventData(EventSystem.current);
+                        var method = tmpType.GetMethod("OnPointerClick", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        method?.Invoke(tmp, new object[] { pointerData });
+                        await Press.Key(KeyCode.Return, 0.1f);
                         return;
                     }
                 }
                 
-                var mode = ResolveEffectiveMode();
-                if (mode == PreferredInputMode.Gamepad) await Gamepad.Click(GamepadButton.Start);
-                else await Keyboard.Press(KeyCode.Return);
+                await Press.Key(KeyCode.Return, 0.1f);
             }
 
             private static async Task ExecuteCancelIntent()
             {
-                var mode = ResolveEffectiveMode();
-                if (mode == PreferredInputMode.Gamepad) await Gamepad.Click(GamepadButton.East);
-                else await Keyboard.Press(KeyCode.Escape);
+                await Press.Key(KeyCode.Escape, 0.1f);
             }
 
             private static PreferredInputMode ResolveEffectiveMode()
             {
-                if (RealPlaySettings.PreferredMode != PreferredInputMode.Auto)
-                    return RealPlaySettings.PreferredMode;
+                if (Tester.Settings.PreferredMode != PreferredInputMode.Auto)
+                    return Tester.Settings.PreferredMode;
 
-                if (Application.isMobilePlatform) return PreferredInputMode.Touch;
-                if (RealPlayTester.Input.Internal.VirtualDeviceManager.VirtualGamepad != null)
-                    return PreferredInputMode.Gamepad;
-
+                if (Input.Touch.IsAvailable) return PreferredInputMode.Touch;
                 return PreferredInputMode.Mouse;
             }
         }

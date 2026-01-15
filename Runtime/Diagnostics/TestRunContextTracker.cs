@@ -37,12 +37,12 @@ namespace RealPlayTester.Diagnostics
                 return null;
             }
 
-            var context = new TestRunContext
-            {
-                TestName = testName,
-                SceneName = sceneName,
-                StartTime = DateTime.Now
-            };
+            LogInterceptor.Initialize();
+
+            var context = new TestRunContext();
+            context.Info.TestName = testName;
+            context.Info.SceneName = sceneName;
+            context.Info.StartTime = DateTime.Now;
 
             lock (Sync)
             {
@@ -74,7 +74,7 @@ namespace RealPlayTester.Diagnostics
                 return;
             }
 
-            context.EndTime = DateTime.Now;
+            context.Info.EndTime = DateTime.Now;
             WriteSnapshot(context);
         }
 
@@ -84,8 +84,8 @@ namespace RealPlayTester.Diagnostics
         public static void UpdateAction(string action)
         {
             UpdateContext(ctx => {
-                ctx.LastAction = action;
-                ctx.Breadcrumbs.Add(new Breadcrumb("Action", action));
+                ctx.State.LastAction = action;
+                ctx.AddBreadcrumb(new Breadcrumb("Action", action));
             });
         }
 
@@ -95,8 +95,8 @@ namespace RealPlayTester.Diagnostics
         public static void UpdatePanel(string panelName)
         {
             UpdateContext(ctx => {
-                ctx.LastPanel = panelName;
-                ctx.Breadcrumbs.Add(new Breadcrumb("Panel", $"Panel changed to: {panelName}"));
+                ctx.State.LastPanel = panelName;
+                ctx.AddBreadcrumb(new Breadcrumb("Panel", $"Panel changed to: {panelName}"));
             });
         }
 
@@ -106,8 +106,8 @@ namespace RealPlayTester.Diagnostics
         public static void UpdatePlacementAttempt(Vector2Int position, string definitionId, string result)
         {
             UpdateContext(ctx => {
-                ctx.LastPlacementAttempt = new PlacementAttempt(position, definitionId, result);
-                ctx.Breadcrumbs.Add(new Breadcrumb("Placement", $"Placed {definitionId} at {position} (Result: {result})"));
+                ctx.State.LastPlacementAttempt = new PlacementAttempt(position, definitionId, result);
+                ctx.AddBreadcrumb(new Breadcrumb("Placement", $"Placed {definitionId} at {position} (Result: {result})"));
             });
         }
 
@@ -117,8 +117,8 @@ namespace RealPlayTester.Diagnostics
         public static void UpdateIntent(string intent)
         {
             UpdateContext(ctx => {
-                ctx.LastIntent = intent;
-                ctx.Breadcrumbs.Add(new Breadcrumb("Intent", intent));
+                ctx.State.LastIntent = intent;
+                ctx.AddBreadcrumb(new Breadcrumb("Intent", intent));
             });
         }
 
@@ -127,7 +127,7 @@ namespace RealPlayTester.Diagnostics
         /// </summary>
         public static void RecordBreadcrumb(string type, string message)
         {
-            UpdateContext(ctx => ctx.Breadcrumbs.Add(new Breadcrumb(type, message)));
+            UpdateContext(ctx => ctx.AddBreadcrumb(new Breadcrumb(type, message)));
         }
 
         private static void UpdateContext(Action<TestRunContext> update)
@@ -137,19 +137,12 @@ namespace RealPlayTester.Diagnostics
                 return;
             }
 
-            TestRunContext context;
             lock (Sync)
             {
-                context = _current;
+                if (_current == null) return;
+                update(_current);
+                WriteSnapshot(_current);
             }
-
-            if (context == null)
-            {
-                return;
-            }
-
-            update(context);
-            WriteSnapshot(context);
         }
 
         private static void WriteSnapshot(TestRunContext context)

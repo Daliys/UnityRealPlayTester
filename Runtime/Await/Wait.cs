@@ -72,9 +72,7 @@ namespace RealPlayTester.Await
                 RealPlayTester.Input.Internal.InputSimulator.UpdateInput();
                 await Task.Yield();
                 
-                // BUG FIX: Fallback to unscaled delta if timeScale is too low to prevent hanging
-                float dt = Time.timeScale > 0.01f ? Time.deltaTime : Time.unscaledDeltaTime;
-                elapsed += dt;
+                elapsed += Time.deltaTime;
             }
         }
 
@@ -93,7 +91,7 @@ namespace RealPlayTester.Await
             for (int i = 0; i < frames; i++)
             {
                 token.ThrowIfCancellationRequested();
-                RealPlayTester.Input.Internal.InputSimulator.UpdateInput(); // Ensure simulation ticks in Script mode
+                RealPlayTester.Input.Internal.InputSimulator.UpdateInput();
                 await Task.Yield();
             }
         }
@@ -109,6 +107,7 @@ namespace RealPlayTester.Await
             if (!RealPlayEnvironment.IsEnabled) return;
             if (predicate == null) return;
 
+            string originalStack = Environment.StackTrace; // CAPTURE STACK
             float startTime = Time.realtimeSinceStartup;
             float timeout = timeoutSeconds ?? float.MaxValue;
             var token = RealPlayExecutionContext.Token;
@@ -121,7 +120,9 @@ namespace RealPlayTester.Await
 
                 if (elapsed >= timeout)
                 {
-                    throw new TimeoutException($"Wait.Until timed out after {timeout}s. {(description != null ? $"Reason: {description}" : "")}");
+                    string predicateName = predicate.Method?.Name ?? "unnamed";
+                    string finalDesc = description ?? $"Condition '{predicateName}'";
+                    throw new TimeoutException($"Wait.Until timed out after {timeout}s. Reason: {finalDesc}\nOriginal Stack:\n{originalStack}");
                 }
 
                 // Periodic logging for long waits (every 2s)

@@ -15,12 +15,16 @@ namespace RealPlayTester.Diagnostics
         private static System.Type s_eventAggregatorType;
         private static object s_gameLoggerInstance;
         private static object s_eventAggregatorInstance;
+        private static bool s_initialized;
 
-        static TestLog()
+        private static void EnsureInitialized()
         {
-            // Try to find GameLogger and EventAggregator via reflection
-            s_gameLoggerType = System.Type.GetType("GameLogger, Assembly-CSharp");
-            s_eventAggregatorType = System.Type.GetType("EventAggregator, Assembly-CSharp");
+            if (s_initialized) return;
+            s_initialized = true;
+
+            // NEW: Search all loaded assemblies instead of just Assembly-CSharp
+            s_gameLoggerType = FindType("GameLogger");
+            s_eventAggregatorType = FindType("EventAggregator");
 
             if (s_gameLoggerType != null)
             {
@@ -41,6 +45,19 @@ namespace RealPlayTester.Diagnostics
                     s_hasEventAggregator = s_eventAggregatorInstance != null;
                 }
             }
+        }
+
+        private static System.Type FindType(string fullName)
+        {
+            var type = System.Type.GetType(fullName);
+            if (type != null) return type;
+
+            foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                type = assembly.GetType(fullName);
+                if (type != null) return type;
+            }
+            return null;
         }
 
         /// <summary>
@@ -70,6 +87,7 @@ namespace RealPlayTester.Diagnostics
         private static void Log(string level, string message)
         {
             if (!RealPlayEnvironment.IsEnabled) return;
+            EnsureInitialized();
 
             string formattedMessage = $"[RealPlayTest] [{level}] {message}";
 
@@ -115,11 +133,6 @@ namespace RealPlayTester.Diagnostics
                 default:
                     Debug.Log(message);
                     break;
-            }
-
-            if (Tester.Settings.MirrorLogsToStdout) 
-            {
-                System.Console.WriteLine(message);
             }
         }
     }

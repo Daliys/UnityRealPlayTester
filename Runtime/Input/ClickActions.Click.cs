@@ -74,34 +74,38 @@ namespace RealPlayTester.Input
             await PerformClick(screenPos, cam, target);
         }
 
-        private static Task PerformClick(Vector2 screenPosition, Camera camera = null, GameObject preferredTarget = null, PointerEventData.InputButton button = PointerEventData.InputButton.Left)
-        {
-            var token = RealPlayExecutionContext.Token;
-            return RealPlayTesterHost.Instance.RunCoroutineTask(ClickRoutine(screenPosition, camera, preferredTarget, token, button), token);
-        }
-
-        private static IEnumerator ClickRoutine(Vector2 pos, Camera camera, GameObject preferred, CancellationToken token, PointerEventData.InputButton button)
+        private static async Task PerformClick(Vector2 screenPosition, Camera camera = null, GameObject preferredTarget = null, PointerEventData.InputButton button = PointerEventData.InputButton.Left)
         {
             var es = RealInputUtility.EnsureEventSystem();
             Camera cam = SelectCamera(camera);
             if (cam != null) EnsurePhysicsRaycaster(cam);
 
             var data = RealInputUtility.GetPooledPointerData(es);
-            data.position = pos;
+            data.position = screenPosition;
             data.button = button;
-            RealInputUtility.SimulateMouseMove(pos);
+            RealInputUtility.SimulateMouseMove(screenPosition);
 
             var results = RealInputUtility.Raycasts(data);
-            GameObject target = FindClickTarget(pos, preferred, results, es, cam);
+            GameObject target = FindClickTarget(screenPosition, preferredTarget, results, es, cam);
 
             if (target == null)
             {
-                LogClickFailure(pos, results);
-                yield break;
+                LogClickFailure(screenPosition, results);
+                return;
             }
 
-            ExecuteClickEvents(target, data, pos);
-            yield return null;
+            ExecuteClickEvents(target, data, screenPosition);
+            
+            // PERFORMANCE FIX: Just execute Up/Click immediately after Down if paused
+            if (Time.timeScale < 0.01f)
+            {
+                ExecuteEvents.Execute(target, data, ExecuteEvents.pointerUpHandler);
+                ExecuteEvents.Execute(target, data, ExecuteEvents.pointerClickHandler);
+                return;
+            }
+
+            await Wait.Frames(1);
+            
             ExecuteEvents.Execute(target, data, ExecuteEvents.pointerUpHandler);
             ExecuteEvents.Execute(target, data, ExecuteEvents.pointerClickHandler);
         }
@@ -111,7 +115,20 @@ namespace RealPlayTester.Input
             if (preferred != null)
             {
                 if (results.Count > 0 && results[0].gameObject != preferred && !preferred.transform.IsChildOf(results[0].gameObject.transform))
-                    RealPlayLog.Warn($"[BLOCKER] '{preferred.name}' obscured by '{results[0].gameObject.name}'.");
+                {
+                    // BLOCKER FIX: Ensure it's not a background 3D object falsely blocking UI
+                    bool isUi = preferred.GetComponent<RectTransform>() != null;
+                    bool blockerIsUi = results[0].gameObject.GetComponent<RectTransform>() != null;
+                    
+                    if (isUi && !blockerIsUi)
+                    {
+                        // UI takes priority over world objects
+                        return preferred;
+                    }
+
+                    RealPlayLog.Warn($"[BLOCKER] '{preferred.name}' obscured by '{results[0].gameObject.name}'. Redirecting click to blocker.");
+                    return results[0].gameObject;
+                }
                 return preferred;
             }
 

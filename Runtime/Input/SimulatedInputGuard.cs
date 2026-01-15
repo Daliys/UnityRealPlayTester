@@ -21,13 +21,25 @@ namespace RealPlayTester.Input
             }
 
 #if ENABLE_INPUT_SYSTEM
-            // Check if InputSystem package is available
-            var inputSystemType = System.Type.GetType("UnityEngine.InputSystem.InputSystem, Unity.InputSystem");
+            // Check if InputSystem package is available (Try multiple common assembly names)
+            var inputSystemType = System.Type.GetType("UnityEngine.InputSystem.InputSystem, Unity.InputSystem") 
+                               ?? System.Type.GetType("UnityEngine.InputSystem.InputSystem, UnityEngine.InputSystem");
             s_isInputSystemActive = inputSystemType != null;
             
+            // ADDITIONAL CHECK: Is it actually initialized?
+            if (s_isInputSystemActive.Value)
+            {
+                var settingsProp = inputSystemType.GetProperty("settings", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (settingsProp != null && settingsProp.GetValue(null) == null)
+                {
+                    // Input system is enabled but not initialized or no settings found
+                    s_isInputSystemActive = false;
+                }
+            }
+
             if (!s_isInputSystemActive.Value)
             {
-                Debug.LogWarning("[SimulatedInputGuard] Input System is enabled in project settings but package not found. Using legacy input fallback.");
+                Debug.LogWarning("[SimulatedInputGuard] Input System is enabled in project settings but not available or initialized. Using legacy input fallback.");
             }
 #else
             s_isInputSystemActive = false;

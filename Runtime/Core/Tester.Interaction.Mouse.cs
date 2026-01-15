@@ -31,6 +31,9 @@ namespace RealPlayTester.Core
                 public static Task MoveTo(Vector2 screenPos, float duration = 0f) => RealPlayEnvironment.IsEnabled ? MouseMove.To(screenPos, duration) : Task.CompletedTask;
                 public static Task MoveToCenter(GameObject target, float duration = 0f) => RealPlayEnvironment.IsEnabled ? MouseMove.To(RealInputUtility.GetScreenCenter(target), duration) : Task.CompletedTask;
                 
+                public static Task Drag(Vector2 from, Vector2 to, float duration = 0.5f) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Drag.FromTo(from, to, duration) : Task.CompletedTask;
+                public static Task Drag(GameObject target, Vector2 to, float duration = 0.5f) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Drag.FromTo(RealInputUtility.GetScreenCenter(target), to, duration) : Task.CompletedTask;
+
                 public static Task Down(int button = 0) => RealPlayEnvironment.IsEnabled ? InputSystemShim.MouseDown(button) : Task.CompletedTask;
                 public static Task Up(int button = 0) => RealPlayEnvironment.IsEnabled ? InputSystemShim.MouseUp(button) : Task.CompletedTask;
             }

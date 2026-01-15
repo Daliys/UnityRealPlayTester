@@ -25,16 +25,22 @@ namespace RealPlayTester.Core
             // 2. Kill Tweens (Attempt to find DOTween via reflection)
             KillAllTweens();
 
-            // 3. Clear Input Buffers
+            // 3. Clear Input Buffers and Devices
             InputSystemShim.ClearEvents();
+            RealPlayTester.Input.Internal.VirtualDeviceManager.CleanupDevices();
 
             // 4. Sanitize DontDestroyOnLoad (Except for our core host)
             CleanupPersistentObjects();
 
-            // 5. Clear SceneCache
-            SceneCache.Instance.ForceRefresh();
+            // 5. Reset Framework Settings to Defaults
+            RealPlaySettings.Initialize();
 
-            // 6. Reload Current Scene
+            // 6. Clear Caches and Heatmap
+            SceneCache.Instance.ForceRefresh();
+            var heatmap = RealPlayTesterHost.Instance.GetComponent<RealPlayTester.Input.InteractionHeatmap>();
+            if (heatmap != null) heatmap.Initialize(); // Re-init clears canvas
+
+            // 7. Reload Current Scene
             string sceneName = SceneManager.GetActiveScene().name;
             if (!string.IsNullOrEmpty(sceneName))
             {
@@ -75,6 +81,9 @@ namespace RealPlayTester.Core
                     
                     // Also protect internal Unity objects
                     if (go.hideFlags != HideFlags.None) continue;
+
+                    // NEW: Protect objects with [Persistent] tag or specific prefixes
+                    if (go.name.StartsWith("[Persistent]") || go.CompareTag("Player") || go.CompareTag("GameController")) continue;
 
                     RealPlayLog.Info($"[HEALER] Destroying leaked persistent object: {go.name}");
                     UnityEngine.Object.DestroyImmediate(go);

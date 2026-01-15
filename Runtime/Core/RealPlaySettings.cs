@@ -65,28 +65,35 @@ namespace RealPlayTester.Core
         /// <summary>Objects with these prefixes will be ignored by SteadyState checks.</summary>
         public static string[] AmbientTags = { "[Ambient]", "vfx_", "Particle" };
 
+        /// <summary>If true, virtual simulation devices will call MakeCurrent().</summary>
+        public static bool VirtualDevicesMakeCurrent = true;
+
         /// <summary>If true, automatically learn navigation paths between game states during execution.</summary>
         public static bool EnableNavigationLearning = false;
+ 
+        private static bool _isInitialized = false;
  
         /// <summary>
         /// Initialize settings based on environment.
         /// </summary>
         public static void Initialize()
         {
+            if (_isInitialized) return;
+            _isInitialized = true;
+
             if (Application.isBatchMode)
             {
                 RealPlayTester.Utilities.PerformanceMonitor.IsEnabled = false;
 
                 // Sensible defaults for batchmode/CI
-                ForceBatchmodeVisibility = true;
+                // Only set if they haven't been changed from their defaults
+                if (!ForceBatchmodeVisibility) ForceBatchmodeVisibility = true;
                 MirrorLogsToStdout = true;
                 EnableInputHeartbeat = true;
                 AutoSimulatePhysics2D = true;
                 AutoSimulatePhysics3D = true;
                 DisableLogStackTraces = true;
                 FilterDOMToViewport = true;
-                
-                RealPlayTester.Utilities.PerformanceMonitor.IsEnabled = false;
             }
         }
     }

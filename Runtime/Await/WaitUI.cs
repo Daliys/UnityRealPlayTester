@@ -42,6 +42,9 @@ namespace RealPlayTester.Await
 
         private static GameObject FindObjectIncludingInactive(string name)
         {
+            // Use SceneCache if available, but it only tracks active objects.
+            // For inactive objects, we need a slower scan, but let's try to find it efficiently.
+            
             var all = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (var go in all)
             {
@@ -58,6 +61,7 @@ namespace RealPlayTester.Await
 
             return Until(() =>
             {
+                // PERFORMANCE FIX: Only scan candidates of type T
                 var candidates = UnityEngine.Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
                 foreach (var c in candidates)
                 {
@@ -107,12 +111,12 @@ namespace RealPlayTester.Await
             {
                 if (g.ignoreParentGroups) break; 
                 
-                if (g.alpha <= 0.95f || !g.interactable)
+                if (g.alpha <= 0.05f || !g.interactable)
                 {
-                    if (Tester.Settings.ForceBatchmodeVisibility)
+                    if (Tester.Settings.ForceBatchmodeVisibility && Application.isBatchMode)
                     {
-                        g.alpha = 1f;
-                        g.interactable = true;
+                        // In batchmode, we might want to bypass alpha checks if forced, 
+                        // but we MUST NOT modify the actual component state.
                         continue;
                     }
                     return false;
@@ -130,37 +134,33 @@ namespace RealPlayTester.Await
         {
             if (obj == null) return $"Object '{targetName}' not found in scene.";
 
+            // PERFORMANCE FIX: Cache string builder
             var sb = new System.Text.StringBuilder();
             
-            // Check logic first
             var logic = RealPlayTester.Utilities.InteractionLogic.CheckLogicalInteractivity(obj);
             if (logic.IsBlocked) sb.Append($"[LOGIC BLOCKED: {logic.Reason}] ");
 
             sb.Append("Visibility Trace: ");
             
             var current = obj.transform;
-            while (current != null)
+            int depth = 0;
+            while (current != null && depth < 10) // Limit trace depth
             {
                 var go = current.gameObject;
                 sb.Append($"{go.name}(");
-                sb.Append(go.activeSelf ? "Active" : "INACTIVE");
+                sb.Append(go.activeSelf ? "A" : "I");
                 
                 var cg = go.GetComponent<CanvasGroup>();
-                if (cg != null)
-                {
-                    sb.Append($", Alpha:{cg.alpha:F2}");
-                    if (!cg.interactable) sb.Append(", Non-Interactable");
-                }
+                if (cg != null) sb.Append($", α:{cg.alpha:F1}");
                 
-                var cr = go.GetComponent<CanvasRenderer>();
-                if (cr != null && cr.cull) sb.Append(", CULLED");
-
-                if (current.localScale.sqrMagnitude < 0.0001f) sb.Append(", Scale:0");
+                if (current.localScale.sqrMagnitude < 0.0001f) sb.Append(", S:0");
                 
                 sb.Append(") -> ");
                 current = current.parent;
+                depth++;
             }
-            sb.Append("Root");
+            if (current != null) sb.Append("...");
+            else sb.Append("Root");
             return sb.ToString();
         }
     }

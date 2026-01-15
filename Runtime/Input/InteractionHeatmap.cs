@@ -20,12 +20,17 @@ namespace RealPlayTester.Input
 
         public void Initialize()
         {
+            var old = transform.Find("HeatmapCanvas");
+            if (old != null) DestroyImmediate(old.gameObject);
+
             var canvasGo = new GameObject("HeatmapCanvas", typeof(Canvas), typeof(CanvasScaler));
             canvasGo.transform.SetParent(transform);
             _canvas = canvasGo.GetComponent<Canvas>();
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             _canvas.sortingOrder = 32765; // Below anchors
         }
+
+        private bool _wasPressed = false;
 
         private void Update()
         {
@@ -35,11 +40,13 @@ namespace RealPlayTester.Input
                 return;
             }
 
-            // Capture new points from RealInputUtility if button was just pressed
-            if (RealInputUtility.IsSimulatedButtonPressed && !RealInputUtility.IsSimulatedDragging)
+            // Capture new points from RealInputUtility if button was JUST pressed
+            bool isPressed = RealInputUtility.IsSimulatedButtonPressed;
+            if (isPressed && !_wasPressed && !RealInputUtility.IsSimulatedDragging)
             {
                 AddPoint(RealInputUtility.LastSimulatedPosition);
             }
+            _wasPressed = isPressed;
         }
 
         public void AddPoint(Vector2 screenPos)

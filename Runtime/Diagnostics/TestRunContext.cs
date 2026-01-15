@@ -5,100 +5,127 @@ using UnityEngine;
 
 namespace RealPlayTester.Diagnostics
 {
+    public struct TestMetadata
+    {
+        public string TestName;
+        public string TestId;
+        public DateTime StartTime;
+        public DateTime EndTime;
+        public string SceneName;
+        public string UnityVersion;
+        public string PackageVersion;
+        public string ActiveInputMode;
+    }
+
+    public struct TestRunState
+    {
+        public string LastAction;
+        public string LastPanel;
+        public string LastIntent;
+        public PlacementAttempt LastPlacementAttempt;
+    }
+
     /// <summary>
     /// Tracks diagnostic context for a single test run.
     /// Provides structured data for debugging test failures.
     /// </summary>
     public class TestRunContext
     {
-        // Test Identity
-        public string TestName { get; set; }
-        public string TestId { get; set; }
-        public DateTime StartTime { get; set; }
-        public DateTime EndTime { get; set; }
+        public TestMetadata Info;
+        public TestRunState State;
 
-        // Environment
-        public string SceneName { get; set; }
-        public string UnityVersion { get; set; }
-        public string PackageVersion { get; set; }
+        // BACKWARD COMPATIBILITY PROPERTIES
+        public string TestName { get => Info.TestName; set => Info.TestName = value; }
+        public string SceneName { get => Info.SceneName; set => Info.SceneName = value; }
+        public DateTime StartTime { get => Info.StartTime; set => Info.StartTime = value; }
+        public DateTime EndTime { get => Info.EndTime; set => Info.EndTime = value; }
+        public string LastAction { get => State.LastAction; set => State.LastAction = value; }
+        public string LastPanel { get => State.LastPanel; set => State.LastPanel = value; }
+        public string LastIntent { get => State.LastIntent; set => State.LastIntent = value; }
+        public PlacementAttempt LastPlacementAttempt { get => State.LastPlacementAttempt; set => State.LastPlacementAttempt = value; }
+        
+        private readonly List<LogEntry> _logs = new List<LogEntry>();
+        private readonly List<Breadcrumb> _breadcrumbs = new List<Breadcrumb>();
+        private readonly object _collectionLock = new object();
 
-        // Input System
-        public string ActiveInputMode { get; set; }
+        // COMPATIBILITY: return the actual list for existing tests, but ADDING should use AddLog/AddBreadcrumb for thread safety
+        public List<LogEntry> Logs => _logs;
+        public List<Breadcrumb> Breadcrumbs => _breadcrumbs;
+        public object SyncLock => _collectionLock;
 
-        // Test State Tracking
-        public string LastAction { get; set; }
-        public string LastPanel { get; set; }
-        public string LastIntent { get; set; }
-        public PlacementAttempt LastPlacementAttempt { get; set; }
-        public List<LogEntry> Logs { get; } = new List<LogEntry>();
-        public List<Breadcrumb> Breadcrumbs { get; } = new List<Breadcrumb>();
+        public void AddLog(LogEntry log) { lock(_collectionLock) _logs.Add(log); }
+        public void AddBreadcrumb(Breadcrumb crumb) { lock(_collectionLock) _breadcrumbs.Add(crumb); }
+        public int GetLogCount() { lock(_collectionLock) return _logs.Count; }
+        public LogEntry GetLogAt(int index) { lock(_collectionLock) return (index >= 0 && index < _logs.Count) ? _logs[index] : null; }
 
         public TestRunContext()
         {
-            TestId = Guid.NewGuid().ToString();
-            StartTime = DateTime.Now;
-            UnityVersion = Application.unityVersion;
-            PackageVersion = "2.4.0"; // Will be updated with package
+            Info.TestId = Guid.NewGuid().ToString();
+            Info.StartTime = DateTime.Now;
+            Info.UnityVersion = Application.unityVersion;
+            Info.PackageVersion = "2.4.0"; 
             
-            // Detect input mode
 #if ENABLE_INPUT_SYSTEM
-            ActiveInputMode = "InputSystem";
+            Info.ActiveInputMode = "InputSystem";
 #else
-            ActiveInputMode = "Legacy";
+            Info.ActiveInputMode = "Legacy";
 #endif
         }
 
         public string ToJson()
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("{");
-            AppendMetadataJson(sb);
-            AppendPlacementJson(sb);
-            AppendBreadcrumbsJson(sb);
-            AppendLogsJson(sb);
-            sb.AppendLine("}");
-            return sb.ToString();
+            lock (_collectionLock)
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("{");
+                AppendMetadataJson(sb);
+                AppendPlacementJson(sb);
+                AppendBreadcrumbsJson(sb);
+                AppendLogsJson(sb);
+                sb.AppendLine("}");
+                return sb.ToString();
+            }
         }
 
         private void AppendMetadataJson(StringBuilder sb)
         {
-            sb.AppendLine($"  \"testName\": \"{EscapeJson(TestName)}\",");
-            sb.AppendLine($"  \"testId\": \"{TestId}\",");
-            sb.AppendLine($"  \"startTime\": \"{StartTime:O}\",");
-            sb.AppendLine($"  \"endTime\": \"{EndTime:O}\",");
-            sb.AppendLine($"  \"sceneName\": \"{EscapeJson(SceneName)}\",");
-            sb.AppendLine($"  \"unityVersion\": \"{UnityVersion}\",");
-            sb.AppendLine($"  \"packageVersion\": \"{PackageVersion}\",");
-            sb.AppendLine($"  \"activeInputMode\": \"{ActiveInputMode}\",");
-            sb.AppendLine($"  \"lastAction\": \"{EscapeJson(LastAction)}\",");
-            sb.AppendLine($"  \"lastPanel\": \"{EscapeJson(LastPanel)}\",");
-            sb.AppendLine($"  \"lastIntent\": \"{EscapeJson(LastIntent)}\",");
+            sb.AppendLine("  \"testName\": \"" + EscapeJson(Info.TestName) + "\",");
+            sb.AppendLine("  \"testId\": \"" + Info.TestId + "\",");
+            sb.AppendLine("  \"startTime\": \"" + Info.StartTime.ToString("O") + "\",");
+            sb.AppendLine("  \"endTime\": \"" + Info.EndTime.ToString("O") + "\",");
+            sb.AppendLine("  \"sceneName\": \"" + EscapeJson(Info.SceneName) + "\",");
+            sb.AppendLine("  \"unityVersion\": \"" + Info.UnityVersion + "\",");
+            sb.AppendLine("  \"packageVersion\": \"" + Info.PackageVersion + "\",");
+            sb.AppendLine("  \"activeInputMode\": \"" + Info.ActiveInputMode + "\",");
+            sb.AppendLine("  \"lastAction\": \"" + EscapeJson(State.LastAction) + "\",");
+            sb.AppendLine("  \"lastPanel\": \"" + EscapeJson(State.LastPanel) + "\",");
+            sb.AppendLine("  \"lastIntent\": \"" + EscapeJson(State.LastIntent) + "\",");
         }
 
         private void AppendPlacementJson(StringBuilder sb)
         {
-            if (LastPlacementAttempt != null)
+            if (State.LastPlacementAttempt != null)
             {
-                sb.AppendLine($"  \"lastPlacementAttempt\": {{");
-                sb.AppendLine($"    \"position\": \"{LastPlacementAttempt.Position}\",");
-                sb.AppendLine($"    \"definitionId\": \"{EscapeJson(LastPlacementAttempt.DefinitionId)}\",");
-                sb.AppendLine($"    \"result\": \"{EscapeJson(LastPlacementAttempt.Result)}\"");
-                sb.AppendLine($"  }},");
+                sb.AppendLine("  \"lastPlacementAttempt\": {");
+                sb.AppendLine("    \"position\": \"" + State.LastPlacementAttempt.Position + "\",");
+                sb.AppendLine("    \"definitionId\": \"" + EscapeJson(State.LastPlacementAttempt.DefinitionId) + "\",");
+                sb.AppendLine("    \"result\": \"" + EscapeJson(State.LastPlacementAttempt.Result) + "\"");
+                sb.AppendLine("  },");
             }
             else
             {
-                sb.AppendLine($"  \"lastPlacementAttempt\": null,");
+                sb.AppendLine("  \"lastPlacementAttempt\": null,");
             }
         }
 
         private void AppendBreadcrumbsJson(StringBuilder sb)
         {
-            sb.AppendLine($"  \"breadcrumbs\": [");
-            for (int i = 0; i < Breadcrumbs.Count; i++)
+            sb.AppendLine("  \"breadcrumbs\": [");
+            for (int i = 0; i < _breadcrumbs.Count; i++)
             {
-                var crumb = Breadcrumbs[i];
-                sb.Append($"    {{ \"frame\": {crumb.Frame}, \"time\": {crumb.Timestamp:F3}, \"type\": \"{crumb.Type}\", \"message\": \"{EscapeJson(crumb.Message)}\" }}");
-                if (i < Breadcrumbs.Count - 1) sb.Append(",");
+                var crumb = _breadcrumbs[i];
+                sb.Append("    { \"frame\": " + crumb.Frame + ", \"time\": " + crumb.Timestamp.ToString("F3") + ", \"type\": \"" + crumb.Type + ", \"message\": \"" + EscapeJson(crumb.Message) + "\" }");
+                if (i < _breadcrumbs.Count - 1) sb.Append(",");
                 sb.AppendLine();
             }
             sb.AppendLine("  ],");
@@ -106,47 +133,45 @@ namespace RealPlayTester.Diagnostics
 
         private void AppendLogsJson(StringBuilder sb)
         {
-            sb.AppendLine($"  \"logs\": [");
-            for (int i = 0; i < Logs.Count; i++)
+            sb.AppendLine("  \"logs\": [");
+            for (int i = 0; i < _logs.Count; i++)
             {
-                var log = Logs[i];
-                sb.Append($"    {{ \"frame\": {log.Frame}, \"time\": {log.Timestamp:F3}, \"type\": \"{log.Type}\", \"severity\": \"{log.Severity}\", \"message\": \"{EscapeJson(log.Message)}\", \"repeats\": {log.RepeatCount} }}");
-                if (i < Logs.Count - 1) sb.Append(",");
+                var log = _logs[i];
+                sb.Append("    { \"frame\": " + log.Frame + ", \"time\": " + log.Timestamp.ToString("F3") + ", \"type\": \"" + log.Type + ", \"severity\": \"" + log.Severity + ", \"message\": \"" + EscapeJson(log.Message) + ", \"repeats\": " + log.RepeatCount + " }");
+                if (i < _logs.Count - 1) sb.Append(",");
                 sb.AppendLine();
             }
             sb.AppendLine("  ]");
         }
 
-        /// <summary>
-        /// Exports context as human-readable Markdown.
-        /// </summary>
         public string ToMarkdown()
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("# Test Run Context\n");
-            
-            AppendMetadataMarkdown(sb);
-            AppendEnvironmentMarkdown(sb);
-            AppendStateMarkdown(sb);
-            AppendBreadcrumbsMarkdown(sb);
-            
-            return sb.ToString();
+            lock (_collectionLock)
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("# Test Run Context\n");
+                AppendMetadataMarkdown(sb);
+                AppendEnvironmentMarkdown(sb);
+                AppendStateMarkdown(sb);
+                AppendBreadcrumbsMarkdown(sb);
+                return sb.ToString();
+            }
         }
 
         private void AppendMetadataMarkdown(StringBuilder sb)
         {
             sb.AppendLine("## Test Information");
-            sb.AppendLine($"- **Test Name**: {TestName}");
-            sb.AppendLine($"- **Test ID**: {TestId}");
-            sb.AppendLine($"- **Start Time**: {StartTime:yyyy-MM-dd HH:mm:ss}");
-            if (EndTime != default)
+            sb.AppendLine("- **Test Name**: " + Info.TestName);
+            sb.AppendLine("- **Test ID**: " + Info.TestId);
+            sb.AppendLine("- **Start Time**: " + Info.StartTime.ToString("yyyy-MM-dd HH:mm:ss"));
+            if (Info.EndTime != default)
             {
-                sb.AppendLine($"- **End Time**: {EndTime:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"- **Duration**: {(EndTime - StartTime).TotalSeconds:F2}s");
+                sb.AppendLine("- **End Time**: " + Info.EndTime.ToString("yyyy-MM-dd HH:mm:ss"));
+                sb.AppendLine("- **Duration**: " + (Info.EndTime - Info.StartTime).TotalSeconds.ToString("F2") + "s");
             }
             else
             {
-                sb.AppendLine($"- **Duration (Active)**: {(DateTime.Now - StartTime).TotalSeconds:F2}s");
+                sb.AppendLine("- **Duration (Active)**: " + (DateTime.Now - Info.StartTime).TotalSeconds.ToString("F2") + "s");
             }
             sb.AppendLine();
         }
@@ -154,27 +179,27 @@ namespace RealPlayTester.Diagnostics
         private void AppendEnvironmentMarkdown(StringBuilder sb)
         {
             sb.AppendLine("## Environment");
-            sb.AppendLine($"- **Scene**: {SceneName}");
-            sb.AppendLine($"- **Unity Version**: {UnityVersion}");
-            sb.AppendLine($"- **Package Version**: {PackageVersion}");
-            sb.AppendLine($"- **Input Mode**: {ActiveInputMode}");
+            sb.AppendLine("- **Scene**: " + Info.SceneName);
+            sb.AppendLine("- **Unity Version**: " + Info.UnityVersion);
+            sb.AppendLine("- **Package Version**: " + Info.PackageVersion);
+            sb.AppendLine("- **Input Mode**: " + Info.ActiveInputMode);
             sb.AppendLine();
         }
 
         private void AppendStateMarkdown(StringBuilder sb)
         {
             sb.AppendLine("## Test State");
-            sb.AppendLine($"- **Last Action**: {LastAction ?? "N/A"}");
-            sb.AppendLine($"- **Last Panel**: {LastPanel ?? "N/A"}");
-            sb.AppendLine($"- **Current Intent**: {LastIntent ?? "N/A"}");
+            sb.AppendLine("- **Last Action**: " + (State.LastAction ?? "N/A"));
+            sb.AppendLine("- **Last Panel**: " + (State.LastPanel ?? "N/A"));
+            sb.AppendLine("- **Current Intent**: " + (State.LastIntent ?? "N/A"));
             
-            if (LastPlacementAttempt != null)
+            if (State.LastPlacementAttempt != null)
             {
                 sb.AppendLine();
                 sb.AppendLine("## Last Placement Attempt");
-                sb.AppendLine($"- **Position**: {LastPlacementAttempt.Position}");
-                sb.AppendLine($"- **Definition ID**: {LastPlacementAttempt.DefinitionId}");
-                sb.AppendLine($"- **Result**: {LastPlacementAttempt.Result}");
+                sb.AppendLine("- **Position**: " + State.LastPlacementAttempt.Position);
+                sb.AppendLine("- **Definition ID**: " + State.LastPlacementAttempt.DefinitionId);
+                sb.AppendLine("- **Result**: " + State.LastPlacementAttempt.Result);
             }
             sb.AppendLine();
         }
@@ -184,23 +209,17 @@ namespace RealPlayTester.Diagnostics
             sb.AppendLine("## 🥖 Breadcrumbs (High-Level Timeline)");
             sb.AppendLine("| Frame | Time | Type | Message |");
             sb.AppendLine("|-------|------|------|---------|");
-            foreach (var crumb in Breadcrumbs)
+            foreach (var crumb in _breadcrumbs)
             {
-                sb.AppendLine($"| {crumb.Frame} | {crumb.Timestamp:F2}s | **{crumb.Type}** | {crumb.Message} |");
+                sb.AppendLine("| " + crumb.Frame + " | " + crumb.Timestamp.ToString("F2") + "s | **" + crumb.Type + "** | " + crumb.Message + " |");
             }
             sb.AppendLine();
         }
 
         private string EscapeJson(string str)
         {
-            if (string.IsNullOrEmpty(str))
-                return "";
-            
-            return str.Replace("\\", "\\\\")
-                      .Replace("\"", "\\\"")
-                      .Replace("\n", "\\n")
-                      .Replace("\r", "\\r")
-                      .Replace("\t", "\\t");
+            if (string.IsNullOrEmpty(str)) return "";
+            return str.Replace("\"", "\\\"");
         }
     }
 
@@ -216,8 +235,7 @@ namespace RealPlayTester.Diagnostics
 
         public Breadcrumb(string type, string message)
         {
-            Frame = UnityEngine.Time.frameCount;
-            Timestamp = UnityEngine.Time.time;
+            try { Frame = UnityEngine.Time.frameCount; Timestamp = UnityEngine.Time.time; } catch { }
             Type = type;
             Message = message;
         }
@@ -238,8 +256,7 @@ namespace RealPlayTester.Diagnostics
 
         public LogEntry(string type, string message, string stackTrace = "", LogType severity = LogType.Log)
         {
-            Frame = UnityEngine.Time.frameCount;
-            Timestamp = UnityEngine.Time.time;
+            try { Frame = UnityEngine.Time.frameCount; Timestamp = UnityEngine.Time.time; } catch { }
             Type = type;
             Message = message;
             StackTrace = stackTrace;

@@ -40,7 +40,7 @@ namespace RealPlayTester.Utilities
                 {
                     sb.Append(root.activeInHierarchy ? "[+] " : "[-] ");
                     sb.AppendLine(root.name);
-                    DumpRecursive(root.transform, sb, 0, 15); // limit depth to 15
+                    DumpRecursive(root.transform, sb, 0, 50); // limit depth to 50
                 }
             }
             

@@ -25,14 +25,30 @@ namespace RealPlayTester.Input
         public static bool IsSimulatedButtonPressed { get; private set; }
         public static bool IsSimulatedDragging { get; private set; }
 
+        private static EventSystem _cachedEventSystem;
+
         public static EventSystem EnsureEventSystem()
         {
-            if (EventSystem.current != null) return EventSystem.current;
+            if (_cachedEventSystem != null && _cachedEventSystem.isActiveAndEnabled) 
+                return _cachedEventSystem;
 
-            var existing = UnityEngine.Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include);
-            if (existing != null) return ActivateEventSystem(existing);
+            if (EventSystem.current != null && EventSystem.current.isActiveAndEnabled)
+            {
+                _cachedEventSystem = EventSystem.current;
+                return _cachedEventSystem;
+            }
 
-            return CreateDefaultEventSystem();
+            var all = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            if (all.Length > 0)
+            {
+                // DISCOVERY FIX: Disable all except the first one found to prevent conflicts
+                for (int i = 1; i < all.Length; i++) all[i].enabled = false;
+                _cachedEventSystem = ActivateEventSystem(all[0]);
+                return _cachedEventSystem;
+            }
+
+            _cachedEventSystem = CreateDefaultEventSystem();
+            return _cachedEventSystem;
         }
 
         private static EventSystem ActivateEventSystem(EventSystem existing)
@@ -70,10 +86,16 @@ namespace RealPlayTester.Input
 
         public static PointerEventData GetPooledPointerData(EventSystem eventSystem)
         {
-            if (_pooledPointerData == null || EventSystem.current != eventSystem)
-                _pooledPointerData = new PointerEventData(eventSystem);
-            _pooledPointerData.Reset();
-            _pooledPointerData.pointerId = -1;
+            if (_pooledPointerData == null || _pooledPointerData.button != PointerEventData.InputButton.Left) // Basic state preservation
+            {
+                if (_pooledPointerData == null || EventSystem.current != eventSystem)
+                    _pooledPointerData = new PointerEventData(eventSystem);
+                else
+                    _pooledPointerData.Reset();
+            }
+            
+            // POINTER ID FIX: Use -100 to avoid clash with real hardware (-1, 0, 1...)
+            _pooledPointerData.pointerId = -100;
             return _pooledPointerData;
         }
 
@@ -128,10 +150,13 @@ namespace RealPlayTester.Input
 
         public static Vector2 ClampToScreen(Vector2 pos)
         {
-            float w = Screen.width > 0 ? Screen.width : 1024;
-            float h = Screen.height > 0 ? Screen.height : 768;
-            return new Vector2(Mathf.Clamp(pos.x, 0.1f, w - 0.1f), Mathf.Clamp(pos.y, 0.1f, h - 0.1f));
+            float w = Screen.width > 0 ? Screen.width : 1920; // Fallback
+            float h = Screen.height > 0 ? Screen.height : 1080;
+            // PADDING FIX: Use 1.0f instead of 0.1f for more robust edge clicks
+            return new Vector2(Mathf.Clamp(pos.x, 1.0f, w - 1.0f), Mathf.Clamp(pos.y, 1.0f, h - 1.0f));
         }
+
+        private static readonly List<RaycastResult> PanelRaycastCache = new List<RaycastResult>(8);
 
         private static void PanelRaycast(PointerEventData data, List<RaycastResult> results)
         {
@@ -139,9 +164,9 @@ namespace RealPlayTester.Input
             var raycasters = UnityEngine.Object.FindObjectsByType(PanelRaycasterType, FindObjectsSortMode.None);
             foreach (var pr in raycasters)
             {
-                var prResults = new List<RaycastResult>();
-                PanelRaycastMethod.Invoke(pr, new object[] { data, prResults });
-                results.AddRange(prResults);
+                PanelRaycastCache.Clear();
+                PanelRaycastMethod.Invoke(pr, new object[] { data, PanelRaycastCache });
+                results.AddRange(PanelRaycastCache);
             }
         }
 
@@ -183,16 +208,16 @@ namespace RealPlayTester.Input
             return true;
         }
 
-        public static Vector2 GetScreenCenter(GameObject go, Camera camera = null)
+        public static Vector2 GetScreenCenter(GameObject go, Camera camera = null, bool forceUpdateCanvas = true)
         {
             if (go == null) return LastSimulatedPosition;
-            if (go.transform is RectTransform rect) return GetUIScreenCenter(rect, camera);
+            if (go.transform is RectTransform rect) return GetUIScreenCenter(rect, camera, forceUpdateCanvas);
             return GetWorldScreenCenter(go, camera);
         }
 
-        private static Vector2 GetUIScreenCenter(RectTransform rect, Camera camera)
+        private static Vector2 GetUIScreenCenter(RectTransform rect, Camera camera, bool forceUpdateCanvas)
         {
-            Canvas.ForceUpdateCanvases();
+            if (forceUpdateCanvas) Canvas.ForceUpdateCanvases();
             var canvas = rect.GetComponentInParent<Canvas>();
             var corners = new Vector3[4];
             rect.GetWorldCorners(corners);

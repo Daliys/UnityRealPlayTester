@@ -12,27 +12,22 @@ namespace RealPlayTester.Input
     /// </summary>
     public static class Touch
     {
+        public static bool IsAvailable => InputSystemShim.IsAvailable || Application.isMobilePlatform;
+
         /// <summary>Simulate a tap at the given screen position.</summary>
         public static async Task Tap(Vector2 screenPos, float duration = 0.1f)
         {
-            // Human Simulation: Move Mouse first
             RealInputUtility.SimulateMouseMove(screenPos);
-            // Small delay for headers/hovers to process
             await Task.Yield(); 
 
             var target = ResolveTarget(screenPos);
-            if (target == null)
-            {
-                return;
-            }
+            if (target == null) return;
 
-            // Press
             RealInputUtility.SimulateMouseClick(true);
             await SimulateTouch(target, screenPos, TouchPhase.Began);
             
             await Wait.Seconds(duration);
 
-            // Release
             RealInputUtility.SimulateMouseClick(false);
             await SimulateTouch(target, screenPos, TouchPhase.Ended);
         }
@@ -40,25 +35,19 @@ namespace RealPlayTester.Input
         /// <summary>Simulate a swipe gesture.</summary>
         public static async Task Swipe(Vector2 from, Vector2 to, float duration = 0.3f)
         {
-            if (!RealPlayEnvironment.IsEnabled)
-            {
-                return;
-            }
+            if (!RealPlayEnvironment.IsEnabled) return;
 
-            // Human Input: Move to start
             RealInputUtility.SimulateMouseMove(from);
             await Task.Yield();
             
             var target = ResolveTarget(from);
+            if (target == null) return;
             
-            // Press
             RealInputUtility.SimulateMouseClick(true);
             await SimulateTouch(target, from, TouchPhase.Began);
             
-            // Drag
             await SimulateSwipeMove(target, from, to, duration);
             
-            // Release
             RealInputUtility.SimulateMouseClick(false);
             await SimulateTouch(target, to, TouchPhase.Ended);
         }
@@ -66,25 +55,21 @@ namespace RealPlayTester.Input
         /// <summary>Simulate a pinch (two-finger) gesture.</summary>
         public static async Task Pinch(Vector2 center, float startDistance, float endDistance, float duration = 0.5f)
         {
-            if (!RealPlayEnvironment.IsEnabled)
-            {
-                return;
-            }
-
+            if (!RealPlayEnvironment.IsEnabled) return;
             await RealPlayTesterHost.Instance.RunCoroutineTask(PinchRoutine(center, startDistance, endDistance, duration), RealPlayExecutionContext.Token);
         }
 
         /// <summary>Simulate a long press at the given position.</summary>
         public static async Task LongPress(Vector2 screenPos, float duration = 1.0f)
         {
-            if (!RealPlayEnvironment.IsEnabled)
-            {
-                return;
-            }
+            if (!RealPlayEnvironment.IsEnabled) return;
 
             var target = ResolveTarget(screenPos);
+            if (target == null) return;
+
             await SimulateTouch(target, screenPos, TouchPhase.Began);
-            await Wait.Seconds(duration);
+            // STABILITY FIX: Use unscaled wait for technical press
+            await Wait.Seconds(duration, unscaled: true);
             await SimulateTouch(target, screenPos, TouchPhase.Ended);
         }
 
@@ -97,16 +82,17 @@ namespace RealPlayTester.Input
             return results.Count > 0 ? results[0].gameObject : null;
         }
 
-        private static Task SimulateTouch(GameObject target, Vector2 screenPos, TouchPhase phase)
+        private static async Task SimulateTouch(GameObject target, Vector2 screenPos, TouchPhase phase, int pointerId = 0)
         {
-            if (target == null) return Task.CompletedTask;
+            if (target == null) return;
 
             var es = RealInputUtility.EnsureEventSystem();
-            var data = RealInputUtility.GetPooledPointerData(es);
-            data.pointerId = 0;
+            // MULTI-TOUCH FIX: Use dedicated data for touch to avoid pooled data corruption
+            var data = new PointerEventData(es); 
+            data.pointerId = pointerId;
             data.position = screenPos;
             data.button = PointerEventData.InputButton.Left;
-            // Re-populate raycast info so event system knows what we hit (even if we force target)
+            
             var results = RealInputUtility.Raycasts(data);
             if (results.Count > 0)
             {
@@ -126,7 +112,7 @@ namespace RealPlayTester.Input
             }
             else if (phase == TouchPhase.Ended)
             {
-                data.pointerPress = target; // Ensure Up happens on the same press target
+                data.pointerPress = target; 
                 data.rawPointerPress = target;
                 
                 ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.endDragHandler);
@@ -134,7 +120,7 @@ namespace RealPlayTester.Input
                 ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerClickHandler);
             }
 
-            return Task.CompletedTask;
+            await Task.Yield();
         }
 
         private static async Task SimulateSwipeMove(GameObject target, Vector2 from, Vector2 to, float duration)
@@ -142,23 +128,22 @@ namespace RealPlayTester.Input
             if (target == null) return;
 
             var es = RealInputUtility.EnsureEventSystem();
-            var data = RealInputUtility.GetPooledPointerData(es);
+            var data = new PointerEventData(es);
             data.pointerId = 0;
             data.button = PointerEventData.InputButton.Left;
-            data.pointerPress = target; // Drag needs this
+            data.pointerPress = target; 
             data.pointerDrag = target;
 
             float elapsed = 0f;
             while (elapsed < duration)
             {
+                float delta = Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
+                elapsed += delta;
                 float t = duration > 0f ? Mathf.Clamp01(elapsed / duration) : 1f;
                 data.position = Vector2.Lerp(from, to, t);
                 RealInputUtility.SimulateMouseMove(data.position);
                 
-                // Execute Drag on the specific target we started with
                 ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.dragHandler);
-                
-                elapsed += Time.deltaTime;
                 await Task.Yield();
             }
             RealInputUtility.SimulateMouseMove(to);
@@ -209,7 +194,8 @@ namespace RealPlayTester.Input
             float elapsed = 0f;
             while (elapsed < ctx.duration)
             {
-                elapsed += Time.deltaTime;
+                float delta = Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
+                elapsed += delta;
                 float t = ctx.duration > 0f ? Mathf.Clamp01(elapsed / ctx.duration) : 1f;
                 ctx.f1.position = Vector2.Lerp(ctx.pts.S1, ctx.pts.E1, t);
                 ctx.f2.position = Vector2.Lerp(ctx.pts.S2, ctx.pts.E2, t);

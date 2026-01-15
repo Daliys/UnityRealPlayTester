@@ -57,7 +57,8 @@ namespace RealPlayTester.Input
 
             if (!upOnly && durationSeconds > 0f)
             {
-                await Wait.Seconds(durationSeconds);
+                // STABILITY FIX: Use unscaled wait for technical simulation
+                await Wait.Seconds(durationSeconds, unscaled: true);
             }
 
             if (!downOnly)

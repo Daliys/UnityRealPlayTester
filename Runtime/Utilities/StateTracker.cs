@@ -14,6 +14,8 @@ namespace RealPlayTester.Utilities
     /// </summary>
     public static class StateTracker
     {
+        private static readonly object _lock = new object();
+
         [Serializable]
         public class StateNode
         {
@@ -44,17 +46,21 @@ namespace RealPlayTester.Utilities
         /// </summary>
         public static StateSnapshot Capture()
         {
-            var snap = new StateSnapshot { Timestamp = DateTime.Now };
-            var all = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            foreach (var go in all)
+            lock (_lock)
             {
-                var node = CaptureNode(go);
-                if (node != null)
+                var snap = new StateSnapshot { Timestamp = DateTime.Now };
+                // PERFORMANCE FIX: Use SceneCache instead of FindObjectsByType
+                var all = SceneCache.Instance.AllActiveObjects;
+                foreach (var go in all)
                 {
-                    snap.Nodes.Add(node);
+                    var node = CaptureNode(go);
+                    if (node != null)
+                    {
+                        snap.Nodes.Add(node);
+                    }
                 }
+                return snap;
             }
-            return snap;
         }
 
         private static StateNode CaptureNode(GameObject go)
@@ -111,6 +117,31 @@ namespace RealPlayTester.Utilities
             if (slider != null)
             {
                 node.SliderValue = slider.value;
+            }
+
+            // NEW: Support for more complex UI components
+            var scrollRect = go.GetComponent<UnityEngine.UI.ScrollRect>();
+            if (scrollRect != null) node.SliderValue = scrollRect.verticalNormalizedPosition;
+
+            var dropdown = go.GetComponent<UnityEngine.UI.Dropdown>();
+            if (dropdown != null) node.Text = dropdown.options[dropdown.value].text;
+
+            var tmpDropdownType = Type.GetType("TMPro.TMP_Dropdown, Unity.TextMeshPro");
+            if (tmpDropdownType != null)
+            {
+                var tmpDropdown = go.GetComponent(tmpDropdownType);
+                if (tmpDropdown != null)
+                {
+                    var valProp = tmpDropdownType.GetProperty("value");
+                    var optionsProp = tmpDropdownType.GetProperty("options");
+                    int val = (int)(valProp?.GetValue(tmpDropdown) ?? 0);
+                    var options = optionsProp?.GetValue(tmpDropdown) as System.Collections.IList;
+                    if (options != null && val >= 0 && val < options.Count)
+                    {
+                        var textProp = options[val].GetType().GetProperty("text");
+                        node.Text = textProp?.GetValue(options[val]) as string;
+                    }
+                }
             }
         }
 

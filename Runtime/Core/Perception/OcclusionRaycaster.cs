@@ -15,6 +15,11 @@ namespace RealPlayTester.Core.Perception
 
         public static OcclusionResult CheckOcclusion(GameObject target)
         {
+            if (Application.isBatchMode && Tester.Settings.ForceBatchmodeVisibility)
+            {
+                return new OcclusionResult { IsOccluded = false };
+            }
+
             var cam = Camera.main;
             if (cam == null) return new OcclusionResult { IsOccluded = true, BlockingObjectName = "No Main Camera" };
 
@@ -96,7 +101,10 @@ namespace RealPlayTester.Core.Perception
             var screenPos = RealPlayTester.Input.RealInputUtility.GetScreenCenter(target);
             var ray = cam.ScreenPointToRay(screenPos);
             
-            if (Physics.Raycast(ray, out RaycastHit hit))
+            // LAYER MASK FIX: Respect camera culling mask
+            int mask = cam.cullingMask;
+            
+            if (Physics.Raycast(ray, out RaycastHit hit, cam.farClipPlane, mask))
             {
                 var hitGo = hit.collider.gameObject;
                 if (hitGo == target || hitGo.transform.IsChildOf(target.transform) || target.transform.IsChildOf(hitGo.transform))

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using RealPlayTester.Core;
@@ -15,7 +16,6 @@ namespace RealPlayTester.Utilities
             {
                 if (_instance == null)
                 {
-                    // More reliable lookup
                     var host = RealPlayTesterHost.Instance;
                     if (host != null)
                     {
@@ -30,20 +30,27 @@ namespace RealPlayTester.Utilities
         private readonly List<Rigidbody> _rigidbodies3D = new List<Rigidbody>();
         private readonly List<Rigidbody2D> _rigidbodies2D = new List<Rigidbody2D>();
         private readonly List<Animator> _animators = new List<Animator>();
+        private readonly List<ParticleSystem> _particleSystems = new List<ParticleSystem>();
 
         private int _lastRefreshFrame = -1;
         private float _lastRefreshTime = -1f;
-        private const float MinRefreshInterval = 0.5f;
 
         public IReadOnlyList<GameObject> AllActiveObjects => GetOrRefresh(_allActiveObjects);
         public IReadOnlyList<Rigidbody> Rigidbodies3D => GetOrRefresh(_rigidbodies3D);
         public IReadOnlyList<Rigidbody2D> Rigidbodies2D => GetOrRefresh(_rigidbodies2D);
         public IReadOnlyList<Animator> Animators => GetOrRefresh(_animators);
+        public IReadOnlyList<ParticleSystem> ParticleSystems => GetOrRefresh(_particleSystems);
 
         public void Initialize()
         {
-            SceneManager.sceneLoaded += (s, m) => ForceRefresh();
-            SceneManager.sceneUnloaded += (s) => ForceRefresh();
+            SceneManager.sceneLoaded += (s, m) => ForceRefreshDelayed();
+            SceneManager.sceneUnloaded += (s) => ForceRefreshDelayed();
+            ForceRefresh();
+        }
+
+        private async void ForceRefreshDelayed()
+        {
+            await Task.Yield();
             ForceRefresh();
         }
 
@@ -62,10 +69,7 @@ namespace RealPlayTester.Utilities
         private void RefreshIfStale()
         {
             if (Time.frameCount == _lastRefreshFrame && _lastRefreshFrame != -1) return;
-            if (Time.realtimeSinceStartup - _lastRefreshTime < MinRefreshInterval && _lastRefreshFrame != -1) return;
-
             DoFullScan();
-            
             _lastRefreshFrame = Time.frameCount;
             _lastRefreshTime = Time.realtimeSinceStartup;
         }
@@ -76,8 +80,8 @@ namespace RealPlayTester.Utilities
             _rigidbodies3D.Clear();
             _rigidbodies2D.Clear();
             _animators.Clear();
+            _particleSystems.Clear();
 
-            // Direct Hierarchy Crawl is most reliable for transient objects in unit tests
             var scenes = new List<Scene>();
             for(int i=0; i<SceneManager.sceneCount; i++) scenes.Add(SceneManager.GetSceneAt(i));
             
@@ -106,6 +110,9 @@ namespace RealPlayTester.Utilities
 
             var anim = go.GetComponent<Animator>();
             if (anim != null) _animators.Add(anim);
+
+            var ps = go.GetComponent<ParticleSystem>();
+            if (ps != null) _particleSystems.Add(ps);
 
             for (int i = 0; i < t.childCount; i++) CaptureRecursive(t.GetChild(i));
         }

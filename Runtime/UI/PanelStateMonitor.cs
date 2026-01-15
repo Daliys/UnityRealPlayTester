@@ -119,6 +119,7 @@ namespace RealPlayTester.UI
                 if (s.gameObject.activeInHierarchy)
                 {
                     int depth = GetHierarchyDepth(s.transform);
+                    // NEW: Prefer DEEPEST active state (most specific)
                     if (depth > maxStateDepth) { maxStateDepth = depth; bestState = s; }
                 }
             }
@@ -131,10 +132,10 @@ namespace RealPlayTester.UI
 
             foreach (var p in panels)
             {
-                if (p != null && p.isActiveAndEnabled && p.gameObject.activeInHierarchy)
+                if (p != null && p.isActiveAndEnabled && p.gameObject.activeInHierarchy && p.alpha > 0.5f)
                 {
                     int depth = GetHierarchyDepth(p.transform);
-                    if (depth >= maxDepth) { maxDepth = depth; bestPanel = p; }
+                    if (depth > maxDepth) { maxDepth = depth; bestPanel = p; }
                 }
             }
             

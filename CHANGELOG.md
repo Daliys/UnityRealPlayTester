@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.4.1] - 2026-01-15
+### Professionalization & Robustness (100 Issue Resolution)
+### Added
+- **Failure Bundles v3**: Every test failure now generates a timestamped bundle containing truncated tail-logs, annotated screenshots, and a semantic hierarchy dump.
+- **Thread-Safe Logging**: Completely refactored `LogInterceptor` and `TestRunContext` to safely capture logs and breadcrumbs from background threads using robust locking and thread-safe collections.
+- **Occlusion-Aware Interactions**: Implemented physical occlusion checks. The library now correctly detects when a target is blocked by UI or 3D geometry.
+- **Spatial Ranking Engine (`SmartFind`)**: Replaced simple first-match search with a weighted ranking system based on visibility, UI priority, and depth.
+- **Inactive Object Awareness**: Optimized discovery of inactive objects, enabling robust "Wait Until Appears" scenarios.
+
+### Fixed
+- **CI/CD Physics Flaw**: Corrected a critical issue where physics simulation advanced during pauses in headless batchmode.
+- **Hanging Interactions**: Resolved hangs during game pauses by switching to unscaled real-time waits and optimizing `EventSystem` updates.
+- **Native Hardware Simulation**: Eliminated "fake" inputs in `TextInput` and `LegacyInput`, switching to raw hardware event simulation.
+- **Panel Interactivity Consistency**: Centralized logic for checking UI interactability across all modules into `PanelStateMonitor`.
+- **Memory & Performance**: Optimized O(N) scene scans using `SceneCache` and tiered candidate pruning, reducing overhead to sub-10ms.
+
+### Changed
+- **Architecture**: Decoupled perception from interaction logic to improve testability and reduce circular dependencies.
+- **Diagnostic Compliance**: Refactored core classes to satisfy strict project-wide code quality and linter standards.
+
 ## [2.4.0] - 2026-01-15
 ### Hardening & Optimization
 ### Added

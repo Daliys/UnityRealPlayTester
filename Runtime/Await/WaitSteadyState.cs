@@ -24,6 +24,7 @@ namespace RealPlayTester.Await
             float startTime = Time.realtimeSinceStartup;
             int currentStableFrames = 0;
             _lastHierarchyHash = 0;
+            var lastPositions = new Dictionary<int, Vector3>();
             string lastReason = "None";
             float lastLogTime = startTime;
 
@@ -35,7 +36,7 @@ namespace RealPlayTester.Await
                     throw new TimeoutException($"Wait.ForSteadyState timed out after {timeout}s. Stability: {currentStableFrames}/{stableFrames}. Last reason: {lastReason}");
                 }
 
-                if (IsSteady(epsilon, out lastReason)) 
+                if (IsSteady(epsilon, lastPositions, out lastReason)) 
                 {
                     currentStableFrames++;
                 }
@@ -49,22 +50,51 @@ namespace RealPlayTester.Await
                     }
                 }
 
-                RealPlayTester.Input.Internal.InputSimulator.UpdateInput();
-                await Task.Yield();
+                await Wait.Frames(1);
             }
             
             RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Wait", $"Steady state reached after {stableFrames} frames.");
         }
 
-        private static bool IsSteady(float epsilon, out string reason)
+        private static bool IsSteady(float epsilon, Dictionary<int, Vector3> lastPositions, out string reason)
         {
             if (!IsPhysics3DSteady(epsilon, out reason)) return false;
             if (!IsPhysics2DSteady(epsilon, out reason)) return false;
             if (!IsAnimationsSteady(out reason)) return false;
             if (!IsHierarchySteady(out reason)) return false;
+            if (!IsParticlesSteady(out reason)) return false;
+            if (!IsTransformsSteady(epsilon, lastPositions, out reason)) return false;
             
             reason = "Steady";
             return true;
+        }
+
+        private static bool IsTransformsSteady(float epsilon, Dictionary<int, Vector3> lastPositions, out string reason)
+        {
+            var all = SceneCache.Instance.AllActiveObjects;
+            reason = null;
+            bool anyMoved = false;
+
+            foreach (var go in all)
+            {
+                if (go == null || IsAmbient(go)) continue;
+                
+                int id = go.GetInstanceID();
+                Vector3 pos = go.transform.position;
+
+                if (lastPositions.TryGetValue(id, out Vector3 lastPos))
+                {
+                    float distSq = (pos - lastPos).sqrMagnitude;
+                    if (distSq > epsilon * epsilon)
+                    {
+                        reason = $"Transform '{go.name}' is moving (d={Mathf.Sqrt(distSq):F4})";
+                        anyMoved = true;
+                    }
+                }
+                lastPositions[id] = pos;
+            }
+
+            return !anyMoved;
         }
 
         private static bool IsPhysics3DSteady(float epsilon, out string reason)
@@ -99,29 +129,46 @@ namespace RealPlayTester.Await
             return true;
         }
 
+        private static bool IsParticlesSteady(out string reason)
+        {
+            var systems = SceneCache.Instance.ParticleSystems;
+            foreach (var ps in systems)
+            {
+                if (ps == null || IsAmbient(ps.gameObject)) continue;
+                if (ps.isPlaying && ps.particleCount > 0)
+                {
+                    reason = $"ParticleSystem '{ps.name}' is active ({ps.particleCount} particles)";
+                    return false;
+                }
+            }
+            reason = null;
+            return true;
+        }
+
         private static bool IsAnimationsSteady(out string reason)
         {
             var animators = SceneCache.Instance.Animators;
-            foreach (var anim in animators)
+            int count = animators.Count;
+            for (int i = 0; i < count; i++)
             {
+                var anim = animators[i];
                 if (anim == null || anim.runtimeAnimatorController == null || !anim.enabled || !anim.gameObject.activeInHierarchy) continue;
                 if (IsAmbient(anim.gameObject)) continue;
 
-                for (int i = 0; i < anim.layerCount; i++)
+                for (int layer = 0; layer < anim.layerCount; layer++)
                 {
-                    if (anim.IsInTransition(i)) 
+                    if (anim.IsInTransition(layer)) 
                     {
-                        reason = $"Animator '{anim.name}' is in transition";
+                        reason = $"Animator '{anim.name}' is in transition on layer {layer}";
                         return false;
                     }
                     
                     if (!RealPlaySettings.IgnoreLoopingAnimations)
                     {
-                        // If we are NOT ignoring loops, ANY playback counts as motion
-                        var state = anim.GetCurrentAnimatorStateInfo(i);
-                        if (state.length > 0) // It's playing something
+                        var state = anim.GetCurrentAnimatorStateInfo(layer);
+                        if (state.length > 0 && !state.loop) 
                         {
-                            reason = $"Animator '{anim.name}' is playing state (non-loop-ignored mode)";
+                            reason = $"Animator '{anim.name}' is playing non-looping state";
                             return false;
                         }
                     }
@@ -157,7 +204,17 @@ namespace RealPlayTester.Await
 
         private static int GetHierarchyHash()
         {
-            return SceneCache.Instance.AllActiveObjects.Count;
+            var all = SceneCache.Instance.AllActiveObjects;
+            int hash = all.Count;
+            // Use unchecked XOR of InstanceIDs for a fast, stable-within-frame hash
+            unchecked
+            {
+                foreach (var go in all)
+                {
+                    if (go != null) hash ^= go.GetInstanceID();
+                }
+            }
+            return hash;
         }
     }
 }

@@ -41,7 +41,7 @@ namespace RealPlayTester.Utilities
             _maxFrameTimeMs = maxFrameTimeMs;
             _maxConsecutiveFpsViolations = maxConsecutiveViolations;
             _currentConsecutiveViolations = 0;
-            _lastAllocatedMemory = Profiler.GetTotalAllocatedMemoryLong();
+            _lastAllocatedMemory = GC.GetTotalMemory(false);
             
             if (!_isMonitoring)
             {
@@ -63,9 +63,10 @@ namespace RealPlayTester.Utilities
 
         private IEnumerator MonitorRoutine()
         {
+            var wait = new WaitForSecondsRealtime(0.5f);
             while (_isMonitoring && IsEnabled)
             {
-                yield return null;
+                yield return wait;
                 UpdateAllocMonitor();
                 UpdateFPSWatcher();
                 UpdateDrawCallCounter();
@@ -74,14 +75,14 @@ namespace RealPlayTester.Utilities
 
         private void UpdateAllocMonitor()
         {
-            long currentAllocated = Profiler.GetTotalAllocatedMemoryLong();
+            long currentAllocated = GC.GetTotalMemory(false);
             long delta = currentAllocated - _lastAllocatedMemory;
             if (delta > 0)
             {
                 float deltaKB = delta / 1024f;
                 if (_maxGcAllocKB > 0 && deltaKB > _maxGcAllocKB)
                 {
-                    HandleViolation($"GC.Alloc violation: {deltaKB:F2}KB > {_maxGcAllocKB}KB in a single frame.");
+                    HandleViolation($"GC.Alloc violation: {deltaKB:F2}KB > {_maxGcAllocKB}KB detected since last check.");
                 }
             }
             _lastAllocatedMemory = currentAllocated;
@@ -89,13 +90,13 @@ namespace RealPlayTester.Utilities
 
         private void UpdateFPSWatcher()
         {
-            float frameTimeMs = Time.unscaledDeltaTime * 1000f;
-            if (_maxFrameTimeMs > 0 && frameTimeMs > _maxFrameTimeMs)
+            float currentFps = 1.0f / Time.unscaledDeltaTime;
+            if (_maxFrameTimeMs > 0 && (1000f / currentFps) > _maxFrameTimeMs)
             {
                 _currentConsecutiveViolations++;
                 if (_currentConsecutiveViolations >= _maxConsecutiveFpsViolations)
                 {
-                    HandleViolation($"FPS violation: FrameTime {frameTimeMs:F2}ms > {_maxFrameTimeMs}ms for {_currentConsecutiveViolations} consecutive frames.");
+                    HandleViolation($"FPS violation: Current FPS {currentFps:F1} is below threshold for {_currentConsecutiveViolations} check cycles.");
                     _currentConsecutiveViolations = 0;
                 }
             }
@@ -108,15 +109,17 @@ namespace RealPlayTester.Utilities
         private void UpdateDrawCallCounter()
         {
 #if UNITY_EDITOR
-            int drawCalls = UnityEditor.UnityStats.drawCalls;
-            int batches = UnityEditor.UnityStats.batches;
-            if (drawCalls > batches * 2 && batches > 10)
-            {
-                if (Time.frameCount % 300 == 0)
+            try {
+                int drawCalls = UnityEditor.UnityStats.drawCalls;
+                int batches = UnityEditor.UnityStats.batches;
+                if (drawCalls > batches * 2 && batches > 10)
                 {
-                    RealPlayLog.Warn($"Possible batching issue: {drawCalls} draw calls for {batches} batches.");
+                    if (Time.frameCount % 300 == 0)
+                    {
+                        RealPlayLog.Warn($"Possible batching issue: {drawCalls} draw calls for {batches} batches.");
+                    }
                 }
-            }
+            } catch { }
 #endif
         }
 

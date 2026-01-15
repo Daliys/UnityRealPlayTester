@@ -72,6 +72,25 @@ namespace RealPlayTester.Input.Internal
             return null;
         }
 
+        public static void CleanupDevices()
+        {
+            RemoveDevice(ref VirtualKeyboard);
+            RemoveDevice(ref VirtualMouse);
+            RemoveDevice(ref VirtualGamepad);
+        }
+
+        private static void RemoveDevice(ref object device)
+        {
+            if (device == null || InputSystemReflector.Types.InputSystem == null) return;
+            try
+            {
+                var method = InputSystemReflector.Types.InputSystem.GetMethod("RemoveDevice", BindingFlags.Public | BindingFlags.Static);
+                method?.Invoke(null, new[] { device });
+                device = null;
+            }
+            catch { }
+        }
+
         private static bool CheckCachedDevice(object device, string typeName, out object result)
         {
             result = null;
@@ -179,7 +198,7 @@ namespace RealPlayTester.Input.Internal
                 {
                     RealPlayLog.Info($"VirtualDeviceManager: Created virtual {name} of type {cache.GetType().FullName}.");
                     EnableDevice(cache);
-                    MakeCurrent(cache);
+                    if (RealPlaySettings.VirtualDevicesMakeCurrent) MakeCurrent(cache);
                 }
                 return cache;
             }

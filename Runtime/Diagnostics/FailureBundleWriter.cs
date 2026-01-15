@@ -17,21 +17,23 @@ namespace RealPlayTester.Diagnostics
     {
         private static string BasePath => Path.Combine(RealPlayEnvironment.TestReportsPath, "FailureBundles");
 
-        /// <summary>
-        /// Write a failure bundle for the given test asynchronously.
-        /// </summary>
-        public static async Task<string> WriteFailureBundleAsync(string testName, TestRunContext context, string screenshotPath = null, string hierarchyDump = null)
+        public static async Task<string> WriteFailureBundleAsync(string testName, TestRunContext context, string screenshotPath = null, string hierarchyDump = null, Exception exception = null)
         {
             if (!RealPlayEnvironment.IsEnabled) return null;
 
+            if (string.IsNullOrEmpty(hierarchyDump)) hierarchyDump = VisualTreeLogger.DumpHierarchy();
+            string jsonDump = Tester.Perception.DumpHierarchyJson();
+
             try
             {
-                if (string.IsNullOrEmpty(hierarchyDump)) hierarchyDump = VisualTreeLogger.DumpHierarchy();
                 screenshotPath = await EnsureScreenshotReady(screenshotPath);
-                
                 string bundlePath = CreateBundleDirectory(testName);
-                WriteHierarchyFiles(bundlePath, hierarchyDump);
-                WriteReportFiles(bundlePath, testName, context, hierarchyDump, screenshotPath);
+                
+                WriteHierarchyFiles(bundlePath, hierarchyDump, jsonDump);
+                
+                var reportData = new ReportData { TestName = testName, Context = context, ScreenshotPath = screenshotPath, Exception = exception, HierarchyDump = hierarchyDump };
+                WriteReportFiles(bundlePath, reportData);
+                
                 CopyLogsAndResults(bundlePath);
 
                 RealPlayLog.Info($"Failure bundle written to: {bundlePath}");
@@ -44,31 +46,40 @@ namespace RealPlayTester.Diagnostics
             }
         }
 
+        private struct ReportData
+        {
+            public string TestName;
+            public TestRunContext Context;
+            public string ScreenshotPath;
+            public Exception Exception;
+            public string HierarchyDump;
+        }
+
         private static async Task<string> EnsureScreenshotReady(string screenshotPath)
         {
             if (string.IsNullOrEmpty(screenshotPath))
             {
-                try { return await Capture.ScreenshotAsync("failure_auto"); }
+                try { return await Capture.ScreenshotAsync("failure_auto"); } 
                 catch { return Capture.Screenshot("failure_fallback"); }
             }
             return screenshotPath;
         }
 
-        private static void WriteHierarchyFiles(string bundlePath, string hierarchyDump)
+        private static void WriteHierarchyFiles(string bundlePath, string txt, string json)
         {
-            if (!string.IsNullOrEmpty(hierarchyDump)) File.WriteAllText(Path.Combine(bundlePath, "hierarchy.txt"), hierarchyDump);
-            File.WriteAllText(Path.Combine(bundlePath, "hierarchy.json"), Tester.Perception.DumpHierarchyJson());
+            if (!string.IsNullOrEmpty(txt)) File.WriteAllText(Path.Combine(bundlePath, "hierarchy.txt"), txt);
+            if (!string.IsNullOrEmpty(json)) File.WriteAllText(Path.Combine(bundlePath, "hierarchy.json"), json);
         }
 
-        private static void WriteReportFiles(string bundlePath, string testName, TestRunContext context, string hierarchyDump, string screenshotPath)
+        private static void WriteReportFiles(string bundlePath, ReportData data)
         {
-            if (!string.IsNullOrEmpty(screenshotPath) && File.Exists(screenshotPath))
+            if (!string.IsNullOrEmpty(data.ScreenshotPath) && File.Exists(data.ScreenshotPath))
             {
-                File.Copy(screenshotPath, Path.Combine(bundlePath, "failure_screenshot.png"), true);
+                File.Copy(data.ScreenshotPath, Path.Combine(bundlePath, "failure_screenshot.png"), true);
             }
 
-            File.WriteAllText(Path.Combine(bundlePath, "ai_report.md"), GenerateAiReport(testName, context, hierarchyDump));
-            File.WriteAllText(Path.Combine(bundlePath, "diagnostics.json"), context.ToJson());
+            File.WriteAllText(Path.Combine(bundlePath, "ai_report.md"), GenerateAiReport(data));
+            File.WriteAllText(Path.Combine(bundlePath, "diagnostics.json"), data.Context.ToJson());
         }
 
         private static void CopyLogsAndResults(string bundlePath)
@@ -78,15 +89,10 @@ namespace RealPlayTester.Diagnostics
             CopyGameLogs(bundlePath);
         }
 
-        /// <summary>Legacy synchronous version (uses fallback capture)</summary>
         [Obsolete("Use WriteFailureBundleAsync")]
         public static string WriteFailureBundle(string testName, TestRunContext context, string screenshotPath = null, string hierarchyDump = null)
         {
-            // Fallback: This will trigger the ReadPixels warning but should work via ScreenCapture fallback
             if (string.IsNullOrEmpty(screenshotPath)) screenshotPath = Capture.Screenshot("failure_sync_auto");
-            
-            // We can't await here, so we just run the Task on a thread or similar? 
-            // Better to just provide the sync implementation below for backward compatibility.
             var task = WriteFailureBundleAsync(testName, context, screenshotPath, hierarchyDump);
             return task.IsCompleted ? task.Result : null; 
         }
@@ -96,11 +102,7 @@ namespace RealPlayTester.Diagnostics
             List<string> logPaths = GetPotentialLogPaths();
             string logsDir = Path.Combine(bundlePath, "Logs");
             Directory.CreateDirectory(logsDir);
-
-            foreach (string logPath in logPaths)
-            {
-                CopyLogFile(logPath, logsDir);
-            }
+            foreach (string logPath in logPaths) CopyLogFile(logPath, logsDir);
         }
 
         private static List<string> GetPotentialLogPaths()
@@ -121,60 +123,62 @@ namespace RealPlayTester.Diagnostics
             try
             {
                 string destPath = Path.Combine(destDir, Path.GetFileName(logPath));
-                File.Copy(logPath, destPath, true);
+                FileInfo fi = new FileInfo(logPath);
+                if (fi.Length > 1024 * 1024)
+                {
+                    using (FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    {
+                        fs.Seek(-1024 * 1024, SeekOrigin.End);
+                        using (FileStream ds = new FileStream(destPath, FileMode.Create, FileAccess.Write)) fs.CopyTo(ds);
+                    }
+                }
+                else File.Copy(logPath, destPath, true);
             }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"Could not copy log {logPath}: {ex.Message}");
-            }
+            catch (Exception ex) { Debug.LogWarning($"Could not copy log {logPath}: {ex.Message}"); }
         }
 
-        private static string GenerateAiReport(string testName, TestRunContext context, string hierarchy)
+        private static string GenerateAiReport(ReportData data)
         {
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"# AI Failure Analysis Report: {testName}");
+            sb.AppendLine($"# AI Failure Analysis Report: {data.TestName}");
             sb.AppendLine($"> Generated at: {DateTime.Now}\n");
 
-            AppendSummaryMarkdown(sb, context);
+            sb.AppendLine("## 1. Test Context");
+            sb.AppendLine($"- **Status**: FAILED");
+            if (data.Exception != null)
+            {
+                sb.AppendLine($"- **Failure Type**: {data.Exception.GetType().Name}");
+                sb.AppendLine($"- **Message**: {data.Exception.Message}");
+            }
+            sb.AppendLine($"- **Duration**: {(DateTime.Now - data.Context.Info.StartTime).TotalSeconds:F2}s");
+            sb.AppendLine($"- **Last Action**: {data.Context.State.LastAction ?? "None"}");
+            sb.AppendLine($"- **AI Intent**: {data.Context.State.LastIntent ?? "None Recorded"}\n");
+
             sb.AppendLine("![Failure Screenshot](failure_screenshot.png)\n");
-            
-            AppendTimelineMarkdown(sb, context);
+            AppendTimelineMarkdown(sb, data.Context);
             
             sb.AppendLine("## 4. Semantic Hierarchy Dump\n```text");
-            sb.AppendLine(hierarchy);
+            sb.AppendLine(data.HierarchyDump);
             sb.AppendLine("```\n");
             
             sb.AppendLine("## 5. Diagnostic Summary");
-            sb.AppendLine(context.ToMarkdown());
+            sb.AppendLine(data.Context.ToMarkdown());
 
             return sb.ToString();
-        }
-
-        private static void AppendSummaryMarkdown(System.Text.StringBuilder sb, TestRunContext context)
-        {
-            sb.AppendLine("## 1. Test Context");
-            sb.AppendLine($"- **Status**: FAILED");
-            sb.AppendLine($"- **Duration**: {(DateTime.Now - context.StartTime).TotalSeconds:F2}s");
-            sb.AppendLine($"- **Last Action**: {context.LastAction ?? "None"}");
-            sb.AppendLine($"- **AI Intent**: {context.LastIntent ?? "None Recorded"}\n");
         }
 
         private static void AppendTimelineMarkdown(System.Text.StringBuilder sb, TestRunContext context)
         {
             sb.AppendLine("## 3. Diagnostic Timeline");
-            if (context.Logs == null || context.Logs.Count == 0)
-            {
-                sb.AppendLine("*No diagnostic logs captured.*\n");
-                return;
-            }
+            var logs = context.Logs;
+            if (logs == null || logs.Count == 0) { sb.AppendLine("*No diagnostic logs captured.*"); return; }
 
             sb.AppendLine("| Frame | Time | Type | Message |");
             sb.AppendLine("|-------|------|------|---------|");
-            
-            int start = Math.Max(0, context.Logs.Count - 30);
-            for (int i = start; i < context.Logs.Count; i++)
+            int start = Math.Max(0, logs.Count - 30);
+            for (int i = start; i < logs.Count; i++)
             {
-                var log = context.Logs[i];
+                var log = logs[i];
                 string msg = log.Message.Replace("|", "\\|").Replace("\n", " ").Replace("\r", "");
                 if (msg.Length > 120) msg = msg.Substring(0, 117) + "...";
                 sb.AppendLine($"| {log.Frame} | {log.Timestamp:F2}s | {log.Type} | {msg} |");
@@ -185,7 +189,7 @@ namespace RealPlayTester.Diagnostics
         private static string CreateBundleDirectory(string testName)
         {
             string sanitized = SanitizeFileName(testName);
-            string bundleName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{sanitized}";
+            string bundleName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{sanitized}_{Guid.NewGuid().ToString().Substring(0, 8)}";
             string path = Path.Combine(BasePath, bundleName);
             Directory.CreateDirectory(path);
             return path;
@@ -193,15 +197,10 @@ namespace RealPlayTester.Diagnostics
 
         private static string SanitizeFileName(string name)
         {
-            if (string.IsNullOrEmpty(name))
-                return "unknown_test";
-
+            if (string.IsNullOrEmpty(name)) return "unknown_test";
             char[] invalidChars = Path.GetInvalidFileNameChars();
             string sanitized = name;
-            foreach (char c in invalidChars)
-            {
-                sanitized = sanitized.Replace(c, '_');
-            }
+            foreach (char c in invalidChars) sanitized = sanitized.Replace(c, '_');
             return sanitized;
         }
     }

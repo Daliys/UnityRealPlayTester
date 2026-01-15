@@ -73,11 +73,36 @@ namespace RealPlayTester.Input
         private static Vector2 _currentLeftStick = Vector2.zero;
         private static Vector2 _currentRightStick = Vector2.zero;
 
+        private static void InitializeKeyCodeMap()
+        {
+            if (KeyCodeToInputSystemKey.Count > 0) return;
+            
+            // DYNAMIC MAPPING FIX: Use reflection to map KeyCode to InputSystem.Key enum
+            var keyEnumType = InputSystemReflector.Types.KeyEnum;
+            if (keyEnumType == null) return;
+
+            foreach (KeyCode kc in Enum.GetValues(typeof(KeyCode)))
+            {
+                string name = kc.ToString();
+                // Special cases
+                if (name.StartsWith("Alpha")) name = name.Substring(5);
+                else if (name.Length == 1 && char.IsLetter(name[0])) { /* OK */ }
+                
+                try {
+                    object keyVal = Enum.Parse(keyEnumType, name, true);
+                    KeyCodeToInputSystemKey[kc] = (int)keyVal;
+                } catch {
+                    // Fallback to manual map for complex keys if reflection fails
+                }
+            }
+        }
+
         public static bool IsAvailable => InputSystemReflector.Types.InputSystem != null;
 
         public static void InitializeDevices()
         {
             if (!IsAvailable) return;
+            InitializeKeyCodeMap();
             VirtualDeviceManager.EnsureKeyboard();
             VirtualDeviceManager.EnsureMouse();
             VirtualDeviceManager.EnsureGamepad();
@@ -105,10 +130,10 @@ namespace RealPlayTester.Input
         public static void KeyDown(KeyCode key) => _ = QueueKeyState(key, true);
         public static void KeyUp(KeyCode key) => _ = QueueKeyState(key, false);
 
-        public static Task MouseDown(int button = 0) => InputSimulator.QueueMouseState(Vector2.zero, button, true, false);
-        public static Task MouseUp(int button = 0) => InputSimulator.QueueMouseState(Vector2.zero, button, false, false);
+        public static Task MouseDown(int button = 0) => InputSimulator.QueueMouseState(RealInputUtility.LastSimulatedPosition, button, true, false);
+        public static Task MouseUp(int button = 0) => InputSimulator.QueueMouseState(RealInputUtility.LastSimulatedPosition, button, false, false);
         public static Task MouseMove(Vector2 position) => InputSimulator.QueueMouseState(position, -1, false, true);
-        public static void MouseButton(int button = 0, bool down = true) => _ = InputSimulator.QueueMouseState(Vector2.zero, button, down, false);
+        public static void MouseButton(int button = 0, bool down = true) => _ = InputSimulator.QueueMouseState(RealInputUtility.LastSimulatedPosition, button, down, false);
 
         public static Task GamepadButton(GamepadButton button, bool down)
         {

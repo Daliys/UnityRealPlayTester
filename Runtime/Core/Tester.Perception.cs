@@ -48,6 +48,10 @@ namespace RealPlayTester.Core
                 foreach (var go in all)
                 {
                     if (!go.activeInHierarchy) continue;
+                    
+                    // PERFORMANCE/ACCURACY FIX: Use centralized UI state monitor
+                    if (!RealPlayTester.UI.PanelStateMonitor.IsPanelReady(go)) continue;
+
                     var role = SemanticProbe.GetRoleName(go);
                     if (string.IsNullOrEmpty(role) || role == "View") continue;
                     var pos = RealInputUtility.GetScreenCenter(go);

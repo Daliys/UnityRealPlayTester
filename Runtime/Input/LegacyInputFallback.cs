@@ -25,6 +25,9 @@ namespace RealPlayTester.Input
             return RealPlayTesterHost.Instance.RunCoroutineTask(SimulateRoutine(key, duration, downOnly, upOnly), token);
         }
 
+        private static bool IsSubmitKey(KeyCode key) => key == KeyCode.Return || key == KeyCode.Space || key == KeyCode.KeypadEnter;
+        private static bool IsCancelKey(KeyCode key) => key == KeyCode.Escape;
+
         private static IEnumerator SimulateRoutine(KeyCode key, float duration, bool downOnly, bool upOnly)
         {
             var es = RealInputUtility.EnsureEventSystem();
@@ -41,19 +44,18 @@ namespace RealPlayTester.Input
             if (!upOnly)
             {
                 if (IsSubmitKey(key)) ExecuteEvents.Execute<ISubmitHandler>(target, baseEvent, ExecuteEvents.submitHandler);
+                else if (IsCancelKey(key)) ExecuteEvents.Execute<ICancelHandler>(target, baseEvent, ExecuteEvents.cancelHandler);
                 else if (TryBuildMoveEvent(es, key, out var moveEvent)) ExecuteEvents.Execute<IMoveHandler>(target, moveEvent, ExecuteEvents.moveHandler);
             }
 
             float elapsed = 0f;
             while (!upOnly && elapsed < duration)
             {
-                elapsed += Time.deltaTime;
+                elapsed += Time.unscaledDeltaTime; // USE UNSCALED
                 ExecuteEvents.Execute<IUpdateSelectedHandler>(target, baseEvent, ExecuteEvents.updateSelectedHandler);
                 yield return null;
             }
         }
-
-        private static bool IsSubmitKey(KeyCode key) => key == KeyCode.Return || key == KeyCode.Space || key == KeyCode.KeypadEnter;
 
         private static bool TryBuildMoveEvent(EventSystem es, KeyCode key, out AxisEventData moveEvent)
         {

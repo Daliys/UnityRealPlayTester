@@ -35,18 +35,18 @@ namespace RealPlayTester.Input.Internal
                     InputSystemReflector.UpdateMethodNoArgs?.Invoke(null, null);
                 }
 
-                if (Application.isBatchMode || !Application.isPlaying)
+                if ((Application.isBatchMode || !Application.isPlaying) && Time.timeScale > 0)
                 {
                     if (RealPlaySettings.AutoSimulatePhysics3D)
                     {
                         try { if (Physics.simulationMode != SimulationMode.Script) Physics.simulationMode = SimulationMode.Script; } catch { }
-                        Physics.Simulate(Time.fixedDeltaTime);
+                        Physics.Simulate(Time.fixedDeltaTime * Time.timeScale);
                     }
 
                     if (RealPlaySettings.AutoSimulatePhysics2D)
                     {
                         try { if (Physics2D.simulationMode != SimulationMode2D.Script) Physics2D.simulationMode = SimulationMode2D.Script; } catch { }
-                        Physics2D.Simulate(Time.fixedDeltaTime);
+                        Physics2D.Simulate(Time.fixedDeltaTime * Time.timeScale);
                     }
                 }
             }

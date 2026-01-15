@@ -55,13 +55,13 @@ namespace RealPlayTester.Input
 
         private void RefreshAnchors()
         {
-            // Simple approach: find all objects with a semantic role
-            var all = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            // PERFORMANCE FIX: Use SceneCache instead of FindObjectsByType
+            var all = SceneCache.Instance.AllActiveObjects;
             var candidates = new List<GameObject>();
             
             foreach (var go in all)
             {
-                if (!go.activeInHierarchy) continue;
+                if (go == null) continue;
                 var role = SemanticProbe.GetRole(go);
                 if (role != SemanticRole.None && role != SemanticRole.WorldObject && role != SemanticRole.View)
                 {

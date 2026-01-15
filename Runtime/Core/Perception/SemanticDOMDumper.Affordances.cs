@@ -25,16 +25,18 @@ namespace RealPlayTester.Core.Perception
 
         private static void CheckStandardComponents(GameObject go, HashSet<string> affordances)
         {
-            if (go.GetComponent<Button>()?.interactable == true)
+            if (!IsInteractable(go)) return;
+
+            if (go.GetComponent<Button>() != null)
             {
                 affordances.Add("Click");
                 affordances.Add("Submit");
             }
 
-            if (go.GetComponent<Toggle>()?.interactable == true) affordances.Add("Click");
-            if (go.GetComponent<Slider>()?.interactable == true) affordances.Add("Drag");
+            if (go.GetComponent<Toggle>() != null) affordances.Add("Click");
+            if (go.GetComponent<Slider>() != null) affordances.Add("Drag");
             
-            if (go.GetComponent<Scrollbar>()?.interactable == true)
+            if (go.GetComponent<Scrollbar>() != null)
             {
                 affordances.Add("Drag");
                 affordances.Add("Scroll");
@@ -46,7 +48,7 @@ namespace RealPlayTester.Core.Perception
                 affordances.Add("Drag");
             }
 
-            if (go.GetComponent<InputField>()?.interactable == true)
+            if (go.GetComponent<InputField>() != null)
             {
                 affordances.Add("Type");
                 affordances.Add("Click");

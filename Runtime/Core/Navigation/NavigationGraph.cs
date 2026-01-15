@@ -86,9 +86,13 @@ namespace RealPlayTester.Core.Navigation
                 visited.Add(p.Destination);
             }
 
-            while (queue.Count > 0)
+            int iterations = 0;
+            while (queue.Count > 0 && iterations < 1000) // LIMIT ITERATIONS
             {
+                iterations++;
                 var currentPath = queue.Dequeue();
+                if (currentPath.Count > 20) continue; // LIMIT DEPTH
+
                 var lastStep = currentPath[currentPath.Count - 1];
 
                 if (lastStep.Destination == to) return currentPath;

@@ -80,17 +80,26 @@ namespace RealPlayTester.Core
             {
                 if (_mainContext == null)
                 {
-                    _mainContext = SynchronizationContext.Current ?? new SynchronizationContext();
+                    _mainContext = SynchronizationContext.Current;
                 }
                 return _mainContext;
             }
         }
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void CaptureMainThread()
+        {
+            // Capture the Unity SynchronizationContext as early as possible
+            _mainContext = SynchronizationContext.Current;
+        }
+
+        private static bool _isInitialized = false;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureHost()
         {
             RealPlaySettings.Initialize();
-            if (_instance != null) return;
+            if (_instance != null && _isInitialized) return;
 
             ApplyGlobalSettings();
             CleanupReports();
@@ -128,10 +137,17 @@ namespace RealPlayTester.Core
                     InitializeRuntimeServices(_instance);
                 }
             }
+            else if (!_isInitialized)
+            {
+                InitializeRuntimeServices(_instance);
+            }
         }
 
         private static void InitializeRuntimeServices(RealPlayTesterHost host)
         {
+            if (_isInitialized) return;
+            _isInitialized = true;
+
             host.gameObject.AddComponent<RealPlayTester.Utilities.SceneCache>().Initialize();
             host.gameObject.AddComponent<RealPlayTester.Input.VisualPointer>().Initialize();
             host.gameObject.AddComponent<RealPlayTester.Input.VisualAnchorManager>().Initialize();
@@ -160,13 +176,13 @@ namespace RealPlayTester.Core
 
         private static IEnumerator HeartbeatRoutine()
         {
-            var wait = new WaitForSecondsRealtime(1.0f);
+            var wait = new WaitForSecondsRealtime(5.0f); // CACHED
             while (true)
             {
                 var context = RealPlayTester.Diagnostics.TestRunContextTracker.Current;
                 if (context != null)
                 {
-                    RealPlayLog.Info($"[HEARTBEAT] Running: {context.TestName} (Frame: {Time.frameCount})");
+                    RealPlayLog.Info($"[HEARTBEAT] Running: {context.Info.TestName} (Frame: {Time.frameCount})");
                 }
                 yield return wait;
             }

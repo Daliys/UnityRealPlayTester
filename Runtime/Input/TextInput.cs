@@ -15,25 +15,16 @@ namespace RealPlayTester.Input
     /// </summary>
     public static class TextInput
     {
-        /// <summary>
-        /// Type text into the currently selected input field, character by character.
-        /// </summary>
         public static async Task Type(string text, float delayBetweenChars = 0.05f)
         {
-            if (!RealPlayEnvironment.IsEnabled || string.IsNullOrEmpty(text))
-            {
-                return;
-            }
+            if (!RealPlayEnvironment.IsEnabled || string.IsNullOrEmpty(text)) return;
 
             RealPlayLog.Info($"[INPUT] Type text: \"{text}\"");
 
             foreach (char c in text)
             {
                 await TypeCharacter(c);
-                if (delayBetweenChars > 0f)
-                {
-                    await Wait.Seconds(delayBetweenChars);
-                }
+                if (delayBetweenChars > 0f) await Wait.Seconds(delayBetweenChars, unscaled: true);
             }
         }
 
@@ -42,11 +33,7 @@ namespace RealPlayTester.Input
             if (!RealPlayEnvironment.IsEnabled) return;
 
             var go = GameObject.Find(fieldName);
-            if (go == null)
-            {
-                RealPlayLog.Warn($"Text.TypeIntoField: field '{fieldName}' not found.");
-                return;
-            }
+            if (go == null) { RealPlayLog.Warn("Text.TypeIntoField: field '" + fieldName + "' not found."); return; }
 
             SelectAndActivateField(go);
             await Type(text, delayBetweenChars);
@@ -59,19 +46,12 @@ namespace RealPlayTester.Input
             es.SetSelectedGameObject(go);
 
             var input = go.GetComponent<InputField>();
-            if (input != null)
-            {
-                input.Select();
-                input.ActivateInputField();
-            }
+            if (input != null) { input.Select(); input.ActivateInputField(); } 
             else
             {
-                var tmp = go.GetComponent(GetTMPInputFieldType());
-                if (tmp != null)
-                {
-                    InvokeIfExists(tmp, "Select");
-                    InvokeIfExists(tmp, "ActivateInputField");
-                }
+                var tmpType = GetTMPInputFieldType();
+                var tmp = tmpType != null ? go.GetComponent(tmpType) : null;
+                if (tmp != null) { InvokeIfExists(tmp, "Select"); InvokeIfExists(tmp, "ActivateInputField"); }
             }
         }
 
@@ -99,15 +79,32 @@ namespace RealPlayTester.Input
 
         private static async Task TypeCharacter(char c)
         {
-            var target = FindBestInputTarget();
-            if (target == null)
+            if (InputSystemShim.IsAvailable)
             {
-                ApplyFallbackCharacter(c);
-                return;
+                if (TryMapCharToKeyCode(c, out KeyCode code))
+                {
+                    await Press.Key(code, 0.05f);
+                    await Task.Yield();
+                    return;
+                }
             }
+
+            var target = FindBestInputTarget();
+            if (target == null) { ApplyFallbackCharacter(c); return; }
 
             if (await ApplyToInputField(target, c)) return;
             await ApplyToTMPField(target, c);
+        }
+
+        private static bool TryMapCharToKeyCode(char c, out KeyCode code)
+        {
+            if (char.IsLetter(c)) { code = (KeyCode)Enum.Parse(typeof(KeyCode), char.ToUpper(c).ToString()); return true; }
+            if (char.IsDigit(c)) { code = (KeyCode)Enum.Parse(typeof(KeyCode), "Alpha" + c); return true; }
+            if (c == ' ') { code = KeyCode.Space; return true; }
+            if (c == '\n' || c == '\r') { code = KeyCode.Return; return true; }
+            if (c == (char)8) { code = KeyCode.Backspace; return true; }
+            code = KeyCode.None;
+            return false;
         }
 
         private static GameObject FindBestInputTarget()
@@ -125,7 +122,6 @@ namespace RealPlayTester.Input
                 var tmpField = UnityEngine.Object.FindFirstObjectByType(tmpType);
                 if (tmpField != null) return ((Component)tmpField).gameObject;
             }
-
             return null;
         }
 
@@ -134,14 +130,16 @@ namespace RealPlayTester.Input
             var input = target.GetComponent<InputField>();
             if (input == null) return false;
 
-            if (input.characterLimit <= 0 || input.text.Length < input.characterLimit)
+            if (c == (char)8) // Backspace
             {
-                input.text += c;
-                input.ForceLabelUpdate();
-                input.onValueChanged?.Invoke(input.text);
-                ExecuteEvents.Execute<IUpdateSelectedHandler>(target, new BaseEventData(EventSystem.current), ExecuteEvents.updateSelectedHandler);
-                await Task.Yield();
-            }
+                if (input.text.Length > 0) input.text = input.text.Substring(0, input.text.Length - 1);
+            } 
+            else if (input.characterLimit <= 0 || input.text.Length < input.characterLimit) input.text += c;
+
+            input.ForceLabelUpdate();
+            input.onValueChanged?.Invoke(input.text);
+            ExecuteEvents.Execute<IUpdateSelectedHandler>(target, new BaseEventData(EventSystem.current), ExecuteEvents.updateSelectedHandler);
+            await Task.Yield();
             return true;
         }
 
@@ -154,18 +152,25 @@ namespace RealPlayTester.Input
             if (tmpField != null)
             {
                 string before = GetText(tmpField);
-                SetText(tmpField, before + c);
+                int limit = GetTMPCharacterLimit(tmpField);
+
+                if (c == (char)8) { if (before.Length > 0) SetText(tmpField, before.Substring(0, before.Length - 1)); } 
+                else if (limit <= 0 || before.Length < limit) SetText(tmpField, before + c);
+
                 InvokeIfExists(tmpField, "ForceLabelUpdate");
                 InvokeIfExists(tmpField, "SendOnValueChangedAndUpdateLabel");
-                ExecuteEvents.Execute<IUpdateSelectedHandler>(((Component)tmpField).gameObject, new BaseEventData(EventSystem.current), ExecuteEvents.updateSelectedHandler);
+                ExecuteEvents.Execute<IUpdateSelectedHandler>(target, new BaseEventData(EventSystem.current), ExecuteEvents.updateSelectedHandler);
                 await Task.Yield();
             }
         }
 
-        private static System.Type GetTMPInputFieldType()
+        private static int GetTMPCharacterLimit(object tmpField)
         {
-            return System.Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
+            var prop = tmpField.GetType().GetProperty("characterLimit", BindingFlags.Public | BindingFlags.Instance);
+            return (int)(prop?.GetValue(tmpField) ?? 0);
         }
+
+        private static System.Type GetTMPInputFieldType() => System.Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
 
         private static string GetText(object tmpField)
         {
@@ -184,7 +189,8 @@ namespace RealPlayTester.Input
             var fallbackInput = UnityEngine.Object.FindFirstObjectByType<InputField>();
             if (fallbackInput != null)
             {
-                fallbackInput.text += c;
+                if (c == (char)8) { if (fallbackInput.text.Length > 0) fallbackInput.text = fallbackInput.text.Substring(0, fallbackInput.text.Length - 1); } 
+                else fallbackInput.text += c;
                 fallbackInput.ForceLabelUpdate();
                 fallbackInput.onValueChanged?.Invoke(fallbackInput.text);
                 return;
@@ -197,7 +203,8 @@ namespace RealPlayTester.Input
                 if (tmpField != null)
                 {
                     string before = GetText(tmpField);
-                    SetText(tmpField, before + c);
+                    if (c == (char)8) { if (before.Length > 0) SetText(tmpField, before.Substring(0, before.Length - 1)); } 
+                    else SetText(tmpField, before + c);
                     InvokeIfExists(tmpField, "ForceLabelUpdate");
                     InvokeIfExists(tmpField, "SendOnValueChangedAndUpdateLabel");
                 }
@@ -206,11 +213,7 @@ namespace RealPlayTester.Input
 
         private static void InvokeIfExists(object instance, string methodName, params object[] args)
         {
-            if (instance == null)
-            {
-                return;
-            }
-
+            if (instance == null) return;
             var type = instance.GetType();
             var method = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             method?.Invoke(instance, args);

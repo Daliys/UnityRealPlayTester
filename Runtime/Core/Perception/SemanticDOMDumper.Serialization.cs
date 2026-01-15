@@ -7,16 +7,32 @@ namespace RealPlayTester.Core.Perception
 {
     public static partial class RealPlaySemanticDOMDumper
     {
+        private static readonly string[] _indentCache = GenerateIndentCache(100);
+
+        private static string[] GenerateIndentCache(int maxDepth)
+        {
+            var cache = new string[maxDepth];
+            for (int i = 0; i < maxDepth; i++) cache[i] = new string(' ', i * 2);
+            return cache;
+        }
+
+        private static string GetIndent(int indent)
+        {
+            if (indent < 0) return "";
+            if (indent >= _indentCache.Length) return new string(' ', indent * 2);
+            return _indentCache[indent];
+        }
+
         private static string SerializeNode(SemanticNode node)
         {
-            var sb = new StringBuilder();
+            var sb = new StringBuilder(1024); // Start with reasonable capacity
             SerializeRecursive(node, sb, 0);
             return sb.ToString();
         }
 
         private static void SerializeRecursive(SemanticNode node, StringBuilder sb, int indent)
         {
-            string tab = new string(' ', indent * 2);
+            string tab = GetIndent(indent);
             sb.AppendLine("{");
             sb.AppendLine($"{tab}  \"Name\": \"{EscapeJson(node.Name)}\",");
             sb.AppendLine($"{tab}  \"Role\": \"{EscapeJson(node.Role)}\",");

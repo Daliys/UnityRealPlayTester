@@ -1,4 +1,5 @@
 using UnityEngine;
+using RealPlayTester.Core;
 
 namespace RealPlayTester.Diagnostics
 {
@@ -8,18 +9,26 @@ namespace RealPlayTester.Diagnostics
     public static class LogInterceptor
     {
         private static bool _isSubscribed;
+        private static readonly object _lock = new object();
 
         public static void Initialize()
         {
             if (_isSubscribed) return;
-            Application.logMessageReceived += HandleLog;
+            
+            // RESET DEDUPLICATION STATE
+            _lastMessage = null;
+            _lastType = LogType.Log;
+            _lastIndex = -1;
+
+            // logMessageReceivedThreaded catches logs from ALL threads, including main.
+            Application.logMessageReceivedThreaded += HandleLog;
             _isSubscribed = true;
         }
 
         public static void Shutdown()
         {
             if (!_isSubscribed) return;
-            Application.logMessageReceived -= HandleLog;
+            Application.logMessageReceivedThreaded -= HandleLog;
             _isSubscribed = false;
         }
 
@@ -33,40 +42,63 @@ namespace RealPlayTester.Diagnostics
         private static void HandleLog(string message, string stackTrace, LogType type)
         {
             if (_isProcessing) return;
+            
             var context = TestRunContextTracker.Current;
             if (context == null) return;
 
-            // Deduplication
-            if (_lastIndex >= 0 && _lastIndex < context.Logs.Count && message == _lastMessage && type == _lastType)
+            lock (_lock)
             {
-                var entry = context.Logs[_lastIndex];
-                entry.RepeatCount++;
-                entry.Frame = UnityEngine.Time.frameCount;
-                entry.Timestamp = UnityEngine.Time.time;
-                return;
-            }
+                if (IsDuplicate(context, message, type)) return;
 
-            _isProcessing = true;
-            try
-            {
-                string category = "Game";
-                if (message.Contains("Test Step:")) category = "Step";
-                else if (message.Contains("[RealPlayTest]")) category = "Test";
-                else if (message.Contains("[INPUT]")) category = "Input";
-                else if (message.Contains("[BLOCKER]")) category = "Input";
-                else if (message.Contains("[HEARTBEAT]")) category = "Heartbeat";
-                else if (message.StartsWith("[RealPlayTester]")) category = "Library";
+                // PERFORMANCE FIX: Cap log count to prevent memory leaks in massive test runs
+                if (context.GetLogCount() > 1000) return;
 
-                var newEntry = new LogEntry(category, message, stackTrace, type);
-                context.Logs.Add(newEntry);
-                _lastMessage = message;
-                _lastType = type;
-                _lastIndex = context.Logs.Count - 1;
+                _isProcessing = true;
+                try
+                {
+                    string category = GetLogCategory(message);
+                    var newEntry = new LogEntry(category, message, stackTrace, type);
+                    context.AddLog(newEntry);
+                    UpdateLastLog(message, type, context.GetLogCount() - 1);
+                }
+                finally
+                {
+                    _isProcessing = false;
+                }
             }
-            finally
+        }
+
+        private static bool IsDuplicate(TestRunContext context, string message, LogType type)
+        {
+            int count = context.GetLogCount();
+            if (_lastIndex >= 0 && _lastIndex < count && message == _lastMessage && type == _lastType)
             {
-                _isProcessing = false;
+                var entry = context.GetLogAt(_lastIndex);
+                if (entry != null)
+                {
+                    entry.RepeatCount++;
+                    try { entry.Frame = UnityEngine.Time.frameCount; entry.Timestamp = UnityEngine.Time.time; } catch { }
+                    return true;
+                }
             }
+            return false;
+        }
+
+        private static string GetLogCategory(string message)
+        {
+            if (message.Contains("Test Step:")) return "Step";
+            if (message.Contains("[RealPlayTest]")) return "Test";
+            if (message.Contains("[INPUT]") || message.Contains("[BLOCKER]")) return "Input";
+            if (message.Contains("[HEARTBEAT]")) return "Heartbeat";
+            if (message.StartsWith("[RealPlayTester]")) return "Library";
+            return "Game";
+        }
+
+        private static void UpdateLastLog(string message, LogType type, int index)
+        {
+            _lastMessage = message;
+            _lastType = type;
+            _lastIndex = index;
         }
 
         /// <summary>
@@ -77,16 +109,20 @@ namespace RealPlayTester.Diagnostics
             var context = TestRunContextTracker.Current;
             if (context == null) return;
 
-            if (_lastIndex >= 0 && _lastIndex < context.Logs.Count && message == _lastMessage)
+            int count = context.GetLogCount();
+            if (_lastIndex >= 0 && _lastIndex < count && message == _lastMessage)
             {
-                context.Logs[_lastIndex].RepeatCount++;
-                return;
+                var log = context.GetLogAt(_lastIndex);
+                if (log != null)
+                {
+                    log.RepeatCount++;
+                    return;
+                }
             }
 
             var entry = new LogEntry(type, message);
-            context.Logs.Add(entry);
-            _lastMessage = message;
-            _lastIndex = context.Logs.Count - 1;
+            context.AddLog(entry);
+            UpdateLastLog(message, LogType.Log, context.GetLogCount() - 1);
         }
     }
 }

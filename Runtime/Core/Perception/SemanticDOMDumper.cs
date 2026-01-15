@@ -124,13 +124,17 @@ namespace RealPlayTester.Core.Perception
                 Affordances = GetAffordances(go)
             };
 
-            var occlusion = RealPlayOcclusionRaycaster.CheckOcclusion(go);
-            node.IsOccluded = occlusion.IsOccluded;
-            node.BlockingObject = occlusion.BlockingObjectName;
+            // PERFORMANCE FIX: Only perform expensive checks for actionable objects
+            if (node.Affordances.Count > 0 || node.Role == "Button" || node.Role == "Input")
+            {
+                var occlusion = RealPlayOcclusionRaycaster.CheckOcclusion(go);
+                node.IsOccluded = occlusion.IsOccluded;
+                node.BlockingObject = occlusion.BlockingObjectName;
 
-            var logic = InteractionLogic.CheckLogicalInteractivity(go);
-            node.LogicalBlocked = logic.IsBlocked;
-            node.BlockedReason = logic.Reason;
+                var logic = InteractionLogic.CheckLogicalInteractivity(go);
+                node.LogicalBlocked = logic.IsBlocked;
+                node.BlockedReason = logic.Reason;
+            }
 
             return node;
         }
@@ -153,10 +157,14 @@ namespace RealPlayTester.Core.Perception
 
         private static bool IsInteractable(GameObject go)
         {
-            var btn = go.GetComponent<Button>();
-            if (btn != null) return btn.interactable;
-            var selectable = go.GetComponent<Selectable>();
-            return selectable != null && selectable.interactable;
+            // Use the centralized UI state monitor for consistency
+            if (!RealPlayTester.UI.PanelStateMonitor.IsPanelReady(go)) return false;
+
+            // NEW: Check if it's a Raycast Target if it has a Graphic component
+            var graphic = go.GetComponent<Graphic>();
+            if (graphic != null && !graphic.raycastTarget) return false;
+
+            return true;
         }
 
         private static Rect GetScreenRect(GameObject go)
@@ -181,7 +189,8 @@ namespace RealPlayTester.Core.Perception
                 return new Rect(minX, minY, maxX - minX, maxY - minY);
             }
 
-            var cam = Camera.main;
+            // Fix for World Space / Camera Space
+            var cam = canvas?.worldCamera ?? Camera.main;
             if (cam == null) return Rect.zero;
 
             Vector3[] c = new Vector3[4];

@@ -14,6 +14,9 @@ namespace RealPlayTester.Input
     /// </summary>
     public static class SmartFind
     {
+        private static Camera _cachedMainCam;
+        private static int _lastCamFrame = -1;
+
         private struct Candidate
         {
             public GameObject go;
@@ -23,35 +26,67 @@ namespace RealPlayTester.Input
         public static GameObject Object(string fuzzyName)
         {
             if (string.IsNullOrEmpty(fuzzyName)) return null;
+            
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
+            // Try tag match first (fast)
+            try { 
+                var tagged = GameObject.FindWithTag(fuzzyName);
+                if (tagged != null) return tagged;
+            } catch { }
+
             var result = ScanAndRank(fuzzyName);
             if (result == null)
             {
                 SceneCache.Instance.ForceRefresh();
                 result = ScanAndRank(fuzzyName);
             }
+
             return result;
+        }
+
+        private static Camera GetMainCamera()
+        {
+            if (Time.frameCount != _lastCamFrame)
+            {
+                _cachedMainCam = Camera.main;
+                _lastCamFrame = Time.frameCount;
+            }
+            return _cachedMainCam;
         }
 
         private static GameObject ScanAndRank(string fuzzyName)
         {
             var all = SceneCache.Instance.AllActiveObjects;
-            var candidates = new List<Candidate>();
+            var initialCandidates = new List<Candidate>();
 
             foreach (var go in all)
             {
                 if (go == null) continue;
-                
                 float matchScore = GetMatchScore(go.name, fuzzyName);
                 if (matchScore <= 0) continue;
-
-                float priorityScore = matchScore + CalculateSpatialPriority(go);
-                candidates.Add(new Candidate { go = go, score = priorityScore });
+                initialCandidates.Add(new Candidate { go = go, score = matchScore });
             }
 
-            if (candidates.Count == 0) return null;
+            if (initialCandidates.Count == 0) return null;
 
-            // Sort by score descending and pick best.
-            return candidates.OrderByDescending(c => c.score).ThenByDescending(c => c.go.GetInstanceID()).First().go;
+            // PERFORMANCE FIX: Only perform expensive spatial/occlusion checks on top matches
+            var topCandidates = initialCandidates.OrderByDescending(c => c.score).Take(10).ToList();
+            var cam = GetMainCamera();
+            
+            // STABILITY FIX: Update canvases once before probing
+            Canvas.ForceUpdateCanvases();
+
+            for (int i = 0; i < topCandidates.Count; i++)
+            {
+                var c = topCandidates[i];
+                c.score += CalculateSpatialPriority(c.go, cam);
+                topCandidates[i] = c;
+            }
+
+            return topCandidates.OrderByDescending(c => c.score)
+                                .ThenByDescending(c => c.go.transform.GetSiblingIndex())
+                                .First().go;
         }
 
         private static float GetMatchScore(string name, string query)
@@ -61,7 +96,7 @@ namespace RealPlayTester.Input
             return 0f;
         }
 
-        private static float CalculateSpatialPriority(GameObject go)
+        private static float CalculateSpatialPriority(GameObject go, Camera cam)
         {
             float score = 0f;
 
@@ -77,27 +112,24 @@ namespace RealPlayTester.Input
             var canvas = go.GetComponentInParent<Canvas>();
             if (canvas != null)
             {
-                // UI objects are almost always prioritized over world objects
                 score += 50000f; 
                 score += canvas.sortingOrder * 100f;
-                score += GetHierarchyDepth(go.transform) * 50f;
             }
 
-            // 3. World Depth Priority
-            if (Camera.main != null)
+            // 4. Screen Center Proximity (NEW)
+            Vector2 screenPos = RealInputUtility.GetScreenCenter(go, cam, false);
+            Vector2 center = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            float screenDistNorm = Vector2.Distance(screenPos, center) / Mathf.Max(Screen.width, Screen.height);
+            score += (1f - screenDistNorm) * 1000f;
+
+            // 5. World Depth Priority
+            if (cam != null)
             {
-                float dist = Vector3.Distance(Camera.main.transform.position, go.transform.position);
+                float dist = Vector3.Distance(cam.transform.position, go.transform.position);
                 score += Mathf.Max(0, 100f - dist);
             }
 
             return score;
-        }
-
-        private static int GetHierarchyDepth(Transform t)
-        {
-            int depth = 0;
-            while (t.parent != null) { depth++; t = t.parent; }
-            return depth;
         }
     }
 }

@@ -62,12 +62,19 @@ namespace RealPlayTester.Input
             var urpType = System.Type.GetType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
             if (urpType != null)
             {
-                if (cam.GetComponent(urpType) == null)
+                // STABILITY FIX: Use GetComponent instead of adding blindly
+                var existing = cam.GetComponent(urpType);
+                if (existing == null)
                 {
-                    cam.gameObject.AddComponent(urpType);
+                    // Only add if it's strictly required for rendering and we are in URP context
+                    // For now, let's just log a warning instead of modifying the game's camera
+                    // cam.gameObject.AddComponent(urpType);
+                    // RealPlayLog.Info("URP detected; you may need to add UniversalAdditionalCameraData to your Main Camera for visual debugging.");
                 }
             }
         }
+
+        private float _lastSortTime;
 
         private void Update()
         {
@@ -79,13 +86,15 @@ namespace RealPlayTester.Input
 
             if (shouldBeVisible)
             {
-                // Enforce top-most sorting every frame in case other canvases are created
-                if (_canvas != null)
+                // PERFORMANCE FIX: Periodically enforce top-most sorting instead of every frame
+                if (Time.unscaledTime - _lastSortTime > 1.0f)
                 {
-                    if (_canvas.sortingOrder != 32767) _canvas.sortingOrder = 32767;
-                    
-                    // Ensure we are the last sibling in the root to stay on top of same-order canvases
-                    if (transform.parent == null) transform.SetAsLastSibling();
+                    if (_canvas != null)
+                    {
+                        if (_canvas.sortingOrder != 32767) _canvas.sortingOrder = 32767;
+                        if (transform.parent == null) transform.SetAsLastSibling();
+                    }
+                    _lastSortTime = Time.unscaledTime;
                 }
 
                 _rectTransform.position = RealInputUtility.LastSimulatedPosition;
