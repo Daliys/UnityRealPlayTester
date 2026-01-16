@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.1] - 2026-01-16
+### AI-Native Intelligence
+### Added
+- **Vision-Language Mapping**: Every interactable object in the Semantic DOM now includes a `VisualID` (e.g., `#A1`) that matches labels drawn on annotated screenshots. This enables Vision-Language Models (VLMs) to align visual features with structured data.
+- **Command Hinting**: JSON DOM nodes now include a `Command` field containing ready-to-use API snippets (e.g., `"Command": "click('RandomButton')"`), reducing the cognitive load for autonomous agents.
+- **Annotated AI Screenshots**: Refactored `CaptureWithAnnotations` to provide high-contrast, scale-aware labeling for multi-resolution support.
+
 ## [2.5.0] - 2026-01-16
 ### Autonomous "Monkey" Era
 ### Added
