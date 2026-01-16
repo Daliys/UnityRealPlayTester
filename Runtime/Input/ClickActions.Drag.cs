@@ -79,17 +79,25 @@ namespace RealPlayTester.Input
         private static IEnumerator StartDragMotion(Vector2 start, Vector2 end, float duration, GameObject drag, PointerEventData data)
         {
             float elapsed = 0f;
+            float lastRealTime = Time.realtimeSinceStartup;
+
             while (elapsed < duration)
             {
-                float delta = Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
-                elapsed += delta;
+                yield return null;
+                float currentRealTime = Time.realtimeSinceStartup;
+                float realDelta = currentRealTime - lastRealTime;
+                lastRealTime = currentRealTime;
+
+                float timeScale = Time.timeScale;
+                float effectiveDelta = timeScale > 0.01f ? (realDelta * timeScale) : realDelta;
+                elapsed += effectiveDelta;
+
                 float t = duration > 0f ? Mathf.Clamp01(elapsed / duration) : 1f;
                 data.position = Vector2.Lerp(start, end, t);
                 RealInputUtility.SimulateMouseMove(data.position);
-                data.delta = (end - start) * (delta / duration);
+                data.delta = (end - start) * (effectiveDelta / duration);
                 if (drag != null) ExecuteEvents.Execute(drag, data, ExecuteEvents.dragHandler);
                 if (Tester.Settings.EnableInputHeartbeat) InputSystemShim.UpdateInput();
-                yield return null;
             }
         }
 

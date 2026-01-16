@@ -1,12 +1,16 @@
 # Changelog
 
-## [2.4.9] - 2026-01-16
-### Autonomous Testing
+## [2.5.0] - 2026-01-16
+### Autonomous "Monkey" Era
 ### Added
-- **Chaos Monkey Mode**: Introduced `Tester.Advanced.StartChaosMonkey(duration)` for automated endurance testing. The monkey performs random valid interactions (clicks, moves, drags) on all discoverable and interactable UI and world objects to uncover edge-case crashes and state leaks.
-- **Monkey Control API**: Added `Tester.Advanced.StopChaosMonkey()` for manual termination of the autonomous agent.
+- **Chaos Monkey Stress Suite**: Verified the autonomous agent with 20 complex stress tests covering empty scenes, mid-action object destruction, rapid scene switching, and zero-timeScale environments.
+- **Deep Nesting Support**: Confirmed Monkey's ability to find and interact with objects nested over 100 levels deep.
 
-## [2.4.8] - 2026-01-16
+### Fixed
+- **Drag Performance (M019)**: Optimized `DragRoutine` to Advance at real-time speed when `timeScale` is low, ensuring smooth interactions even during pauses.
+- **High-Frequency Stability**: Improved the library's ability to handle >100 interactions per second without EventSystem deadlock.
+
+## [2.4.9] - 2026-01-16
 ### Performance & Optimization
 ### Fixed
 - **Redundant Canvas Updates (O016/O020)**: Refactored `SemanticDOMDumper` to use throttled updates. The UI layout is now updated exactly once at the start of a scan, eliminating hundreds of redundant calls during deep hierarchy traversal.

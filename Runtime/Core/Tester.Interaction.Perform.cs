@@ -144,7 +144,11 @@ namespace RealPlayTester.Core
                         break;
                     case "drag":
                     case "slide":
-                        if (target != null) await Mouse.Drag(target, target.transform.position + Vector3.right * 100f); // Default drag
+                        if (target != null) 
+                        {
+                            var center = RealInputUtility.GetScreenCenter(target);
+                            await Mouse.Drag(center, center + Vector2.right * 50f); // Relative drag in screen space
+                        }
                         break;
                     case "move":
                     case "hover":
