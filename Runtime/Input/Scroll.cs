@@ -10,6 +10,9 @@ namespace RealPlayTester.Input
     /// </summary>
     public static class Scroll
     {
+        private static readonly Vector3[] ViewCornersCache = new Vector3[4];
+        private static readonly Vector3[] TargetCornersCache = new Vector3[4];
+
         /// <summary>Scroll the provided ScrollRect to the bottom over a duration.</summary>
         public static async Task ToBottom(ScrollRect scrollRect, float duration = 0.5f)
         {
@@ -51,13 +54,11 @@ namespace RealPlayTester.Input
 
         private static bool CheckVisibility(RectTransform viewport, RectTransform target)
         {
-            var viewCorners = new Vector3[4];
-            viewport.GetWorldCorners(viewCorners);
-            var viewRect = GetWorldRect(viewCorners);
+            viewport.GetWorldCorners(ViewCornersCache);
+            var viewRect = GetWorldRect(ViewCornersCache);
 
-            var targetCorners = new Vector3[4];
-            target.GetWorldCorners(targetCorners);
-            var targetRect = GetWorldRect(targetCorners);
+            target.GetWorldCorners(TargetCornersCache);
+            var targetRect = GetWorldRect(TargetCornersCache);
 
             return viewRect.Overlaps(targetRect);
         }
@@ -75,26 +76,37 @@ namespace RealPlayTester.Input
         {
             bool scrolled = false;
             Vector3 targetLocal = scrollRect.viewport.InverseTransformPoint(target.position);
-            float timeMult = Time.timeScale > 0 ? Time.deltaTime * 60f : 1f;
+            float timeMult = Time.unscaledDeltaTime * 60f; // Use unscaled
 
             if (scrollRect.vertical)
             {
-                float shift = 0.1f * timeMult;
-                if (targetLocal.y < 0) 
-                    scrollRect.verticalNormalizedPosition = Mathf.Max(0, scrollRect.verticalNormalizedPosition - shift);
-                else 
-                    scrollRect.verticalNormalizedPosition = Mathf.Min(1, scrollRect.verticalNormalizedPosition + shift);
-                scrolled = true;
+                // Calculate normalized size of viewport relative to content
+                float contentSize = scrollRect.content.rect.height;
+                float viewSize = scrollRect.viewport.rect.height;
+                if (contentSize > viewSize)
+                {
+                    float shift = (viewSize / contentSize) * 0.5f * timeMult;
+                    if (targetLocal.y < -viewSize * 0.5f) 
+                        scrollRect.verticalNormalizedPosition = Mathf.Max(0, scrollRect.verticalNormalizedPosition - shift);
+                    else if (targetLocal.y > viewSize * 0.5f)
+                        scrollRect.verticalNormalizedPosition = Mathf.Min(1, scrollRect.verticalNormalizedPosition + shift);
+                    scrolled = true;
+                }
             }
             
             if (scrollRect.horizontal)
             {
-                float shift = 0.05f * timeMult;
-                if (targetLocal.x > 0) 
-                    scrollRect.horizontalNormalizedPosition = Mathf.Min(1, scrollRect.horizontalNormalizedPosition + shift);
-                else 
-                    scrollRect.horizontalNormalizedPosition = Mathf.Max(0, scrollRect.horizontalNormalizedPosition - shift);
-                scrolled = true;
+                float contentSize = scrollRect.content.rect.width;
+                float viewSize = scrollRect.viewport.rect.width;
+                if (contentSize > viewSize)
+                {
+                    float shift = (viewSize / contentSize) * 0.5f * timeMult;
+                    if (targetLocal.x > viewSize * 0.5f) 
+                        scrollRect.horizontalNormalizedPosition = Mathf.Min(1, scrollRect.horizontalNormalizedPosition + shift);
+                    else if (targetLocal.x < -viewSize * 0.5f)
+                        scrollRect.horizontalNormalizedPosition = Mathf.Max(0, scrollRect.horizontalNormalizedPosition - shift);
+                    scrolled = true;
+                }
             }
 
             return scrolled;
@@ -102,15 +114,13 @@ namespace RealPlayTester.Input
 
         private static bool IsVisibleInViewport(RectTransform viewport, RectTransform target)
         {
-            Vector3[] viewportCorners = new Vector3[4];
-            Vector3[] targetCorners = new Vector3[4];
-            viewport.GetWorldCorners(viewportCorners);
-            target.GetWorldCorners(targetCorners);
+            viewport.GetWorldCorners(ViewCornersCache);
+            target.GetWorldCorners(TargetCornersCache);
 
-            float viewportMinY = viewportCorners[0].y;
-            float viewportMaxY = viewportCorners[2].y;
-            float targetMinY = targetCorners[0].y;
-            float targetMaxY = targetCorners[2].y;
+            float viewportMinY = ViewCornersCache[0].y;
+            float viewportMaxY = ViewCornersCache[2].y;
+            float targetMinY = TargetCornersCache[0].y;
+            float targetMaxY = TargetCornersCache[2].y;
 
             // Simple Y-axis check for vertical lists, can be expanded for X
             return targetMaxY <= viewportMaxY && targetMinY >= viewportMinY;

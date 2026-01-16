@@ -19,10 +19,16 @@ namespace RealPlayTester.Utilities
             {
                 if (_instance == null)
                 {
-                    var host = RealPlayTesterHost.Instance;
-                    if (host != null)
+                    lock (_cacheLock)
                     {
-                        _instance = host.GetComponent<SceneCache>() ?? host.gameObject.AddComponent<SceneCache>();
+                        if (_instance == null)
+                        {
+                            var host = RealPlayTesterHost.Instance;
+                            if (host != null)
+                            {
+                                _instance = host.GetComponent<SceneCache>() ?? host.gameObject.AddComponent<SceneCache>();
+                            }
+                        }
                     }
                 }
                 return _instance;
@@ -38,37 +44,38 @@ namespace RealPlayTester.Utilities
 
         private int _lastRefreshFrame = -1;
         private float _lastRefreshTime = -1f;
+        private bool _isDirty = true;
 
-        public IReadOnlyList<GameObject> AllActiveObjects { get { lock(_cacheLock) { RefreshIfStaleOnMain(); return _allActiveObjects; } } }
-        public IReadOnlyList<GameObject> AllObjects { get { lock(_cacheLock) { RefreshIfStaleOnMain(); return _allObjects; } } }
-        public IReadOnlyList<Rigidbody> Rigidbodies3D { get { lock(_cacheLock) { RefreshIfStaleOnMain(); return _rigidbodies3D; } } }
-        public IReadOnlyList<Rigidbody2D> Rigidbodies2D { get { lock(_cacheLock) { RefreshIfStaleOnMain(); return _rigidbodies2D; } } }
-        public IReadOnlyList<Animator> Animators { get { lock(_cacheLock) { RefreshIfStaleOnMain(); return _animators; } } }
-        public IReadOnlyList<ParticleSystem> ParticleSystems { get { lock(_cacheLock) { RefreshIfStaleOnMain(); return _particleSystems; } } }
+        public IReadOnlyList<GameObject> AllActiveObjects { get { RefreshIfStaleOnMain(); lock(_cacheLock) { return _allActiveObjects; } } }
+        public IReadOnlyList<GameObject> AllObjects { get { RefreshIfStaleOnMain(); lock(_cacheLock) { return _allObjects; } } }
+        public IReadOnlyList<Rigidbody> Rigidbodies3D { get { RefreshIfStaleOnMain(); lock(_cacheLock) { return _rigidbodies3D; } } }
+        public IReadOnlyList<Rigidbody2D> Rigidbodies2D { get { RefreshIfStaleOnMain(); lock(_cacheLock) { return _rigidbodies2D; } } }
+        public IReadOnlyList<Animator> Animators { get { RefreshIfStaleOnMain(); lock(_cacheLock) { return _animators; } } }
+        public IReadOnlyList<ParticleSystem> ParticleSystems { get { RefreshIfStaleOnMain(); lock(_cacheLock) { return _particleSystems; } } }
 
         public void Initialize()
         {
             _mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
-            SceneManager.sceneLoaded += (s, m) => ForceRefreshDelayed();
-            SceneManager.sceneUnloaded += (s) => ForceRefreshDelayed();
-            ForceRefresh();
+            SceneManager.sceneLoaded += (s, m) => _isDirty = true;
+            SceneManager.sceneUnloaded += (s) => _isDirty = true;
+            
+            if (System.Threading.Thread.CurrentThread.ManagedThreadId == _mainThreadId)
+                ForceRefresh();
         }
 
-        private async void ForceRefreshDelayed()
+        private void ForceRefreshDelayed()
         {
-            await Task.Yield();
-            ForceRefresh();
+            _isDirty = true;
         }
 
         public void ForceRefresh()
         {
-            if (System.Threading.Thread.CurrentThread.ManagedThreadId == _mainThreadId)
+            if (System.Threading.Thread.CurrentThread.ManagedThreadId != _mainThreadId) return;
+
+            lock (_cacheLock)
             {
-                lock (_cacheLock)
-                {
-                    _lastRefreshFrame = -1;
-                    RefreshIfStale();
-                }
+                _isDirty = true;
+                RefreshIfStale();
             }
         }
 
@@ -76,16 +83,17 @@ namespace RealPlayTester.Utilities
         {
             if (System.Threading.Thread.CurrentThread.ManagedThreadId == _mainThreadId)
             {
-                RefreshIfStale();
+                lock (_cacheLock) { RefreshIfStale(); }
             }
         }
 
         private void RefreshIfStale()
         {
-            if (Time.frameCount == _lastRefreshFrame && _lastRefreshFrame != -1) return;
+            if (!_isDirty && Time.frameCount == _lastRefreshFrame && _lastRefreshFrame != -1) return;
             DoFullScan();
             _lastRefreshFrame = Time.frameCount;
             _lastRefreshTime = Time.realtimeSinceStartup;
+            _isDirty = false;
         }
 
         private class ScanResults

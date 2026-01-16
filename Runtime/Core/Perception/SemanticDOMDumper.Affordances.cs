@@ -12,10 +12,14 @@ namespace RealPlayTester.Core.Perception
     public static partial class RealPlaySemanticDOMDumper
     {
         private static readonly Dictionary<Type, List<string>> _heuristicCache = new Dictionary<Type, List<string>>();
+        private static Type _cachedTMPInputFieldType;
+        private static Type GetCachedTMPInputFieldType() => _cachedTMPInputFieldType ??= Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
 
         private static List<string> GetAffordances(GameObject go)
         {
             var affordances = new HashSet<string>();
+
+            if (!IsInteractable(go)) return new List<string>();
 
             CheckStandardComponents(go, affordances);
             CheckTMPComponents(go, affordances);
@@ -27,44 +31,20 @@ namespace RealPlayTester.Core.Perception
 
         private static void CheckStandardComponents(GameObject go, HashSet<string> affordances)
         {
-            if (!IsInteractable(go)) return;
-
-            if (go.GetComponent<Button>() != null)
-            {
-                affordances.Add("Click");
-                affordances.Add("Submit");
-            }
-
-            if (go.GetComponent<Toggle>() != null) affordances.Add("Click");
-            if (go.GetComponent<Slider>() != null) affordances.Add("Drag");
-            
-            if (go.GetComponent<Scrollbar>() != null)
-            {
-                affordances.Add("Drag");
-                affordances.Add("Scroll");
-            }
-
-            if (go.GetComponent<ScrollRect>() != null)
-            {
-                affordances.Add("Scroll");
-                affordances.Add("Drag");
-            }
-
-            if (go.GetComponent<InputField>() != null)
-            {
-                affordances.Add("Type");
-                affordances.Add("Click");
-                affordances.Add("Submit");
-            }
+            if (go.TryGetComponent<Button>(out _)) { affordances.Add("Click"); affordances.Add("Submit"); }
+            if (go.TryGetComponent<Toggle>(out _)) affordances.Add("Click");
+            if (go.TryGetComponent<Slider>(out _)) affordances.Add("Drag");
+            if (go.TryGetComponent<Scrollbar>(out _)) { affordances.Add("Drag"); affordances.Add("Scroll"); }
+            if (go.TryGetComponent<ScrollRect>(out _)) { affordances.Add("Scroll"); affordances.Add("Drag"); }
+            if (go.TryGetComponent<InputField>(out _)) { affordances.Add("Type"); affordances.Add("Click"); affordances.Add("Submit"); }
         }
 
         private static void CheckTMPComponents(GameObject go, HashSet<string> affordances)
         {
-            var tmpInputType = Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
+            var tmpInputType = GetCachedTMPInputFieldType();
             if (tmpInputType == null) return;
 
-            var tmpInput = go.GetComponent(tmpInputType);
-            if (tmpInput != null)
+            if (go.TryGetComponent(tmpInputType, out var tmpInput))
             {
                 var interactableProp = tmpInputType.GetProperty("interactable");
                 bool isInteractable = interactableProp == null || (bool)interactableProp.GetValue(tmpInput);

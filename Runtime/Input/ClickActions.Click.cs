@@ -24,6 +24,7 @@ namespace RealPlayTester.Input
                 string text = GetButtonLabel(btn);
                 if (!string.IsNullOrEmpty(text) && text.IndexOf(buttonText, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
+                    RealPlayLog.Info($"[Click] ButtonWithText('{buttonText}') found match: '{btn.name}' with text '{text}'");
                     await Scroll.EnsureVisible(btn.gameObject);
                     await WorldObject(btn.gameObject);
                     return;
@@ -171,7 +172,7 @@ namespace RealPlayTester.Input
             var uiText = btn.GetComponentInChildren<UnityEngine.UI.Text>(true);
             if (uiText != null) return uiText.text;
 
-            var tmpType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
+            var tmpType = Type.GetType("TMPro.TMP_Text, Unity.TextMeshPro");
             if (tmpType != null)
             {
                 var tmp = btn.GetComponentInChildren(tmpType, true);
@@ -181,6 +182,11 @@ namespace RealPlayTester.Input
         }
 
         private static Camera SelectCamera(Camera camera) => camera ?? Camera.main ?? (Camera.allCamerasCount > 0 ? Camera.allCameras[0] : null);
-        private static void EnsurePhysicsRaycaster(Camera cam) { if (cam != null && cam.GetComponent<PhysicsRaycaster>() == null) cam.gameObject.AddComponent<PhysicsRaycaster>(); }
+        private static void EnsurePhysicsRaycaster(Camera cam) 
+        { 
+            if (cam == null) return;
+            if (cam.GetComponent<PhysicsRaycaster>() == null) cam.gameObject.AddComponent<PhysicsRaycaster>(); 
+            if (cam.GetComponent<UnityEngine.EventSystems.Physics2DRaycaster>() == null) cam.gameObject.AddComponent<UnityEngine.EventSystems.Physics2DRaycaster>();
+        }
     }
 }

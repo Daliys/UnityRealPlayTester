@@ -85,12 +85,17 @@ namespace RealPlayTester.Input
             data.position = screenPos;
 
             var results = Raycasts(data, forceUpdateCanvas);
-            if (results.Count == 0) return false;
+            if (results.Count == 0) { Debug.Log($"[Occlusion] No hits at {screenPos}"); return false; }
+
+            // Debug logging for occlusion analysis
+            foreach(var r in results) if(r.gameObject != null) Debug.Log($"[Occlusion] Hit: {r.gameObject.name} (target={target.name})");
 
             GameObject firstVisibleHit = null;
             foreach (var res in results)
             {
                 if (res.gameObject == null) continue;
+                
+                // M010: Skip objects that are effectively invisible (alpha ~ 0)
                 if (IsActuallyVisible(res.gameObject))
                 {
                     firstVisibleHit = res.gameObject;
@@ -108,12 +113,18 @@ namespace RealPlayTester.Input
 
         private static bool IsActuallyVisible(GameObject go)
         {
+            // Check CanvasGroup alpha in parent chain
             var groups = go.GetComponentsInParent<CanvasGroup>();
             foreach (var g in groups)
             {
-                if (g.alpha <= 0.01f) return false;
+                if (g.alpha < 0.01f) return false;
                 if (g.ignoreParentGroups) break;
             }
+
+            // Check Image/Text color alpha if present
+            var graphic = go.GetComponent<Graphic>();
+            if (graphic != null && graphic.color.a < 0.01f) return false;
+
             return true;
         }
     }

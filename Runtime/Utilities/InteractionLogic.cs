@@ -24,11 +24,18 @@ namespace RealPlayTester.Utilities
     public static class InteractionLogic
     {
         private static readonly Dictionary<string, MemberInfo> _memberCache = new Dictionary<string, MemberInfo>();
+        private const int MaxCacheSize = 1000;
 
         public struct LogicResult
         {
             public bool IsBlocked;
             public string Reason;
+        }
+
+        private static void CacheMember(string key, MemberInfo member)
+        {
+            if (_memberCache.Count >= MaxCacheSize) _memberCache.Clear();
+            _memberCache[key] = member;
         }
 
         public static LogicResult CheckLogicalInteractivity(GameObject go)
@@ -75,7 +82,7 @@ namespace RealPlayTester.Utilities
             if (!_memberCache.TryGetValue(key + "_p", out MemberInfo m) || !(m is PropertyInfo))
             {
                 prop = type.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                _memberCache[key + "_p"] = prop;
+                CacheMember(key + "_p", prop);
             }
             else prop = (PropertyInfo)m;
 
@@ -89,7 +96,7 @@ namespace RealPlayTester.Utilities
             if (!_memberCache.TryGetValue(key + "_f", out m) || !(m is FieldInfo))
             {
                 field = type.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                _memberCache[key + "_f"] = field;
+                CacheMember(key + "_f", field);
             }
             else field = (FieldInfo)m;
 
@@ -110,7 +117,7 @@ namespace RealPlayTester.Utilities
             if (!_memberCache.TryGetValue(key + "_p", out MemberInfo m) || !(m is PropertyInfo))
             {
                 prop = type.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                _memberCache[key + "_p"] = prop;
+                CacheMember(key + "_p", prop);
             }
             else prop = (PropertyInfo)m;
 
@@ -124,7 +131,7 @@ namespace RealPlayTester.Utilities
             if (!_memberCache.TryGetValue(key + "_m", out m) || !(m is MethodInfo))
             {
                 method = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
-                _memberCache[key + "_m"] = method;
+                CacheMember(key + "_m", method);
             }
             else method = (MethodInfo)m;
 

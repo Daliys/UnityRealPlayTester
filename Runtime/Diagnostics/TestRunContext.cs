@@ -63,7 +63,7 @@ namespace RealPlayTester.Diagnostics
             Info.TestId = Guid.NewGuid().ToString();
             Info.StartTime = DateTime.Now;
             Info.UnityVersion = Application.unityVersion;
-            Info.PackageVersion = "2.4.0"; 
+            Info.PackageVersion = "2.4.3"; 
             
 #if ENABLE_INPUT_SYSTEM
             Info.ActiveInputMode = "InputSystem";
@@ -124,7 +124,7 @@ namespace RealPlayTester.Diagnostics
             for (int i = 0; i < _breadcrumbs.Count; i++)
             {
                 var crumb = _breadcrumbs[i];
-                sb.Append("    { \"frame\": " + crumb.Frame + ", \"time\": " + crumb.Timestamp.ToString("F3") + ", \"type\": \"" + crumb.Type + ", \"message\": \"" + EscapeJson(crumb.Message) + "\" }");
+                sb.Append("    { \"frame\": " + crumb.Frame + ", \"time\": " + crumb.Timestamp.ToString("F3") + ", \"type\": \"" + crumb.Type + "\", \"message\": \"" + EscapeJson(crumb.Message) + "\" }");
                 if (i < _breadcrumbs.Count - 1) sb.Append(",");
                 sb.AppendLine();
             }
@@ -137,7 +137,7 @@ namespace RealPlayTester.Diagnostics
             for (int i = 0; i < _logs.Count; i++)
             {
                 var log = _logs[i];
-                sb.Append("    { \"frame\": " + log.Frame + ", \"time\": " + log.Timestamp.ToString("F3") + ", \"type\": \"" + log.Type + ", \"severity\": \"" + log.Severity + ", \"message\": \"" + EscapeJson(log.Message) + ", \"repeats\": " + log.RepeatCount + " }");
+                sb.Append("    { \"frame\": " + log.Frame + ", \"time\": " + log.Timestamp.ToString("F3") + ", \"type\": \"" + log.Type + "\", \"severity\": \"" + log.Severity + "\", \"message\": \"" + EscapeJson(log.Message) + "\", \"repeats\": " + log.RepeatCount + " }");
                 if (i < _logs.Count - 1) sb.Append(",");
                 sb.AppendLine();
             }
@@ -219,7 +219,7 @@ namespace RealPlayTester.Diagnostics
         private string EscapeJson(string str)
         {
             if (string.IsNullOrEmpty(str)) return "";
-            return str.Replace("\"", "\\\"");
+            return str.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
         }
     }
 

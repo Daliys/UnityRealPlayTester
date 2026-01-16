@@ -46,6 +46,13 @@ namespace RealPlayTester.Input
                 _cachedEventSystem = ActivateEventSystem(all[0]);
                 return _cachedEventSystem;
             }
+
+            if (!RealPlaySettings.AutoCreateEventSystem)
+            {
+                RealPlayLog.Error("[RealPlayTester] CRITICAL: No EventSystem found in scene and AutoCreateEventSystem is disabled. UI interactions will fail.");
+                return null;
+            }
+
             _cachedEventSystem = CreateDefaultEventSystem();
             return _cachedEventSystem;
         }
@@ -62,8 +69,12 @@ namespace RealPlayTester.Input
         {
             var go = new GameObject("RealPlayTester_EventSystem");
             var es = go.AddComponent<EventSystem>();
-            if (SimulatedInputGuard.InputSystemReady() && InputSystemUIModuleType != null) go.AddComponent(InputSystemUIModuleType);
+#if ENABLE_INPUT_SYSTEM
+            if (InputSystemUIModuleType != null) go.AddComponent(InputSystemUIModuleType);
             else go.AddComponent<StandaloneInputModule>();
+#else
+            go.AddComponent<StandaloneInputModule>();
+#endif
             UnityEngine.Object.DontDestroyOnLoad(go);
             es.UpdateModules();
             return es;
@@ -158,9 +169,17 @@ namespace RealPlayTester.Input
             return GetWorldScreenCenter(go, camera);
         }
 
+        private static int _lastCanvasUpdateFrame = -1;
+        public static void ThrottleCanvasUpdate()
+        {
+            if (Time.frameCount == _lastCanvasUpdateFrame) return;
+            Canvas.ForceUpdateCanvases();
+            _lastCanvasUpdateFrame = Time.frameCount;
+        }
+
         private static Vector2 GetUIScreenCenter(RectTransform rect, Camera camera, bool forceUpdateCanvas)
         {
-            if (forceUpdateCanvas) Canvas.ForceUpdateCanvases();
+            if (forceUpdateCanvas) ThrottleCanvasUpdate();
             var canvas = rect.GetComponentInParent<Canvas>();
             rect.GetWorldCorners(WorldCornersCache);
             var worldCenter = (WorldCornersCache[0] + WorldCornersCache[2]) * 0.5f;

@@ -83,6 +83,10 @@ namespace RealPlayTester.Core
                 if (_mainContext == null)
                 {
                     _mainContext = SynchronizationContext.Current;
+                    if (_mainContext == null && Application.isPlaying)
+                    {
+                        RealPlayLog.Warn("SynchronizationContext.Current is null. Attempting to capture from main thread.");
+                    }
                 }
                 return _mainContext;
             }
@@ -91,7 +95,6 @@ namespace RealPlayTester.Core
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void CaptureMainThread()
         {
-            // Capture the Unity SynchronizationContext as early as possible
             _mainContext = SynchronizationContext.Current;
         }
 
@@ -104,6 +107,11 @@ namespace RealPlayTester.Core
             {
                 if (_instance != null && _isInitialized) return;
 
+                if (_mainContext == null)
+                {
+                    _mainContext = SynchronizationContext.Current;
+                }
+
                 RealPlaySettings.Initialize();
                 ApplyGlobalSettings();
                 CleanupReports();
@@ -111,11 +119,6 @@ namespace RealPlayTester.Core
                 if (Application.isPlaying)
                 {
                     FindOrCreateHostInstance();
-                }
-
-                if (_mainContext == null)
-                {
-                    _mainContext = SynchronizationContext.Current ?? new SynchronizationContext();
                 }
             }
         }

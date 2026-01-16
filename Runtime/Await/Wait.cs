@@ -72,7 +72,10 @@ namespace RealPlayTester.Await
                 RealPlayTester.Input.Internal.InputSimulator.UpdateInput();
                 await Task.Yield();
                 
-                elapsed += Time.deltaTime;
+                // M019: Fallback to unscaled time if paused/slowed to prevent hangs
+                float delta = Time.deltaTime;
+                if (Time.timeScale < 0.01f) delta = Time.unscaledDeltaTime; 
+                elapsed += delta;
             }
         }
 

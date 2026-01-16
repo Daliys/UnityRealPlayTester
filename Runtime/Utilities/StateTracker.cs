@@ -49,7 +49,8 @@ namespace RealPlayTester.Utilities
             lock (_lock)
             {
                 var snap = new StateSnapshot { Timestamp = DateTime.Now };
-                // PERFORMANCE FIX: Use SceneCache instead of FindObjectsByType
+                // O030: Force refresh to capture immediate hierarchy changes (spawning/destroying)
+                SceneCache.Instance.ForceRefresh();
                 var all = SceneCache.Instance.AllActiveObjects;
                 foreach (var go in all)
                 {

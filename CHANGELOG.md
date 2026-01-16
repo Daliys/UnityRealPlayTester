@@ -1,5 +1,42 @@
 # Changelog
 
+## [2.4.6] - 2026-01-16
+### Chaos-Proof Stabilization & AI-Native Lab
+### Added
+- **GPU Simulation Engine**: Implemented high-scale cellular automata on GPU via Compute Shaders with bitmask-based rules.
+- **Chaos Mutation Mode**: Dynamic real-time ruleset evolution with integrated visual feedback (background pulse).
+- **Selection & Clipboard Tools**: World-space pattern selection and clipboard support for advanced lab experimentation.
+- **Enhanced Verification Suite**: Added comprehensive performance stress tests for 1000x1000 grids and deep hierarchies.
+
+### Fixed
+- **Wait Scaled Stability (M019)**: Implemented full unscaled-time fallback in `Wait.Seconds` to prevent infinite loops when `timeScale` is zero.
+- **Deep Hierarchy Support (M001/M002)**: Increased maximum hierarchy depth to 512 levels and optimized serialization for massive trees.
+- **Atomic State Capture (O030)**: `StateTracker` now forces a cache refresh before capture, ensuring immediate spawns/destructions are visible in diffs.
+- **Environment Consistency (O029)**: `HardReset` now correctly restores all framework settings, including `AutoCreateEventSystem`.
+- **Method Length Compliance (O028)**: Refactored `RealPlaySettings.Initialize` to satisfy strict linter standards.
+
+## [2.4.5] - 2026-01-16
+### CI/CD Reliability & Input Mapping
+### Added
+- **Deterministic Batchmode Physics (M015)**: Implemented a fixed-time accumulator in the library heartbeat to ensure consistent physics behavior across variable frame rates in CI.
+- **Expanded Legacy Input (M016)**: Added full alphanumeric and common symbol mapping to `LegacyInputFallback` for projects without the New Input System.
+
+### Fixed
+- **Optimized Discovery Cache (O001)**: Implemented a dirty-flag pattern for `SceneCache` to eliminate redundant hierarchy scans during rapid scene transitions.
+- **Corrected Alpha Math (O025)**: Updated `PanelStateMonitor` to use multiplicative composition for nested CanvasGroups, improving visibility reporting accuracy.
+
+## [2.4.4] - 2026-01-15
+### Stability Refinements
+### Fixed
+- **Scene Switch Safety (C003)**: Added validation to `Perform` to gracefully abort interactions if the scene changes during execution.
+- **Virtual Device Isolation (M003)**: Implemented `ThreadStatic` backing fields for virtual input devices to prevent state contamination in parallel test environments.
+
+## [2.4.3] - 2026-01-15
+### Maintenance & Hotfixes
+### Fixed
+- **Invisible Blocker Bypass (M010)**: Occlusion detection now correctly ignores UI elements with alpha < 0.01.
+- **TMP Base Type Support**: Refactored text discovery to use `TMP_Text` base classes, significantly improving search reliability for various MeshPro variants.
+
 ## [2.4.2] - 2026-01-15
 ### Refinement & Perception Precision
 ### Added

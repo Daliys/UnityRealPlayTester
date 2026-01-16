@@ -30,6 +30,7 @@ namespace RealPlayTester.Core
                     RealPlayLog.Warn(msg);
                     return msg;
                 }
+                RealPlayLog.Info($"[Interaction] Found target '{target.name}' for intent '{intent}'");
                 return await Perform(intent, target);
             }
 
@@ -40,10 +41,16 @@ namespace RealPlayTester.Core
             public static async Task<string> Perform(string intent, GameObject target)
             {
                 if (!RealPlayEnvironment.IsEnabled) return "Environment Disabled";
-
                 if (IsInteractionBlocked(intent, target)) return "Action Blocked";
 
-                // Capture State Before
+                string envError = ValidateEnvironmentForTarget(target);
+                if (envError != null)
+                {
+                    RealPlayLog.Error($"[Interaction] Perform '{intent}' failed: {envError}");
+                    return $"Error: {envError}";
+                }
+
+                string fromScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
                 string fromState = RealPlayTester.UI.PanelStateMonitor.GetActiveStateName();
                 var stateBefore = StateTracker.Capture();
                 RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Intent", $"Perform '{intent}' on '{(target != null ? target.name : "null")}'");
@@ -51,22 +58,34 @@ namespace RealPlayTester.Core
                 if (target != null) CheckLogicalBlocking(target);
 
                 await DispatchIntent(intent, target);
+                
+                // M014/C003: Check if scene changed during interaction
+                string toScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                if (fromScene != toScene)
+                {
+                    RealPlayLog.Info($"[Interaction] Scene changed from '{fromScene}' to '{toScene}' during '{intent}'");
+                    return $"Scene changed to {toScene}";
+                }
 
-                // STABILITY FIX: Use unscaled wait for causality feedback
                 await Wait.Seconds(0.05f, unscaled: true);
 
-                // RELIABILITY FIX: Target might be destroyed during wait (C002)
+                return AnalyzeCausalReaction(stateBefore, fromState, intent, target);
+            }
+
+            private static string AnalyzeCausalReaction(StateTracker.StateSnapshot stateBefore, string fromState, string intent, GameObject target)
+            {
                 bool targetDestroyed = target == null;
                 string targetName = targetDestroyed ? "DestroyedObject" : target.name;
 
-                // Capture State After
+                // STABILITY FIX: Ensure we are still in a valid state
+                if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == null) return "Scene Unloading";
+
                 var stateAfter = StateTracker.Capture();
                 string toState = RealPlayTester.UI.PanelStateMonitor.GetActiveStateName();
                 
                 string summary = StateTracker.GetDiff(stateBefore, stateAfter, $"{intent} '{targetName}'");
                 RealPlayTester.Diagnostics.TestRunContextTracker.RecordBreadcrumb("Reaction", summary);
 
-                // Auto-Discovery: Learn navigation path
                 if (!targetDestroyed) Navigation.RecordStateTransition(fromState, toState, intent, targetName);
 
                 return summary;
@@ -82,6 +101,29 @@ namespace RealPlayTester.Core
                     return true;
                 }
                 return false;
+            }
+
+            private static string ValidateEnvironmentForTarget(GameObject target)
+            {
+                if (target == null) return null;
+
+                bool isUi = target.GetComponent<RectTransform>() != null;
+                if (isUi)
+                {
+                    if (EventSystem.current == null && !RealPlaySettings.AutoCreateEventSystem)
+                        return "No EventSystem found. UI is unclickable.";
+
+                    var canvas = target.GetComponentInParent<Canvas>();
+                    if (canvas != null && canvas.GetComponent<GraphicRaycaster>() == null)
+                        return $"Canvas '{canvas.name}' is missing GraphicRaycaster. UI is unclickable.";
+                }
+                else
+                {
+                    // For world objects, check if there is a PhysicsRaycaster or if the library will add one
+                    // Actually, Click.WorldObject adds one if missing, so we're good there.
+                }
+
+                return null;
             }
 
             private static async Task DispatchIntent(string intent, GameObject target)
@@ -144,10 +186,6 @@ namespace RealPlayTester.Core
                         await Mouse.ClickObject(target);
                         break;
                 }
-
-                // NEW: MEGA_010 heuristic invocation if standard events didn't trigger everything
-                // Or rather, always try to invoke OnClick if it exists, to support non-event-system components.
-                InvokeHeuristicMethod(target, "OnClick");
             }
 
             private static void InvokeHeuristicMethod(GameObject target, string methodName)
@@ -156,10 +194,22 @@ namespace RealPlayTester.Core
                 foreach (var c in comps)
                 {
                     if (c == null) continue;
-                    var method = c.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                    var type = c.GetType();
+                    
+                    // Try Method
+                    var method = type.GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
                     if (method != null && method.GetParameters().Length == 0)
                     {
                         method.Invoke(c, null);
+                        continue;
+                    }
+
+                    // Try UnityEvent property (e.g. onClick)
+                    var prop = type.GetProperty(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                    if (prop != null && typeof(UnityEngine.Events.UnityEvent).IsAssignableFrom(prop.PropertyType))
+                    {
+                        var unityEvent = prop.GetValue(c) as UnityEngine.Events.UnityEvent;
+                        unityEvent?.Invoke();
                     }
                 }
             }

@@ -29,17 +29,9 @@ namespace RealPlayTester.Input
             // ADDITIONAL CHECK: Is it actually initialized?
             if (s_isInputSystemActive.Value)
             {
-                var settingsProp = inputSystemType.GetProperty("settings", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-                if (settingsProp != null && settingsProp.GetValue(null) == null)
-                {
-                    // Input system is enabled but not initialized or no settings found
-                    s_isInputSystemActive = false;
-                }
-            }
-
-            if (!s_isInputSystemActive.Value)
-            {
-                Debug.LogWarning("[SimulatedInputGuard] Input System is enabled in project settings but not available or initialized. Using legacy input fallback.");
+                // In batchmode/tests, settings might be null initially, 
+                // but we SHOULD NOT fall back to legacy if package is present.
+                // var settingsProp = inputSystemType.GetProperty("settings", ...);
             }
 #else
             s_isInputSystemActive = false;

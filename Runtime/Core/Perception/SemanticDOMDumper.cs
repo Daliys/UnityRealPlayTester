@@ -62,7 +62,7 @@ namespace RealPlayTester.Core.Perception
             if (!go.activeInHierarchy) return null;
 
             // M002: Hard depth limit to prevent StackOverflow
-            if (depth > 50) return null;
+            if (depth > 512) return null;
 
             bool isVisible = !viewportFilter || IsVisibleInViewport(go, planes);
             
@@ -155,7 +155,14 @@ namespace RealPlayTester.Core.Perception
             }
 
             var renderer = go.GetComponent<Renderer>();
-            return renderer != null && planes != null && GeometryUtility.TestPlanesAABB(planes, renderer.bounds);
+            if (renderer != null)
+            {
+                return planes != null && GeometryUtility.TestPlanesAABB(planes, renderer.bounds);
+            }
+
+            // M007: If it has neither RT nor Renderer, it's a logical object.
+            // We should NOT prune it if it's top-level or has interesting components.
+            return true;
         }
 
         private static bool IsInteractable(GameObject go)

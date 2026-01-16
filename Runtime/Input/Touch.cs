@@ -85,42 +85,37 @@ namespace RealPlayTester.Input
         private static async Task SimulateTouch(GameObject target, Vector2 screenPos, TouchPhase phase, int pointerId = 0)
         {
             if (target == null) return;
-
             var es = RealInputUtility.EnsureEventSystem();
-            // MULTI-TOUCH FIX: Use dedicated data for touch to avoid pooled data corruption
-            var data = new PointerEventData(es); 
-            data.pointerId = pointerId;
-            data.position = screenPos;
-            data.button = PointerEventData.InputButton.Left;
+            var data = new PointerEventData(es) { pointerId = pointerId, position = screenPos, button = PointerEventData.InputButton.Left };
             
+            RealInputUtility.UpdatePointerPosition(pointerId, screenPos);
             var results = RealInputUtility.Raycasts(data);
-            if (results.Count > 0)
-            {
-                data.pointerPressRaycast = results[0];
-                data.pointerCurrentRaycast = results[0];
-            }
+            if (results.Count > 0) { data.pointerPressRaycast = results[0]; data.pointerCurrentRaycast = results[0]; }
 
-            if (phase == TouchPhase.Began)
-            {
-                data.pointerPress = target;
-                data.rawPointerPress = target;
-
-                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerEnterHandler);
-                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerDownHandler);
-                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.initializePotentialDrag);
-                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.beginDragHandler);
-            }
-            else if (phase == TouchPhase.Ended)
-            {
-                data.pointerPress = target; 
-                data.rawPointerPress = target;
-                
-                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.endDragHandler);
-                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerUpHandler);
-                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerClickHandler);
-            }
+            if (phase == TouchPhase.Began) HandleTouchBegan(target, data);
+            else if (phase == TouchPhase.Ended) HandleTouchEnded(target, data, pointerId);
 
             await Task.Yield();
+        }
+
+        private static void HandleTouchBegan(GameObject target, PointerEventData data)
+        {
+            data.pointerPress = target;
+            data.rawPointerPress = target;
+            ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerEnterHandler);
+            ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.initializePotentialDrag);
+            ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.beginDragHandler);
+        }
+
+        private static void HandleTouchEnded(GameObject target, PointerEventData data, int pointerId)
+        {
+            data.pointerPress = target; 
+            data.rawPointerPress = target;
+            ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.endDragHandler);
+            ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerUpHandler);
+            ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.pointerClickHandler);
+            RealInputUtility.RemovePointer(pointerId);
         }
 
         private static async Task SimulateSwipeMove(GameObject target, Vector2 from, Vector2 to, float duration)
@@ -128,25 +123,28 @@ namespace RealPlayTester.Input
             if (target == null) return;
 
             var es = RealInputUtility.EnsureEventSystem();
-            var data = new PointerEventData(es);
-            data.pointerId = 0;
-            data.button = PointerEventData.InputButton.Left;
-            data.pointerPress = target; 
-            data.pointerDrag = target;
+            var data = new PointerEventData(es) { pointerId = 0, button = PointerEventData.InputButton.Left, pointerPress = target, pointerDrag = target };
 
             float elapsed = 0f;
-            while (elapsed < duration)
+            try
             {
-                float delta = Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
-                elapsed += delta;
-                float t = duration > 0f ? Mathf.Clamp01(elapsed / duration) : 1f;
-                data.position = Vector2.Lerp(from, to, t);
-                RealInputUtility.SimulateMouseMove(data.position);
-                
-                ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.dragHandler);
-                await Task.Yield();
+                while (elapsed < duration)
+                {
+                    RealPlayExecutionContext.Token.ThrowIfCancellationRequested();
+                    float delta = Time.unscaledDeltaTime;
+                    elapsed += delta;
+                    float t = duration > 0f ? Mathf.Clamp01(elapsed / duration) : 1f;
+                    data.position = Vector2.Lerp(from, to, t);
+                    RealInputUtility.SimulateMouseMove(data.position);
+                    
+                    ExecuteEvents.ExecuteHierarchy(target, data, ExecuteEvents.dragHandler);
+                    await Task.Yield();
+                }
             }
-            RealInputUtility.SimulateMouseMove(to);
+            finally
+            {
+                RealInputUtility.SimulateMouseMove(to);
+            }
         }
 
         private struct PinchPoints { public Vector2 S1, S2, E1, E2; }
@@ -199,6 +197,10 @@ namespace RealPlayTester.Input
                 float t = ctx.duration > 0f ? Mathf.Clamp01(elapsed / ctx.duration) : 1f;
                 ctx.f1.position = Vector2.Lerp(ctx.pts.S1, ctx.pts.E1, t);
                 ctx.f2.position = Vector2.Lerp(ctx.pts.S2, ctx.pts.E2, t);
+
+                // M006: Update positions for VisualPointer to track both fingers
+                RealInputUtility.UpdatePointerPosition(0, ctx.f1.position);
+                RealInputUtility.UpdatePointerPosition(1, ctx.f2.position);
 
                 if (ctx.targets.T1 != null) ExecuteEvents.Execute(ctx.targets.T1, ctx.f1, ExecuteEvents.dragHandler);
                 if (ctx.targets.T2 != null) ExecuteEvents.Execute(ctx.targets.T2, ctx.f2, ExecuteEvents.dragHandler);

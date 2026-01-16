@@ -68,16 +68,22 @@ namespace RealPlayTester.Utilities
             RealPlayLog.Info($"{name} = {value}");
         }
 
+        private static Canvas _markerCanvas;
+        private static void EnsureMarkerCanvas()
+        {
+            if (_markerCanvas != null) return;
+            var go = new GameObject("RealPlayTester_MarkerCanvas", typeof(Canvas), typeof(CanvasScaler));
+            _markerCanvas = go.GetComponent<Canvas>();
+            _markerCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _markerCanvas.sortingOrder = 32766;
+            Object.DontDestroyOnLoad(go);
+        }
+
         private static System.Collections.IEnumerator ShowMarkerRoutine(Vector2 screenPos, float duration)
         {
-            var canvas = new GameObject("RealPlayTester_ClickMarker", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            var c = canvas.GetComponent<Canvas>();
-            c.renderMode = RenderMode.ScreenSpaceOverlay;
-            c.sortingOrder = 32766;
-            canvas.hideFlags = HideFlags.HideAndDontSave;
-
+            EnsureMarkerCanvas();
             var marker = new GameObject("Marker", typeof(RectTransform), typeof(Image));
-            marker.transform.SetParent(canvas.transform, false);
+            marker.transform.SetParent(_markerCanvas.transform, false);
             var rect = marker.GetComponent<RectTransform>();
             rect.sizeDelta = new Vector2(20f, 20f);
             rect.position = screenPos;
@@ -94,7 +100,6 @@ namespace RealPlayTester.Utilities
             }
 
             Object.Destroy(marker);
-            Object.Destroy(canvas);
         }
 
         private static bool IsKeyPressed(KeyCode key)

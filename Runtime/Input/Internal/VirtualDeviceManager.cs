@@ -11,72 +11,76 @@ namespace RealPlayTester.Input.Internal
     /// </summary>
     internal static class VirtualDeviceManager
     {
-        public static object VirtualKeyboard;
-        public static object VirtualMouse;
-        public static object VirtualGamepad;
+        [ThreadStatic] private static object _threadKeyboard;
+        [ThreadStatic] private static object _threadMouse;
+        [ThreadStatic] private static object _threadGamepad;
+
+        public static object VirtualKeyboard { get => _threadKeyboard; set => _threadKeyboard = value; }
+        public static object VirtualMouse { get => _threadMouse; set => _threadMouse = value; }
+        public static object VirtualGamepad { get => _threadGamepad; set => _threadGamepad = value; }
 
         public static object EnsureKeyboard()
         {
             object keyboard = GetKeyboard();
-            if (keyboard != null) { VirtualKeyboard = keyboard; return keyboard; }
-            return CreateDevice("Keyboard", ref VirtualKeyboard, InputSystemReflector.Types.Keyboard);
+            if (keyboard != null) { _threadKeyboard = keyboard; return keyboard; }
+            return CreateDevice("Keyboard", ref _threadKeyboard, InputSystemReflector.Types.Keyboard);
         }
 
         public static object EnsureMouse()
         {
             object mouse = GetMouse();
-            if (mouse != null) { VirtualMouse = mouse; return mouse; }
-            return CreateDevice("Mouse", ref VirtualMouse, InputSystemReflector.Types.Mouse);
+            if (mouse != null) { _threadMouse = mouse; return mouse; }
+            return CreateDevice("Mouse", ref _threadMouse, InputSystemReflector.Types.Mouse);
         }
 
         public static object EnsureGamepad()
         {
             object gamepad = GetGamepad();
-            if (gamepad != null) { VirtualGamepad = gamepad; return gamepad; }
-            return CreateDevice("Gamepad", ref VirtualGamepad, InputSystemReflector.Types.Gamepad);
+            if (gamepad != null) { _threadGamepad = gamepad; return gamepad; }
+            return CreateDevice("Gamepad", ref _threadGamepad, InputSystemReflector.Types.Gamepad);
         }
 
         public static object GetKeyboard()
         {
-            if (CheckCachedDevice(VirtualKeyboard, "FastKeyboard", out var cached)) return cached;
-            VirtualKeyboard = FindDevice("Keyboard", "FastKeyboard") ?? VirtualKeyboard;
-            if (VirtualKeyboard != null && IsDeviceInSystem(VirtualKeyboard))
+            if (CheckCachedDevice(_threadKeyboard, "FastKeyboard", out var cached)) return cached;
+            _threadKeyboard = FindDevice("Keyboard", "FastKeyboard") ?? _threadKeyboard;
+            if (_threadKeyboard != null && IsDeviceInSystem(_threadKeyboard))
             {
-                EnableDevice(VirtualKeyboard);
-                return VirtualKeyboard;
+                EnableDevice(_threadKeyboard);
+                return _threadKeyboard;
             }
             return null;
         }
 
         public static object GetMouse()
         {
-            if (CheckCachedDevice(VirtualMouse, "FastMouse", out var cached)) return cached;
-            VirtualMouse = FindDevice("Mouse", "FastMouse") ?? VirtualMouse;
-            if (VirtualMouse != null && IsDeviceInSystem(VirtualMouse))
+            if (CheckCachedDevice(_threadMouse, "FastMouse", out var cached)) return cached;
+            _threadMouse = FindDevice("Mouse", "FastMouse") ?? _threadMouse;
+            if (_threadMouse != null && IsDeviceInSystem(_threadMouse))
             {
-                EnableDevice(VirtualMouse);
-                return VirtualMouse;
+                EnableDevice(_threadMouse);
+                return _threadMouse;
             }
             return null;
         }
 
         public static object GetGamepad()
         {
-            if (CheckCachedDevice(VirtualGamepad, "Gamepad", out var cached)) return cached;
-            VirtualGamepad = FindDevice("Gamepad", "Gamepad") ?? VirtualGamepad;
-            if (VirtualGamepad != null && IsDeviceInSystem(VirtualGamepad))
+            if (CheckCachedDevice(_threadGamepad, "Gamepad", out var cached)) return cached;
+            _threadGamepad = FindDevice("Gamepad", "Gamepad") ?? _threadGamepad;
+            if (_threadGamepad != null && IsDeviceInSystem(_threadGamepad))
             {
-                EnableDevice(VirtualGamepad);
-                return VirtualGamepad;
+                EnableDevice(_threadGamepad);
+                return _threadGamepad;
             }
             return null;
         }
 
         public static void CleanupDevices()
         {
-            RemoveDevice(ref VirtualKeyboard);
-            RemoveDevice(ref VirtualMouse);
-            RemoveDevice(ref VirtualGamepad);
+            RemoveDevice(ref _threadKeyboard);
+            RemoveDevice(ref _threadMouse);
+            RemoveDevice(ref _threadGamepad);
         }
 
         private static void RemoveDevice(ref object device)

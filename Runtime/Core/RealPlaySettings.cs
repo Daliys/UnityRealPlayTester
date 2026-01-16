@@ -70,21 +70,28 @@ namespace RealPlayTester.Core
 
         /// <summary>If true, automatically learn navigation paths between game states during execution.</summary>
         public static bool EnableNavigationLearning = false;
+
+        /// <summary>If true, RealPlayTester will create a default EventSystem if none exists.</summary>
+        public static bool AutoCreateEventSystem = true;
  
         private static bool _isInitialized = false;
-        public static float OriginalFixedDeltaTime { get; private set; } = 0.02f;
+        internal static float OriginalFixedDeltaTime { get; private set; } = 0.02f;
  
         /// <summary>
         /// Initialize settings based on environment.
         /// </summary>
         public static void Initialize(bool force = false)
         {
+            if (!_isInitialized) OriginalFixedDeltaTime = Time.fixedDeltaTime;
             if (_isInitialized && !force) return;
             _isInitialized = true;
 
-            OriginalFixedDeltaTime = Time.fixedDeltaTime;
+            ApplyDefaults();
+            if (Application.isBatchMode) ApplyBatchmodeDefaults();
+        }
 
-            // Defaults
+        private static void ApplyDefaults()
+        {
             PreferredMode = PreferredInputMode.Auto;
             ShowVisualPointer = true;
             ShowVisualAnchors = false;
@@ -101,21 +108,18 @@ namespace RealPlayTester.Core
             IdleVelocityEpsilon = 0.05f;
             IgnoreLoopingAnimations = true;
             EnableNavigationLearning = false;
+            AutoCreateEventSystem = true;
+        }
 
-            if (Application.isBatchMode)
-            {
-                RealPlayTester.Utilities.PerformanceMonitor.IsEnabled = false;
-
-                // Sensible defaults for batchmode/CI
-                // Only set if they haven't been changed from their defaults
-                if (!ForceBatchmodeVisibility) ForceBatchmodeVisibility = true;
-                MirrorLogsToStdout = true;
-                EnableInputHeartbeat = true;
-                AutoSimulatePhysics2D = true;
-                AutoSimulatePhysics3D = true;
-                DisableLogStackTraces = true;
-                // M007: Do NOT force FilterDOMToViewport = true here as it blinds the AI to logical objects in CI.
-            }
+        private static void ApplyBatchmodeDefaults()
+        {
+            RealPlayTester.Utilities.PerformanceMonitor.IsEnabled = false;
+            if (!ForceBatchmodeVisibility) ForceBatchmodeVisibility = true;
+            MirrorLogsToStdout = true;
+            EnableInputHeartbeat = true;
+            AutoSimulatePhysics2D = true;
+            AutoSimulatePhysics3D = true;
+            DisableLogStackTraces = true;
         }
     }
 }

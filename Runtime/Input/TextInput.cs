@@ -15,6 +15,9 @@ namespace RealPlayTester.Input
     /// </summary>
     public static class TextInput
     {
+        private static System.Type _tmpInputFieldType;
+        private static System.Type GetCachedTMPInputFieldType() => _tmpInputFieldType ??= System.Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
+
         public static async Task Type(string text, float delayBetweenChars = 0.05f)
         {
             if (!RealPlayEnvironment.IsEnabled || string.IsNullOrEmpty(text)) return;
@@ -49,7 +52,7 @@ namespace RealPlayTester.Input
             if (input != null) { input.Select(); input.ActivateInputField(); } 
             else
             {
-                var tmpType = GetTMPInputFieldType();
+                var tmpType = GetCachedTMPInputFieldType();
                 var tmp = tmpType != null ? go.GetComponent(tmpType) : null;
                 if (tmp != null) { InvokeIfExists(tmp, "Select"); InvokeIfExists(tmp, "ActivateInputField"); }
             }
@@ -66,7 +69,7 @@ namespace RealPlayTester.Input
             }
             else
             {
-                var tmpType = GetTMPInputFieldType();
+                var tmpType = GetCachedTMPInputFieldType();
                 var tmpField = tmpType != null ? go.GetComponent(tmpType) : null;
                 if (tmpField != null && GetText(tmpField) != text)
                 {
@@ -148,7 +151,7 @@ namespace RealPlayTester.Input
             var anyInput = UnityEngine.Object.FindFirstObjectByType<InputField>();
             if (anyInput != null) return anyInput.gameObject;
 
-            var tmpType = GetTMPInputFieldType();
+            var tmpType = GetCachedTMPInputFieldType();
             if (tmpType != null)
             {
                 var tmpField = UnityEngine.Object.FindFirstObjectByType(tmpType);
@@ -177,7 +180,7 @@ namespace RealPlayTester.Input
 
         private static async Task ApplyToTMPField(GameObject target, char c)
         {
-            var tmpType = GetTMPInputFieldType();
+            var tmpType = GetCachedTMPInputFieldType();
             if (tmpType == null) return;
 
             var tmpField = target.GetComponent(tmpType);
@@ -201,8 +204,6 @@ namespace RealPlayTester.Input
             var prop = tmpField.GetType().GetProperty("characterLimit", BindingFlags.Public | BindingFlags.Instance);
             return (int)(prop?.GetValue(tmpField) ?? 0);
         }
-
-        private static System.Type GetTMPInputFieldType() => System.Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
 
         private static string GetText(object tmpField)
         {
@@ -228,7 +229,7 @@ namespace RealPlayTester.Input
                 return;
             }
 
-            var tmpTypeFallback = GetTMPInputFieldType();
+            var tmpTypeFallback = GetCachedTMPInputFieldType();
             if (tmpTypeFallback != null)
             {
                 var tmpField = UnityEngine.Object.FindFirstObjectByType(tmpTypeFallback);

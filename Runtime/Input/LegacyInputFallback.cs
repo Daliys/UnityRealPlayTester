@@ -46,15 +46,21 @@ namespace RealPlayTester.Input
                 if (IsSubmitKey(key)) ExecuteEvents.Execute<ISubmitHandler>(target, baseEvent, ExecuteEvents.submitHandler);
                 else if (IsCancelKey(key)) ExecuteEvents.Execute<ICancelHandler>(target, baseEvent, ExecuteEvents.cancelHandler);
                 else if (TryBuildMoveEvent(es, key, out var moveEvent)) ExecuteEvents.Execute<IMoveHandler>(target, moveEvent, ExecuteEvents.moveHandler);
+                else if (IsAlphanumeric(key)) ExecuteEvents.Execute<IUpdateSelectedHandler>(target, baseEvent, ExecuteEvents.updateSelectedHandler);
             }
 
             float elapsed = 0f;
             while (!upOnly && elapsed < duration)
             {
-                elapsed += Time.unscaledDeltaTime; // USE UNSCALED
+                elapsed += Time.unscaledDeltaTime; 
                 ExecuteEvents.Execute<IUpdateSelectedHandler>(target, baseEvent, ExecuteEvents.updateSelectedHandler);
                 yield return null;
             }
+        }
+
+        private static bool IsAlphanumeric(KeyCode key)
+        {
+            return (key >= KeyCode.A && key <= KeyCode.Z) || (key >= KeyCode.Alpha0 && key <= KeyCode.Alpha9);
         }
 
         private static bool TryBuildMoveEvent(EventSystem es, KeyCode key, out AxisEventData moveEvent)
