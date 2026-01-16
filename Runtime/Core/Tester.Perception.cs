@@ -20,20 +20,20 @@ namespace RealPlayTester.Core
             {
                 if (!RealPlayEnvironment.IsEnabled) return string.Empty;
                 var sb = new System.Text.StringBuilder();
-                var all = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+                var all = RealPlayTester.Input.SmartFind.FindAllInteractables();
+                
+                int id = 1; char series = 'A';
                 foreach (var go in all)
                 {
-                    if (!go.activeInHierarchy) continue;
                     var pos = RealInputUtility.GetScreenCenter(go);
                     if (screenRect.Contains(pos))
                     {
                         var role = SemanticProbe.GetRoleName(go);
-                        if (!string.IsNullOrEmpty(role))
-                        {
-                            if (sb.Length > 0) sb.Append(", ");
-                            sb.Append($"[{role}] {go.name}");
-                        }
+                        string visualId = $"#{series}{id}";
+                        if (sb.Length > 0) sb.Append(", ");
+                        sb.Append($"{visualId}: [{role}] {go.name}");
                     }
+                    if (++id > 9) { id = 1; series++; }
                 }
                 return sb.Length > 0 ? "Region contains: " + sb.ToString() : "Region is empty.";
             }
@@ -43,21 +43,17 @@ namespace RealPlayTester.Core
             {
                 if (!RealPlayEnvironment.IsEnabled) return string.Empty;
                 var sb = new System.Text.StringBuilder();
-                var all = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
-                int id = 0;
+                var all = RealPlayTester.Input.SmartFind.FindAllInteractables();
+                
+                int id = 1; char series = 'A';
                 foreach (var go in all)
                 {
-                    if (!go.activeInHierarchy) continue;
-                    
-                    // PERFORMANCE/ACCURACY FIX: Use centralized UI state monitor
-                    if (!RealPlayTester.UI.PanelStateMonitor.IsPanelReady(go)) continue;
-
                     var role = SemanticProbe.GetRoleName(go);
-                    if (string.IsNullOrEmpty(role) || role == "View") continue;
                     var pos = RealInputUtility.GetScreenCenter(go);
+                    string visualId = $"#{series}{id}";
                     if (sb.Length > 0) sb.Append(", ");
-                    sb.Append($"#A{id}: [{role}] {go.name} at ({Mathf.RoundToInt(pos.x)}, {Mathf.RoundToInt(pos.y)})");
-                    id++;
+                    sb.Append($"{visualId}: [{role}] {go.name} at ({Mathf.RoundToInt(pos.x)}, {Mathf.RoundToInt(pos.y)})");
+                    if (++id > 9) { id = 1; series++; }
                 }
                 return sb.Length > 0 ? "Interactables: " + sb.ToString() : "None found.";
             }

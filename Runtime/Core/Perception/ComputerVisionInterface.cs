@@ -3,6 +3,7 @@ using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using RealPlayTester.Input;
 
 namespace RealPlayTester.Core.Perception
 {
@@ -35,6 +36,11 @@ namespace RealPlayTester.Core.Perception
                 SaveTextureToDisk(tex, fileName);
                 UnityEngine.Object.DestroyImmediate(tex);
             }
+            else
+            {
+                Debug.LogWarning("[ComputerVision] No main camera found. Falling back to Mock DOM Render.");
+                GenerateMockSnapshotFromDOM(fileName, width, height);
+            }
             
             rt.Release();
             UnityEngine.Object.DestroyImmediate(rt);
@@ -57,7 +63,7 @@ namespace RealPlayTester.Core.Perception
             }
         }
 
-        internal static void GenerateMockSnapshotFromDOM(string fileName, int width, int height)
+        public static void GenerateMockSnapshotFromDOM(string fileName, int width, int height)
         {
             var tex = new Texture2D(width, height, TextureFormat.RGB24, false);
             ClearTexture(tex, Color.black);
@@ -96,7 +102,7 @@ namespace RealPlayTester.Core.Perception
             }
         }
 
-        internal static void DrawWireRect(Texture2D tex, Rect rect, Color color, int screenH)
+        public static void DrawWireRect(Texture2D tex, Rect rect, Color color, int screenH)
         {
             int xMin = Mathf.Clamp((int)rect.x, 0, tex.width - 1);
             int xMax = Mathf.Clamp((int)(rect.x + rect.width), 0, tex.width - 1);
@@ -115,7 +121,7 @@ namespace RealPlayTester.Core.Perception
             }
         }
 
-        internal static Color GetRoleColor(string role)
+        public static Color GetRoleColor(string role)
         {
             switch (role)
             {
@@ -132,7 +138,7 @@ namespace RealPlayTester.Core.Perception
             Camera cam = Camera.main;
             if (cam == null)
             {
-                Debug.LogError("[ComputerVision] No main camera found for snapshot.");
+                // Fallback handled by caller if this returns null
                 return null;
             }
 

@@ -32,7 +32,7 @@ namespace RealPlayTester.Core
             return map;
         }
 
-        private static void DrawBox(Texture2D tex, Rect rect, Color color)
+        internal static void DrawBox(Texture2D tex, Rect rect, Color color)
         {
             int xMin = Mathf.Clamp((int)rect.x, 0, tex.width - 1);
             int yMin = Mathf.Clamp((int)rect.y, 0, tex.height - 1);
@@ -43,7 +43,7 @@ namespace RealPlayTester.Core
             for (int y = yMin; y <= yMax; y++) { tex.SetPixel(xMin, y, color); tex.SetPixel(xMax, y, color); }
         }
 
-        private struct TextParams
+        internal struct TextParams
         {
             public Texture2D Tex;
             public int X;
@@ -53,7 +53,7 @@ namespace RealPlayTester.Core
             public int Scale;
         }
 
-        private static void DrawText(TextParams p)
+        internal static void DrawText(TextParams p)
         {
             int currentX = p.X;
             foreach (char c in p.Text)

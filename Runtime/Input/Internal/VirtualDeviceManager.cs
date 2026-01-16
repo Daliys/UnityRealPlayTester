@@ -9,7 +9,7 @@ namespace RealPlayTester.Input.Internal
     /// <summary>
     /// Internal manager for virtual simulation devices (Keyboard, Mouse, Gamepad).
     /// </summary>
-    internal static class VirtualDeviceManager
+    public static class VirtualDeviceManager
     {
         [ThreadStatic] private static object _threadKeyboard;
         [ThreadStatic] private static object _threadMouse;

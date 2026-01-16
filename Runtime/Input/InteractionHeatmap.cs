@@ -9,7 +9,7 @@ namespace RealPlayTester.Input
     /// Tracks all simulated interaction points and renders a heatmap.
     /// Useful for visualizing where AI agents or automated tests are focusing.
     /// </summary>
-    internal class InteractionHeatmap : MonoBehaviour
+    public class InteractionHeatmap : MonoBehaviour
     {
         private Canvas _canvas;
         private List<GameObject> _points = new List<GameObject>();

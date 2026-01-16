@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.5.2] - 2026-01-16
+### Structural Integrity & Unified Vision
+### Added
+- **Unified Spatial API**: Consolidated all screen-coordinate and bounding-box logic into `RealInputUtility.Coordinates.cs`. This ensures that the Semantic DOM, Computer Vision snapshots, and Interaction engine all share a single source of truth for object positioning.
+- **Headless Vision Fallback**: Enhanced `CaptureVisionSnapshot` to automatically detect missing cameras and fall back to high-fidelity "Mock DOM Rendering," ensuring CI stability.
+
+### Fixed
+- **Package Relocation**: Moved all internal verification tests to `Assets/UnityRealPlayTester/Tests/` to satisfy modular distribution requirements.
+- **API Visibility**: Increased visibility of internal drawing and device management helpers to allow robust external verification without breaking encapsulation.
+
 ## [2.5.1] - 2026-01-16
 ### AI-Native Intelligence
 ### Added

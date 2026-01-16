@@ -10,7 +10,6 @@ namespace RealPlayTester.Input
     public static partial class RealInputUtility
     {
         private static readonly Type InputSystemUIModuleType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
-        private static readonly Vector3[] WorldCornersCache = new Vector3[4];
         private static PointerEventData _pooledPointerData;
         private static Vector2? _lastSimulatedPosition;
         private static readonly Dictionary<int, Vector2> PointerPositions = new Dictionary<int, Vector2>();
@@ -162,50 +161,12 @@ namespace RealPlayTester.Input
 
         public static void SimulateDragging(bool dragging) => IsSimulatedDragging = dragging;
 
-        public static Vector2 GetScreenCenter(GameObject go, Camera camera = null, bool forceUpdateCanvas = true)
-        {
-            if (go == null) return LastSimulatedPosition;
-            if (go.transform is RectTransform rect) return GetUIScreenCenter(rect, camera, forceUpdateCanvas);
-            return GetWorldScreenCenter(go, camera);
-        }
-
         private static int _lastCanvasUpdateFrame = -1;
         public static void ThrottleCanvasUpdate()
         {
             if (Time.frameCount == _lastCanvasUpdateFrame) return;
             Canvas.ForceUpdateCanvases();
             _lastCanvasUpdateFrame = Time.frameCount;
-        }
-
-        private static Vector2 GetUIScreenCenter(RectTransform rect, Camera camera, bool forceUpdateCanvas)
-        {
-            if (forceUpdateCanvas) ThrottleCanvasUpdate();
-            var canvas = rect.GetComponentInParent<Canvas>();
-            rect.GetWorldCorners(WorldCornersCache);
-            var worldCenter = (WorldCornersCache[0] + WorldCornersCache[2]) * 0.5f;
-            if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay) return ClampToScreen(worldCenter);
-            var cam = camera ?? canvas?.worldCamera ?? GetCameraForObject(rect.gameObject);
-            return cam != null ? ClampToScreen(RectTransformUtility.WorldToScreenPoint(cam, worldCenter)) : ClampToScreen(worldCenter);
-        }
-
-        private static Vector2 GetWorldScreenCenter(GameObject go, Camera camera)
-        {
-            var cam = camera ?? GetCameraForObject(go);
-            if (cam != null)
-            {
-                var screenPoint = cam.WorldToScreenPoint(go.transform.position);
-                if (screenPoint.z >= 0) return ClampToScreen(screenPoint);
-            }
-            return LastSimulatedPosition;
-        }
-
-        private static Camera GetCameraForObject(GameObject go)
-        {
-            var canvas = go.GetComponentInParent<Canvas>();
-            if (canvas?.worldCamera != null) return canvas.worldCamera;
-            int layer = go.layer;
-            foreach (var cam in Camera.allCameras) if (cam.enabled && (cam.cullingMask & (1 << layer)) != 0) return cam;
-            return Camera.main ?? (Camera.allCamerasCount > 0 ? Camera.allCameras[0] : null);
         }
 
         public static GameObject FindFallbackInteractionTarget(Vector2 screenPosition)
