@@ -31,6 +31,10 @@ namespace RealPlayTester.Core.Perception
     {
         public static string Dump(bool? filterToViewport = null)
         {
+            // O016/O020: Force update once at start of dump to ensure layout accuracy 
+            // while preventing redundant updates during recursion.
+            RealPlayTester.Input.RealInputUtility.ThrottleCanvasUpdate();
+
             bool viewportFilter = filterToViewport ?? RealPlaySettings.FilterDOMToViewport;
             var root = new SemanticNode { Name = "Root", Role = "Universe", Active = true };
             Plane[] planes = (viewportFilter && Camera.main != null) ? GeometryUtility.CalculateFrustumPlanes(Camera.main) : null;
@@ -130,7 +134,7 @@ namespace RealPlayTester.Core.Perception
             // PERFORMANCE FIX: Only perform expensive checks for actionable objects
             if (node.Affordances.Count > 0 || node.Role == "Button" || node.Role == "Input")
             {
-                var occlusion = RealPlayOcclusionRaycaster.CheckOcclusion(go);
+                var occlusion = RealPlayOcclusionRaycaster.CheckOcclusion(go, false);
                 node.IsOccluded = occlusion.IsOccluded;
                 node.BlockingObject = occlusion.BlockingObjectName;
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.4.8] - 2026-01-16
+### Performance & Optimization
+### Fixed
+- **Redundant Canvas Updates (O016/O020)**: Refactored `SemanticDOMDumper` to use throttled updates. The UI layout is now updated exactly once at the start of a scan, eliminating hundreds of redundant calls during deep hierarchy traversal.
+- **Batchmode Pruning (M007)**: Ensured that logical objects (those without renderers or RectTransforms) are no longer pruned in batchmode, preserving the AI's "vision" of non-visual scene state.
+
 ## [2.4.7] - 2026-01-16
 ### Reliability & Extreme Scale
 ### Added
