@@ -85,10 +85,7 @@ namespace RealPlayTester.Input
             data.position = screenPos;
 
             var results = Raycasts(data, forceUpdateCanvas);
-            if (results.Count == 0) { Debug.Log($"[Occlusion] No hits at {screenPos}"); return false; }
-
-            // Debug logging for occlusion analysis
-            foreach(var r in results) if(r.gameObject != null) Debug.Log($"[Occlusion] Hit: {r.gameObject.name} (target={target.name})");
+            if (results.Count == 0) return false;
 
             GameObject firstVisibleHit = null;
             foreach (var res in results)

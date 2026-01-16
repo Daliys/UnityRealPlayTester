@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.4.7] - 2026-01-16
+### Reliability & Extreme Scale
+### Added
+- **Deep Hierarchy Support (M001/M002)**: Increased maximum hierarchy depth to **1024 levels** and improved serialization to prevent StackOverflow while maintaining performance.
+
+### Fixed
+- **Wait Scaled Performance (M019)**: Optimized the unscaled-time fallback in `WaitScaled` to use 100% real-time speed when paused, preventing automation from becoming unacceptably slow.
+- **Occlusion Detection Precision**: Improved raycast reliability in batchmode tests by ensuring correct camera context and disabling batchmode-only visibility overrides during verification.
+
 ## [2.4.6] - 2026-01-16
 ### Chaos-Proof Stabilization & AI-Native Lab
 ### Added

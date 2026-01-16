@@ -65,17 +65,24 @@ namespace RealPlayTester.Await
 
         private static async Task WaitScaled(float seconds, CancellationToken token)
         {
-            float elapsed = 0f;
-            while (elapsed < seconds)
+            float virtualElapsed = 0f;
+            float lastRealTime = Time.realtimeSinceStartup;
+
+            while (virtualElapsed < seconds)
             {
                 token.ThrowIfCancellationRequested();
                 RealPlayTester.Input.Internal.InputSimulator.UpdateInput();
                 await Task.Yield();
-                
-                // M019: Fallback to unscaled time if paused/slowed to prevent hangs
-                float delta = Time.deltaTime;
-                if (Time.timeScale < 0.01f) delta = Time.unscaledDeltaTime; 
-                elapsed += delta;
+
+                float currentRealTime = Time.realtimeSinceStartup;
+                float realDelta = currentRealTime - lastRealTime;
+                lastRealTime = currentRealTime;
+
+                float timeScale = Time.timeScale;
+                // M019: If paused or extremely slow, advance virtual time at unscaled speed
+                // to prevent automation hangs.
+                float effectiveDelta = timeScale > 0.01f ? (realDelta * timeScale) : realDelta;
+                virtualElapsed += effectiveDelta;
             }
         }
 

@@ -32,7 +32,7 @@ namespace RealPlayTester.Core.Perception
 
         private static void SerializeRecursive(SemanticNode node, StringBuilder sb, int indent)
         {
-            if (indent > 1024) return; // M002: Hard recursion limit
+            if (indent > 2048) return; // M002: Hard recursion limit
 
             string tab = GetIndent(indent);
             sb.AppendLine("{");
@@ -71,7 +71,7 @@ namespace RealPlayTester.Core.Perception
         private static void AppendChildrenJson(SemanticNode node, StringBuilder sb, int indent, string tab)
         {
             sb.AppendLine($"{tab}  \"Children\": [");
-            if (node.Children != null && node.Children.Count > 0 && indent < 1024)
+            if (node.Children != null && node.Children.Count > 0 && indent < 2048)
             {
                 for (int i = 0; i < node.Children.Count; i++)
                 {

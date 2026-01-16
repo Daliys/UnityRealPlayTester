@@ -62,7 +62,7 @@ namespace RealPlayTester.Core.Perception
             if (!go.activeInHierarchy) return null;
 
             // M002: Hard depth limit to prevent StackOverflow
-            if (depth > 512) return null;
+            if (depth > 1024) return null;
 
             bool isVisible = !viewportFilter || IsVisibleInViewport(go, planes);
             
