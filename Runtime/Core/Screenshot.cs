@@ -36,6 +36,25 @@ namespace RealPlayTester.Core
             return tex;
         }
 
+        public static void SaveHeatmapAsPNG(string testName)
+        {
+            if (!RealPlayEnvironment.IsEnabled) return;
+            var heatmap = RealPlayTesterHost.Instance.GetComponentInChildren<RealPlayTester.Input.InteractionHeatmap>();
+            if (heatmap == null) return;
+
+            string path = Path.Combine(RealPlayEnvironment.TestReportsPath, "Heatmaps", testName + "_Heatmap.png");
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            
+            // For now, we capture the full screen including the heatmap overlay
+            Texture2D tex = ScreenCapture.CaptureScreenshotAsTexture();
+            if (tex != null)
+            {
+                SaveTexture(tex, path);
+                UnityEngine.Object.Destroy(tex);
+                RealPlayLog.Info($"Heatmap saved to: {path}");
+            }
+        }
+
         internal static bool CompareToBaselineInternal(string testName, Rect? region, float tolerance = DefaultTolerance)
         {
             Texture2D actual = CaptureScreenshotWithRegion(region);

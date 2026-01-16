@@ -30,6 +30,7 @@ namespace RealPlayTester.Core.Perception
             Texture2D tex = RenderCameraToTexture(rt, width, height);
             if (tex != null)
             {
+                DrawAnnotationsInternal(tex);
                 DrawGrid(tex);
                 SaveTextureToDisk(tex, fileName);
                 UnityEngine.Object.DestroyImmediate(tex);
@@ -37,6 +38,23 @@ namespace RealPlayTester.Core.Perception
             
             rt.Release();
             UnityEngine.Object.DestroyImmediate(rt);
+        }
+
+        private static void DrawAnnotationsInternal(Texture2D tex)
+        {
+            var actionable = RealPlayTester.Input.SmartFind.FindAllInteractables();
+            int id = 1; char series = 'A';
+            foreach(var go in actionable)
+            {
+                if (go == null) continue;
+                Rect r = RealInputUtility.GetScreenRect(go);
+                if (r.width <= 0) continue;
+                
+                string label = $"#{series}{id}";
+                Screenshot.DrawBox(tex, r, Color.yellow);
+                Screenshot.DrawText(new Screenshot.TextParams { Tex = tex, X = (int)r.x, Y = (int)r.yMax, Text = label, Color = Color.red, Scale = 2 });
+                if (++id > 9) { id = 1; series++; }
+            }
         }
 
         internal static void GenerateMockSnapshotFromDOM(string fileName, int width, int height)

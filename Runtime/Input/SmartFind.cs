@@ -89,6 +89,21 @@ namespace RealPlayTester.Input
                                 .First().go;
         }
 
+        public static List<GameObject> FindAllInteractables()
+        {
+            var all = SceneCache.Instance.AllActiveObjects;
+            var interactables = new List<GameObject>();
+            foreach (var go in all)
+            {
+                if (go == null) continue;
+                var role = SemanticProbe.GetRoleName(go);
+                if (string.IsNullOrEmpty(role) || role == "View" || role == "Scene") continue;
+                if (!RealPlayTester.UI.PanelStateMonitor.IsPanelReady(go)) continue;
+                interactables.Add(go);
+            }
+            return interactables;
+        }
+
         private static float GetMatchScore(string name, string query)
         {
             if (string.Equals(name, query, StringComparison.OrdinalIgnoreCase)) return 5000f;

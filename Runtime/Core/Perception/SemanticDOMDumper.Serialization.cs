@@ -38,6 +38,8 @@ namespace RealPlayTester.Core.Perception
             sb.AppendLine("{");
             sb.AppendLine($"{tab}  \"Name\": \"{EscapeJson(node.Name)}\",");
             sb.AppendLine($"{tab}  \"Role\": \"{EscapeJson(node.Role)}\",");
+            sb.AppendLine($"{tab}  \"VisualID\": \"{EscapeJson(node.VisualID)}\",");
+            sb.AppendLine($"{tab}  \"Command\": \"{EscapeJson(node.Command)}\",");
             sb.AppendLine($"{tab}  \"Active\": {node.Active.ToString().ToLower()},");
             sb.AppendLine($"{tab}  \"Interactable\": {node.Interactable.ToString().ToLower()},");
             sb.AppendLine($"{tab}  \"ScreenRect\": {{ \"x\": {node.ScreenRect.x}, \"y\": {node.ScreenRect.y}, \"width\": {node.ScreenRect.width}, \"height\": {node.ScreenRect.height} }},");

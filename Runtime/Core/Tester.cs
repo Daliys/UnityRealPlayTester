@@ -97,6 +97,7 @@ namespace RealPlayTester.Core
             public static void Compare(string path, float threshold = 0.95f) { if (RealPlayEnvironment.IsEnabled) RealPlayTester.Assert.Capture.CompareToBaseline(path, threshold); }
             public static void CaptureAndCompare(string testName) { if (RealPlayEnvironment.IsEnabled) RealPlayTester.Core.Screenshot.CaptureAndCompare(testName); }
             public static void CaptureAndCompareRegion(string testName, Rect region) { if (RealPlayEnvironment.IsEnabled) RealPlayTester.Core.Screenshot.CaptureAndCompareRegion(testName, region); }
+            public static void SaveHeatmap(string testName) { if (RealPlayEnvironment.IsEnabled) RealPlayTester.Core.Screenshot.SaveHeatmapAsPNG(testName); }
             public static Texture2D CaptureWithAnnotations(List<GameObject> targets, out Dictionary<string, string> labelMap)
             {
                 if (RealPlayEnvironment.IsEnabled) return RealPlayTester.Core.Screenshot.CaptureWithAnnotations(targets, out labelMap);

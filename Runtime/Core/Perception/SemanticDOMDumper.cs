@@ -13,6 +13,8 @@ namespace RealPlayTester.Core.Perception
     {
         public string Name;
         public string Role;
+        public string VisualID; // NEW: Cross-modal stable ID (e.g. #A1)
+        public string Command;  // NEW: Copy-pasteable AI interaction hint
         public bool Active;
         public bool Interactable;
         public Rect ScreenRect;
@@ -29,8 +31,12 @@ namespace RealPlayTester.Core.Perception
 
     public static partial class RealPlaySemanticDOMDumper
     {
+        private static int _nextVisualId = 1;
+        private static char _nextVisualSeries = 'A';
+
         public static string Dump(bool? filterToViewport = null)
         {
+            _nextVisualId = 1; _nextVisualSeries = 'A'; // Reset series for each dump
             // O016/O020: Force update once at start of dump to ensure layout accuracy 
             // while preventing redundant updates during recursion.
             RealPlayTester.Input.RealInputUtility.ThrottleCanvasUpdate();
@@ -131,8 +137,19 @@ namespace RealPlayTester.Core.Perception
                 Affordances = GetAffordances(go)
             };
 
+            // Generate stable VisualID for actionable items
+            if (node.Interactable && (node.Affordances.Count > 0 || node.Role == "Button" || node.Role == "InputField"))
+            {
+                node.VisualID = $"#{_nextVisualSeries}{_nextVisualId}";
+                if (++_nextVisualId > 9) { _nextVisualId = 1; _nextVisualSeries++; }
+                
+                // AI interaction hint
+                string intent = node.Role == "InputField" ? "type" : "click";
+                node.Command = $"await Tester.Interaction.Perform(\"{intent}\", \"{node.Name}\")";
+            }
+
             // PERFORMANCE FIX: Only perform expensive checks for actionable objects
-            if (node.Affordances.Count > 0 || node.Role == "Button" || node.Role == "Input")
+            if (node.Affordances.Count > 0 || node.Role == "Button" || node.Role == "InputField")
             {
                 var occlusion = RealPlayOcclusionRaycaster.CheckOcclusion(go, false);
                 node.IsOccluded = occlusion.IsOccluded;
