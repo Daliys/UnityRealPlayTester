@@ -24,7 +24,7 @@ namespace RealPlayTester.Core
         /// <summary>
         /// High-level interaction sequences and semantic helpers.
         /// </summary>
-        public static class Advanced
+        public static partial class Advanced
         {
             public static Task Drag(Vector2 from, Vector2 to, float duration = 0.5f) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Drag.FromTo(from, to, duration) : Task.CompletedTask;
             public static Task ScrollToBottom(ScrollRect scroll, float duration = 0.5f) => RealPlayEnvironment.IsEnabled ? RealPlayTester.Input.Scroll.ToBottom(scroll, duration) : Task.CompletedTask;

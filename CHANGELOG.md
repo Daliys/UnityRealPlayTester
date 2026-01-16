@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.4.9] - 2026-01-16
+### Autonomous Testing
+### Added
+- **Chaos Monkey Mode**: Introduced `Tester.Advanced.StartChaosMonkey(duration)` for automated endurance testing. The monkey performs random valid interactions (clicks, moves, drags) on all discoverable and interactable UI and world objects to uncover edge-case crashes and state leaks.
+- **Monkey Control API**: Added `Tester.Advanced.StopChaosMonkey()` for manual termination of the autonomous agent.
+
 ## [2.4.8] - 2026-01-16
 ### Performance & Optimization
 ### Fixed
