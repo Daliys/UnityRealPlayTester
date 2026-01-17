@@ -57,6 +57,7 @@
 - **Vision-Language Mapping**: Every interactable object in the Semantic DOM now includes a `VisualID` (e.g., `#A1`) that matches labels drawn on annotated screenshots. This enables Vision-Language Models (VLMs) to align visual features with structured data.
 - **Command Hinting**: JSON DOM nodes now include a `Command` field containing ready-to-use API snippets (e.g., `"Command": "click('RandomButton')"`), reducing the cognitive load for autonomous agents.
 - **Annotated AI Screenshots**: Refactored `CaptureWithAnnotations` to provide high-contrast, scale-aware labeling for multi-resolution support.
+- **Heatmap Export**: Added `Tester.Screenshot.SaveHeatmap(testName)` to visualize interaction density for AI training and debugging.
 
 ## [2.5.0] - 2026-01-16
 ### Autonomous "Monkey" Era
@@ -69,6 +70,12 @@
 - **High-Frequency Stability**: Improved the library's ability to handle >100 interactions per second without EventSystem deadlock.
 
 ## [2.4.9] - 2026-01-16
+### Autonomous Testing
+### Added
+- **Chaos Monkey Mode**: Introduced `Tester.Advanced.StartChaosMonkey(duration)` for automated endurance testing. The monkey performs random valid interactions (clicks, moves, drags) on all discoverable and interactable UI and world objects to uncover edge-case crashes and state leaks.
+- **Monkey Control API**: Added `Tester.Advanced.StopChaosMonkey()` for manual termination of the autonomous agent.
+
+## [2.4.8] - 2026-01-16
 ### Performance & Optimization
 ### Fixed
 - **Redundant Canvas Updates (O016/O020)**: Refactored `SemanticDOMDumper` to use throttled updates. The UI layout is now updated exactly once at the start of a scan, eliminating hundreds of redundant calls during deep hierarchy traversal.
@@ -153,6 +160,10 @@
 ## [2.4.0] - 2026-01-15
 ### Hardening & Optimization
 ### Added
+- **Game of Life Demo**: Added a complete "Game of Life" sample project under `Assets/GameOfLife` to demonstrate complex UI interactions and state validation using MVVM.
+- **Integration Test Suite**: Added `GameOfLifeIntegrationTests` to verify `RealPlayTester` behavior in a full game loop.
+- **Stress Tests**: Added rapid clicking, massive typing, and large-scale state captures to verify library robustness.
+- **Editor Tooling**: Added `RealPlayRunner` and `SceneGenerator` for automated environment setup.
 - **Hierarchy Optimization Engine**: Introduced `HierarchyHelpers` to intelligently group repetitive sibling objects (tiles, grid cells, list items) in both JSON and Text dumps, significantly reducing token usage for AI agents.
 - **Enhanced Perception Facade**: Exposed `PreferredMode` and `CollapseRepetitiveSiblings` in `Tester.Settings` for easier runtime configuration of agent "vision".
 
