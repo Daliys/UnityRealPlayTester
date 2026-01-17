@@ -19,8 +19,11 @@ namespace RealPlayTester.Input
         public static List<RaycastResult> Raycasts(PointerEventData data, bool forceUpdateCanvas = true)
         {
             RaycastCache.Clear();
-            if (forceUpdateCanvas) Canvas.ForceUpdateCanvases();
-            var es = EventSystem.current ?? EnsureEventSystem();
+            var es = EventSystem.current;
+            if (es == null) es = EnsureEventSystem();
+            if (es == null) return RaycastCache;
+
+            if (forceUpdateCanvas) ThrottleCanvasUpdate();
             es.RaycastAll(data, RaycastCache);
             if (RaycastCache.Count == 0 && (Application.isBatchMode || Tester.Settings.ForceBatchmodeVisibility))
                 ManualRaycast(data, RaycastCache);
@@ -108,7 +111,7 @@ namespace RealPlayTester.Input
             return true;
         }
 
-        private static bool IsActuallyVisible(GameObject go)
+        internal static bool IsActuallyVisible(GameObject go)
         {
             // Check CanvasGroup alpha in parent chain
             var groups = go.GetComponentsInParent<CanvasGroup>();

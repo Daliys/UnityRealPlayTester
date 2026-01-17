@@ -26,8 +26,8 @@ namespace RealPlayTester.Core
             if (UnityEditor.SessionState.GetBool(Key_IsRunning, false))
             {
                 string testName = UnityEditor.SessionState.GetString(Key_LastTest, "Unknown");
-                RealPlayLog.Error("[RECOVERY] Test '" + testName + "' was INTERRUPTED by an Assembly Reload. Tasks were aborted.");
                 UnityEditor.SessionState.SetBool(Key_IsRunning, false);
+                RealPlayLog.Warn("[RECOVERY] Test '" + testName + "' was INTERRUPTED by an Assembly Reload. Tasks were aborted.");
             }
 #endif
         }

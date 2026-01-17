@@ -79,6 +79,12 @@ namespace RealPlayTester.Core
         /// <summary>
         /// Initialize settings based on environment.
         /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            _isInitialized = false;
+        }
+
         public static void Initialize(bool force = false)
         {
             if (!_isInitialized) OriginalFixedDeltaTime = Time.fixedDeltaTime;

@@ -102,6 +102,7 @@ namespace RealPlayTester.Tests.Verification
 
             for(int i = 0; i < 5; i++) await Tester.Interaction.Perform("Select", go);
 
+            TestRunContextTracker.ForceWriteSnapshot();
             string jsonPath = Path.Combine(RealPlayEnvironment.TestReportsPath, "current-test-context.json");
             string json = File.ReadAllText(jsonPath);
             NUnitAssert.IsTrue(json.Contains("repeats"), "Blocked interaction logs should be deduplicated");

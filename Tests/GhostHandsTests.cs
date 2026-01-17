@@ -46,6 +46,7 @@ namespace RealPlayTester.Tests.Verification
             RealPlaySettings.PreferredMode = PreferredInputMode.Mouse;
             await Tester.Interaction.Perform("Select", "TestButton");
             
+            TestRunContextTracker.ForceWriteSnapshot();
             string md = GetContextMarkdown();
             NUnitAssert.IsTrue(md.Contains("Clicking object: TestButton"), "Should have used Mouse simulation");
 
@@ -53,6 +54,7 @@ namespace RealPlayTester.Tests.Verification
             RealPlaySettings.PreferredMode = PreferredInputMode.Gamepad;
             await Tester.Interaction.Perform("Select", "TestButton");
             
+            TestRunContextTracker.ForceWriteSnapshot();
             md = GetContextMarkdown();
             NUnitAssert.IsTrue(md.Contains("Gamepad: Press South"), "Should have used Gamepad simulation");
         });
@@ -63,6 +65,7 @@ namespace RealPlayTester.Tests.Verification
             RealPlaySettings.PreferredMode = PreferredInputMode.Touch;
             await Tester.Interaction.Perform("Select", "TestButton");
             
+            TestRunContextTracker.ForceWriteSnapshot();
             string md = GetContextMarkdown();
             NUnitAssert.IsTrue(md.Contains("Tap at"), "Should have used Touch simulation");
         });

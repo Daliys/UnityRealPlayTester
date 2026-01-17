@@ -54,7 +54,15 @@ namespace RealPlayTester.Diagnostics
         public object SyncLock => _collectionLock;
 
         public void AddLog(LogEntry log) { lock(_collectionLock) _logs.Add(log); }
-        public void AddBreadcrumb(Breadcrumb crumb) { lock(_collectionLock) _breadcrumbs.Add(crumb); }
+        public void AddBreadcrumb(Breadcrumb crumb) 
+        { 
+            lock(_collectionLock) 
+            {
+                // PERFORMANCE: Cap breadcrumbs to prevent memory exhaustion in infinite loops
+                if (_breadcrumbs.Count >= 2000) _breadcrumbs.RemoveAt(0);
+                _breadcrumbs.Add(crumb); 
+            }
+        }
         public int GetLogCount() { lock(_collectionLock) return _logs.Count; }
         public LogEntry GetLogAt(int index) { lock(_collectionLock) return (index >= 0 && index < _logs.Count) ? _logs[index] : null; }
 
@@ -219,65 +227,33 @@ namespace RealPlayTester.Diagnostics
         private string EscapeJson(string str)
         {
             if (string.IsNullOrEmpty(str)) return "";
-            return str.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
-        }
-    }
+            
+            // OPTIMIZATION: Check if escaping is actually needed to avoid allocations
+            bool needsEscape = false;
+            foreach (char c in str)
+            {
+                if (c == '\\' || c == '\"' || c == '\n' || c == '\r' || c == '\t')
+                {
+                    needsEscape = true;
+                    break;
+                }
+            }
+            if (!needsEscape) return str;
 
-    /// <summary>
-    /// A single high-level event in the test timeline.
-    /// </summary>
-    public class Breadcrumb
-    {
-        public int Frame { get; set; }
-        public float Timestamp { get; set; }
-        public string Type { get; set; }
-        public string Message { get; set; }
-
-        public Breadcrumb(string type, string message)
-        {
-            try { Frame = UnityEngine.Time.frameCount; Timestamp = UnityEngine.Time.time; } catch { }
-            Type = type;
-            Message = message;
-        }
-    }
-
-    /// <summary>
-    /// A single log entry in the unified diagnostic stream.
-    /// </summary>
-    public class LogEntry
-    {
-        public int Frame { get; set; }
-        public float Timestamp { get; set; }
-        public string Type { get; set; }
-        public string Message { get; set; }
-        public string StackTrace { get; set; }
-        public LogType Severity { get; set; }
-        public int RepeatCount { get; set; } = 1;
-
-        public LogEntry(string type, string message, string stackTrace = "", LogType severity = LogType.Log)
-        {
-            try { Frame = UnityEngine.Time.frameCount; Timestamp = UnityEngine.Time.time; } catch { }
-            Type = type;
-            Message = message;
-            StackTrace = stackTrace;
-            Severity = severity;
-        }
-    }
-
-    /// <summary>
-    /// Represents a building placement attempt for diagnostics.
-    /// </summary>
-    public class PlacementAttempt
-    {
-        public Vector2Int Position { get; set; }
-        public string DefinitionId { get; set; }
-        public string Result { get; set; }
-
-        public PlacementAttempt(Vector2Int position, string definitionId, string result)
-        {
-            Position = position;
-            DefinitionId = definitionId;
-            Result = result;
+            var sb = new StringBuilder(str.Length + 16);
+            foreach (char c in str)
+            {
+                switch (c)
+                {
+                    case '\\': sb.Append("\\\\"); break;
+                    case '\"': sb.Append("\\\""); break;
+                    case '\n': sb.Append("\\n"); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\t': sb.Append("\\t"); break;
+                    default: sb.Append(c); break;
+                }
+            }
+            return sb.ToString();
         }
     }
 }

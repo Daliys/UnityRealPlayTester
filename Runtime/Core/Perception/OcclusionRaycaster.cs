@@ -42,16 +42,14 @@ namespace RealPlayTester.Core.Perception
 
         private static bool IsOccludedByUI(GameObject target, bool forceUpdateCanvas)
         {
-            if (forceUpdateCanvas) Canvas.ForceUpdateCanvases();
+            if (forceUpdateCanvas) RealPlayTester.Input.RealInputUtility.ThrottleCanvasUpdate();
             
             // 1. Center Check (Primary)
-            var center = RealPlayTester.Input.RealInputUtility.GetScreenCenter(target, null, false); // Already updated above or handled by caller
+            var center = RealPlayTester.Input.RealInputUtility.GetScreenCenter(target, null, false);
             if (!RealPlayTester.Input.RealInputUtility.IsPointOccludedByUI(center, target, false))
                 return false;
 
             // 2. Corner/Surface Checks (Redundancy for partially obscured items)
-            // If the center is occluded, maybe some part of it isn't.
-            // We'll check 4 points near the corners.
             if (target.transform is RectTransform rt)
             {
                 if (IsSurfaceVisible(rt, target, forceUpdateCanvas)) return false;
@@ -60,36 +58,37 @@ namespace RealPlayTester.Core.Perception
             return true;
         }
 
+        private static readonly Vector3[] CornerBuffer = new Vector3[4];
+        private static readonly Vector2[] PointBuffer = new Vector2[4];
+
         private static bool IsSurfaceVisible(RectTransform rt, GameObject target, bool forceUpdateCanvas)
         {
-            Vector3[] corners = new Vector3[4];
-            rt.GetWorldCorners(corners);
+            rt.GetWorldCorners(CornerBuffer);
             
             var canvas = rt.GetComponentInParent<Canvas>();
             bool isOverlay = canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay;
             Camera cam = isOverlay ? null : (Camera.main ?? canvas?.worldCamera);
 
-            Vector2[] points = new Vector2[4];
             if (isOverlay)
             {
-                points[0] = Vector2.Lerp(corners[0], corners[2], 0.1f);
-                points[1] = Vector2.Lerp(corners[0], corners[2], 0.9f);
-                points[2] = new Vector2(Mathf.Lerp(corners[0].x, corners[2].x, 0.1f), Mathf.Lerp(corners[0].y, corners[2].y, 0.9f));
-                points[3] = new Vector2(Mathf.Lerp(corners[0].x, corners[2].x, 0.9f), Mathf.Lerp(corners[0].y, corners[2].y, 0.1f));
+                PointBuffer[0] = Vector2.Lerp(CornerBuffer[0], CornerBuffer[2], 0.1f);
+                PointBuffer[1] = Vector2.Lerp(CornerBuffer[0], CornerBuffer[2], 0.9f);
+                PointBuffer[2] = new Vector2(Mathf.Lerp(CornerBuffer[0].x, CornerBuffer[2].x, 0.1f), Mathf.Lerp(CornerBuffer[0].y, CornerBuffer[2].y, 0.9f));
+                PointBuffer[3] = new Vector2(Mathf.Lerp(CornerBuffer[0].x, CornerBuffer[2].x, 0.9f), Mathf.Lerp(CornerBuffer[0].y, CornerBuffer[2].y, 0.1f));
             }
             else if (cam != null)
             {
-                for (int i = 0; i < 4; i++) points[i] = cam.WorldToScreenPoint(corners[i]);
+                for (int i = 0; i < 4; i++) PointBuffer[i] = cam.WorldToScreenPoint(CornerBuffer[i]);
                 // Redefine to inset points after projection
-                Vector2 min = points[0], max = points[0];
-                foreach(var p in points) { min = Vector2.Min(min, p); max = Vector2.Max(max, p); }
-                points[0] = Vector2.Lerp(min, max, 0.1f);
-                points[1] = Vector2.Lerp(min, max, 0.9f);
-                points[2] = new Vector2(Mathf.Lerp(min.x, max.x, 0.1f), Mathf.Lerp(min.y, max.y, 0.9f));
-                points[3] = new Vector2(Mathf.Lerp(min.x, max.x, 0.9f), Mathf.Lerp(min.y, max.y, 0.1f));
+                Vector2 min = PointBuffer[0], max = PointBuffer[0];
+                foreach(var p in PointBuffer) { min = Vector2.Min(min, p); max = Vector2.Max(max, p); }
+                PointBuffer[0] = Vector2.Lerp(min, max, 0.1f);
+                PointBuffer[1] = Vector2.Lerp(min, max, 0.9f);
+                PointBuffer[2] = new Vector2(Mathf.Lerp(min.x, max.x, 0.1f), Mathf.Lerp(min.y, max.y, 0.9f));
+                PointBuffer[3] = new Vector2(Mathf.Lerp(min.x, max.x, 0.9f), Mathf.Lerp(min.y, max.y, 0.1f));
             }
 
-            foreach (var p in points)
+            foreach (var p in PointBuffer)
             {
                 if (!RealPlayTester.Input.RealInputUtility.IsPointOccludedByUI(p, target, false)) return true;
             }

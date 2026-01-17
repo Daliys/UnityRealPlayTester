@@ -154,10 +154,14 @@ namespace RealPlayTester.Core
 
         private static void FindOrCreateHostInstance()
         {
-            var existing = GameObject.Find(nameof(RealPlayTesterHost));
-            if (existing != null)
+            var all = UnityEngine.Object.FindObjectsByType<RealPlayTesterHost>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var h in all)
             {
-                _instance = existing.GetComponent<RealPlayTesterHost>();
+                if (h != null)
+                {
+                    _instance = h;
+                    break;
+                }
             }
 
             if (_instance == null)

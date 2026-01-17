@@ -29,10 +29,33 @@ namespace RealPlayTester.Core.Perception
         public List<SemanticNode> Children = new List<SemanticNode>();
     }
 
+    [AttributeUsage(AttributeTargets.Class)]
+    public class RealPlayRoleAttribute : Attribute
+    {
+        public string RoleName;
+        public RealPlayRoleAttribute(string roleName) => RoleName = roleName;
+    }
+
     public static partial class RealPlaySemanticDOMDumper
     {
         private static int _nextVisualId = 1;
         private static char _nextVisualSeries = 'A';
+
+        private static string GetID(GameObject go)
+        {
+            if (!IsInteractable(go)) return "";
+            string id = $"#{_nextVisualSeries}{_nextVisualId++}";
+            if (_nextVisualId > 9) { _nextVisualId = 1; _nextVisualSeries++; }
+            return id;
+        }
+
+        private static string GetCommand(GameObject go)
+        {
+            if (!IsInteractable(go)) return "";
+            var affordances = GetAffordances(go);
+            string action = affordances.Count > 0 ? affordances[0].ToLower() : "click";
+            return $"await Tester.Interaction.Perform(\"{action}\", \"{go.name}\")";
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStaticState()
@@ -86,12 +109,10 @@ namespace RealPlayTester.Core.Perception
             // Optimization: Skip deep children if parent is tiny or far outside viewport
             if (viewportFilter && !isVisible && t.childCount > 50) return null; 
 
-            var capturedChildren = CaptureChildren(t, viewportFilter, planes, isVisible, depth + 1);
-
-            if (viewportFilter && !isVisible && capturedChildren.Count == 0) return null;
-
             var node = CreateNode(go, t);
-            node.Children = capturedChildren;
+            node.Children = CaptureChildren(t, viewportFilter, planes, isVisible, depth + 1);
+
+            if (viewportFilter && !isVisible && node.Children.Count == 0) return null;
             return node;
         }
 
@@ -133,42 +154,58 @@ namespace RealPlayTester.Core.Perception
 
         private static SemanticNode CreateNode(GameObject go, Transform t)
         {
+            RealInputUtility.EnsureEventSystem();
             var node = new SemanticNode
             {
                 Name = go.name,
                 Role = SemanticProbe.GetRoleName(go),
-                Active = true,
-                Interactable = IsInteractable(go),
-                ScreenRect = GetScreenRect(go),
-                Text = GetTextValue(go),
-                ZDepth = t.position.z,
-                Affordances = GetAffordances(go)
+                VisualID = GetID(go),
+                Command = GetCommand(go),
+                Active = go.activeInHierarchy
             };
 
-            // Generate stable VisualID for actionable items
-            if (node.Interactable && (node.Affordances.Count > 0 || node.Role == "Button" || node.Role == "InputField"))
-            {
-                node.VisualID = $"#{_nextVisualSeries}{_nextVisualId}";
-                if (++_nextVisualId > 9) { _nextVisualId = 1; _nextVisualSeries++; }
-                
-                // AI interaction hint
-                string intent = node.Role == "InputField" ? "type" : "click";
-                node.Command = $"await Tester.Interaction.Perform(\"{intent}\", \"{node.Name}\")";
-            }
+            FillInteractivity(node, go);
+            FillGeometry(node, go, t);
+            return node;
+        }
 
-            // PERFORMANCE FIX: Only perform expensive checks for actionable objects
-            if (node.Affordances.Count > 0 || node.Role == "Button" || node.Role == "InputField")
+        private static void FillInteractivity(SemanticNode node, GameObject go)
+        {
+            node.Interactable = IsInteractable(go);
+            
+            // Check for physical occlusion
+            var occ = RealPlayOcclusionRaycaster.CheckOcclusion(go);
+            node.IsOccluded = occ.IsOccluded;
+            node.BlockingObject = occ.BlockingObjectName ?? "";
+            
+            // Check for logical blocking (custom component logic)
+            var logic = InteractionLogic.CheckLogicalInteractivity(go);
+            
+            // Combined logical blocked state
+            node.LogicalBlocked = logic.IsBlocked || (node.IsOccluded && !(go.transform is RectTransform));
+            
+            if (logic.IsBlocked)
             {
-                var occlusion = RealPlayOcclusionRaycaster.CheckOcclusion(go, false);
-                node.IsOccluded = occlusion.IsOccluded;
-                node.BlockingObject = occlusion.BlockingObjectName;
-
-                var logic = InteractionLogic.CheckLogicalInteractivity(go);
-                node.LogicalBlocked = logic.IsBlocked;
                 node.BlockedReason = logic.Reason;
             }
+            else if (node.IsOccluded && !(go.transform is RectTransform))
+            {
+                node.BlockedReason = "Occluded by " + node.BlockingObject;
+            }
+            else
+            {
+                node.BlockedReason = "";
+            }
 
-            return node;
+            node.Affordances = GetAffordances(go);
+        }
+
+        private static void FillGeometry(SemanticNode node, GameObject go, Transform t)
+        {
+            var rt = t as RectTransform;
+            if (rt != null) node.ScreenRect = RealInputUtility.GetScreenRect(go);
+            node.Text = GetTextValue(go);
+            node.ZDepth = t.position.z;
         }
 
         private static bool IsVisibleInViewport(GameObject go, Plane[] planes)

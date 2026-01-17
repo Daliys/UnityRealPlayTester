@@ -41,14 +41,14 @@ namespace RealPlayTester.Input
             var all = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             if (all.Length > 0)
             {
-                for (int i = 1; i < all.Length; i++) all[i].enabled = false;
+                foreach (var es in all) if (es.isActiveAndEnabled) { _cachedEventSystem = es; EventSystem.current = es; return es; }
                 _cachedEventSystem = ActivateEventSystem(all[0]);
                 return _cachedEventSystem;
             }
 
             if (!RealPlaySettings.AutoCreateEventSystem)
             {
-                RealPlayLog.Error("[RealPlayTester] CRITICAL: No EventSystem found in scene and AutoCreateEventSystem is disabled. UI interactions will fail.");
+                // Only log if we REALLY can't find one and can't create one
                 return null;
             }
 

@@ -47,6 +47,7 @@ namespace RealPlayTester.Diagnostics
             lock (Sync)
             {
                 _current = context;
+                _lastWriteTime = 0; // Force immediate write
             }
 
             WriteSnapshot(context);
@@ -67,6 +68,7 @@ namespace RealPlayTester.Diagnostics
             lock (Sync)
             {
                 context = _current;
+                _current = null; // Important: Clear current context
             }
 
             if (context == null)
@@ -75,7 +77,17 @@ namespace RealPlayTester.Diagnostics
             }
 
             context.Info.EndTime = DateTime.Now;
-            WriteSnapshot(context);
+            WriteSnapshot(context, true); // Force final write
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            lock (Sync)
+            {
+                _current = null;
+                _lastWriteTime = 0;
+            }
         }
 
         /// <summary>
@@ -130,6 +142,17 @@ namespace RealPlayTester.Diagnostics
             UpdateContext(ctx => ctx.AddBreadcrumb(new Breadcrumb(type, message)));
         }
 
+        /// <summary>
+        /// Forces an immediate write of the current context to disk, bypassing the throttle.
+        /// </summary>
+        public static void ForceWriteSnapshot()
+        {
+            lock (Sync)
+            {
+                if (_current != null) WriteSnapshot(_current, true);
+            }
+        }
+
         private static void UpdateContext(Action<TestRunContext> update)
         {
             if (!RealPlayEnvironment.IsEnabled)
@@ -145,12 +168,21 @@ namespace RealPlayTester.Diagnostics
             }
         }
 
-        private static void WriteSnapshot(TestRunContext context)
+        private static float _lastWriteTime;
+        private static void WriteSnapshot(TestRunContext context, bool force = false)
         {
             if (context == null)
             {
                 return;
             }
+
+            // Performance: Throttle disk writes to once per 2 seconds unless forced
+            float currentTime = Time.realtimeSinceStartup;
+            if (!force && currentTime - _lastWriteTime < 2.0f)
+            {
+                return;
+            }
+            _lastWriteTime = currentTime;
 
             try
             {

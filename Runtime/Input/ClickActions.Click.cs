@@ -129,28 +129,21 @@ namespace RealPlayTester.Input
         {
             if (preferred != null)
             {
-                if (results.Count > 0 && results[0].gameObject != preferred && !preferred.transform.IsChildOf(results[0].gameObject.transform))
+                var blocker = GetFirstVisibleBlocker(preferred, results);
+                if (blocker != null && blocker != preferred)
                 {
-                    // BLOCKER FIX: Ensure it's not a background 3D object falsely blocking UI
-                    bool isUi = preferred.GetComponent<RectTransform>() != null;
-                    bool blockerIsUi = results[0].gameObject.GetComponent<RectTransform>() != null;
-                    
-                    if (isUi && !blockerIsUi)
+                    if (IsActuallyBlocking(preferred, blocker))
                     {
-                        // UI takes priority over world objects
-                        return preferred;
+                        RealPlayLog.Warn($"[BLOCKER] '{preferred.name}' obscured by '{blocker.name}'. Redirecting click to blocker.");
+                        return blocker;
                     }
-
-                    RealPlayLog.Warn($"[BLOCKER] '{preferred.name}' obscured by '{results[0].gameObject.name}'. Redirecting click to blocker.");
-                    return results[0].gameObject;
                 }
                 return preferred;
             }
 
             foreach (var res in results)
             {
-                if (res.gameObject == null) continue;
-                if (ExecuteEvents.GetEventHandler<IPointerDownHandler>(res.gameObject) != null || ExecuteEvents.GetEventHandler<IPointerClickHandler>(res.gameObject) != null)
+                if (res.gameObject != null && (ExecuteEvents.GetEventHandler<IPointerDownHandler>(res.gameObject) != null || ExecuteEvents.GetEventHandler<IPointerClickHandler>(res.gameObject) != null))
                     return res.gameObject;
             }
 
@@ -164,6 +157,29 @@ namespace RealPlayTester.Input
             if (cam != null && RealInputUtility.TryRaycastWorld(cam, pos, out var hit)) return hit.collider.gameObject;
 
             return null;
+        }
+
+        private static GameObject GetFirstVisibleBlocker(GameObject preferred, System.Collections.Generic.List<RaycastResult> results)
+        {
+            foreach (var res in results)
+            {
+                if (res.gameObject == null) continue;
+                if (res.gameObject == preferred) return preferred;
+                if (RealInputUtility.IsActuallyVisible(res.gameObject)) return res.gameObject;
+            }
+            return null;
+        }
+
+        private static bool IsActuallyBlocking(GameObject preferred, GameObject blocker)
+        {
+            if (blocker.transform.IsChildOf(preferred.transform) || preferred.transform.IsChildOf(blocker.transform)) return false;
+            
+            bool isUi = preferred.GetComponent<RectTransform>() != null;
+            bool blockerIsUi = blocker.GetComponent<RectTransform>() != null;
+            
+            if (isUi && !blockerIsUi) return false; // UI takes priority over world objects
+            
+            return true;
         }
 
         private static void ExecuteClickEvents(GameObject target, PointerEventData data, Vector2 pos)

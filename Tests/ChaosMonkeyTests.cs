@@ -28,9 +28,9 @@ namespace RealPlayTester.Tests.Verification
 
             await Task.Yield();
 
-            // 2. Run Monkey for 2 seconds
-            Debug.Log("Starting Chaos Monkey for 2s...");
-            var monkeyTask = Tester.Advanced.StartChaosMonkey(2f, 0.1f);
+            // 2. Run Monkey for 10 seconds
+            Debug.Log("Starting Chaos Monkey for 10s...");
+            var monkeyTask = Tester.Advanced.StartChaosMonkey(10f, 0.01f);
             
             await monkeyTask;
 

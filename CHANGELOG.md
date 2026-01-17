@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.8.0] - 2026-01-17
+### Stability & Memory Optimization
+### Added
+- **Diagnostic I/O Throttling**: Implemented a 2-second cooldown for disk-based context snapshots. This eliminates the massive RAM spikes previously caused by redundant JSON serialization of the full test timeline during high-frequency events.
+- **Explicit Snapshot Control**: Added `TestRunContextTracker.ForceWriteSnapshot()` to allow tests to verify disk output without waiting for the throttle.
+- **Breadcrumb Cap**: Implemented a 2000-entry sliding window for breadcrumbs to prevent memory exhaustion during long-running endurance or stress tests.
+
+### Fixed
+- **Host Persistence Leak**: Resolved a bug where hidden `RealPlayTesterHost` instances could accumulate across scene loads, spawning redundant background coroutines and consuming cumulative memory.
+- **Log Double-Subscription**: Fixed a critical leak in `LogInterceptor` where static event handlers were re-subscribed during domain reloads, leading to exponential log processing.
+- **UI Hierarchy Interaction**: Refactored `ClickActions` to correctly identify nested UI elements (like labels or icons inside buttons). The engine now distinguishes between a "blocker" and a "child," ensuring clicks reach the intended button component.
+- **Invisible Blocker Suppression**: Occlusion detection now correctly ignores UI elements that are technically active but effectively invisible (alpha ~ 0).
+
+### Optimized
+- **Throttled Layout Updates**: Replaced direct `Canvas.ForceUpdateCanvases()` calls with a frame-aware throttle in the perception engine, significantly reducing GC pressure and frame spikes during semantic scans.
+- **String Allocation Reduction**: Optimized `EscapeJson` logic to avoid unnecessary string allocations when no escaping is required.
+- **Modular Data Models**: Refactored massive diagnostic classes into smaller, specialized files for better maintainability and reduced compilation overhead.
+
 ## [2.7.0] - 2026-01-17
 ### Recompilation Resilience & Session Persistence
 ### Added

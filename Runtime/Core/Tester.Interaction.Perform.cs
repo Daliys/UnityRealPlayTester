@@ -94,12 +94,26 @@ namespace RealPlayTester.Core
             private static bool IsInteractionBlocked(string intent, GameObject target)
             {
                 if (target == null) return false;
+
+                // 1. Explicit Affordance Validator (Highest priority)
                 var validator = target.GetComponent<IAffordanceValidator>();
                 if (validator != null && !validator.CanInteract(intent))
                 {
                     RealPlayLog.Warn($"[Interaction] Perform '{intent}' on '{target.name}' blocked: {validator.GetBlockReason()}");
                     return true;
                 }
+
+                // 2. Standard UI Interactability (CanvasGroup, etc)
+                if (target.GetComponent<RectTransform>() != null)
+                {
+                    if (!RealPlayTester.UI.PanelStateMonitor.IsPanelReady(target))
+                    {
+                        var state = RealPlayTester.UI.PanelStateMonitor.CheckPanelState(target);
+                        RealPlayLog.Warn($"[Interaction] Perform '{intent}' on '{target.name}' blocked by UI state: {state}");
+                        return true;
+                    }
+                }
+
                 return false;
             }
 
@@ -190,6 +204,9 @@ namespace RealPlayTester.Core
                         await Mouse.ClickObject(target);
                         break;
                 }
+
+                // HEURISTIC FALLBACK: If the object has non-standard click methods, invoke them
+                InvokeHeuristicMethod(target, "OnClick");
             }
 
             private static void InvokeHeuristicMethod(GameObject target, string methodName)

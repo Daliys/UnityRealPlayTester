@@ -14,6 +14,10 @@ namespace RealPlayTester.Diagnostics
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStaticState()
         {
+            if (_isSubscribed)
+            {
+                Application.logMessageReceivedThreaded -= HandleLog;
+            }
             _isSubscribed = false;
             _isProcessing = false;
             _lastMessage = null;

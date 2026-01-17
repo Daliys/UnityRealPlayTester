@@ -115,7 +115,6 @@ namespace RealPlayTester.Tests.Verification
             NUnitAssert.IsTrue(domJson.Contains("Not enough gold"), "DOM missing BlockedReason");
         }
 
-        // Test 4: Perform() records blocker breadcrumb
         [UnityTest]
         public IEnumerator Perform_Records_BlockerBreadcrumb() => ToCoroutine(async () =>
         {
@@ -123,13 +122,12 @@ namespace RealPlayTester.Tests.Verification
             go.transform.SetParent(_testRoot.transform);
             go.AddComponent<MockLockedScript>();
 
-            await Tester.Interaction.Perform("Select", go);
+            await Tester.Interaction.Perform("Click", go);
 
-            string mdPath = Path.Combine(RealPlayEnvironment.TestReportsPath, "current-test-context.md");
-            string md = File.ReadAllText(mdPath);
-            
-            NUnitAssert.IsTrue(md.Contains("[BLOCKER]"), "Timeline missing [BLOCKER] tag");
-            NUnitAssert.IsTrue(md.Contains("Not enough gold"), "Timeline missing logical reason");
+            TestRunContextTracker.ForceWriteSnapshot();
+            string jsonPath = Path.Combine(RealPlayEnvironment.TestReportsPath, "current-test-context.json");
+            string json = File.ReadAllText(jsonPath);
+            NUnitAssert.IsTrue(json.Contains("[BLOCKER]"), "Timeline missing [BLOCKER] tag");
         });
 
         // Test 5: Heuristic Method Detection

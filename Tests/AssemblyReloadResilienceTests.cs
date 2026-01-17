@@ -10,7 +10,7 @@ namespace RealPlayTester.Tests.Verification
     public class AssemblyReloadResilienceTests
     {
         [UnityTest]
-        public IEnumerator Reload_Interruption_Detected_On_Resume() => ToCoroutine(async () =>
+        public IEnumerator Reload_Interruption_Detected_On_Resume()
         {
 #if UNITY_EDITOR
             // 1. Setup 'Interrupted' state manually in SessionState
@@ -21,9 +21,8 @@ namespace RealPlayTester.Tests.Verification
             var runner = RealPlayTester.Core.TestRunner.Instance;
             var checkMethod = typeof(RealPlayTester.Core.TestRunner).GetMethod("CheckForInterruptedTest", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             
-            // We need a way to verify the error was logged. 
-            // In a unit test, we can use LogAssert.
-            UnityEngine.TestTools.LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("INTERRUPTED by an Assembly Reload"));
+            // We expect a warning log during TestRunner initialization
+            UnityEngine.TestTools.LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("INTERRUPTED by an Assembly Reload"));
             
             checkMethod.Invoke(runner, null);
 
@@ -32,8 +31,8 @@ namespace RealPlayTester.Tests.Verification
 #else
             NUnit.Framework.Assert.Pass("Not in Editor mode");
 #endif
-            await Task.Yield();
-        });
+            yield break;
+        }
 
         [UnityTest]
         public IEnumerator Lock_Assemblies_During_Click() => ToCoroutine(async () =>
