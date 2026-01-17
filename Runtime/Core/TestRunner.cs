@@ -15,7 +15,7 @@ namespace RealPlayTester.Core
     /// Discovers and runs all RealPlayTest assets. Triggered via F12 or -runRealTests CLI.
     /// Supports filtering, retries, JSON reporting, and progress callbacks.
     /// </summary>
-    public sealed partial class TestRunner : MonoBehaviour
+    public sealed partial class TestRunner : MonoBehaviour, ISerializationCallbackReceiver
     {
         private const float DefaultTimeoutSeconds = 120f;
         [SerializeField] private int maxRetries = 0;
@@ -24,9 +24,6 @@ namespace RealPlayTester.Core
         private static TestRunner _instance;
         public static TestRunner Instance => _instance;
         private List<string> _filterTags = new List<string>();
-
-        private void OnEnable() => RealPlayTester.Assert.LogAssert.StartListening();
-        private void OnDisable() => RealPlayTester.Assert.LogAssert.StopListening();
 
         /// <summary>Progress callback for each test completion.</summary>
         public event Action<TestProgressInfo> OnTestProgress;
@@ -46,7 +43,7 @@ namespace RealPlayTester.Core
             InputShim.InitializeDevices();
 
             var host = RealPlayTesterHost.Instance;
-            _instance = host.gameObject.AddComponent<TestRunner>();
+            if (_instance == null) _instance = host.gameObject.AddComponent<TestRunner>();
             _instance.HandleCommandLine();
         }
 

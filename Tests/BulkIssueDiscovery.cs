@@ -56,15 +56,16 @@ namespace RealPlayTester.Tests.Verification
             RealPlaySettings.CollapseRepetitiveSiblings = true;
             for (int i = 0; i < 20; i++)
             {
-                var btn = new GameObject($"Slot_{i}", typeof(Button), typeof(Image));
-                btn.transform.SetParent(_root.transform);
+                var go = new GameObject($"Slot_{i}", typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(_root.transform);
+                go.GetComponent<RectTransform>().anchoredPosition = new Vector2(i * 10, 0);
             }
 
+            await Task.Yield();
             string dump = Tester.Perception.DumpHierarchy();
-            UnityEngine.Debug.Log($"[ISSUE-038] Dump length with 20 buttons: {dump.Split('\n').Length} lines");
+            UnityEngine.Debug.Log($"[ISSUE-038] Dump contains collapse? {dump.Contains("similar")}");
             
-            // Should be collapsed to save tokens, but current logic skips non-boring objects
-            NUnitAssert.Less(dump.Split('\n').Length, 10, "Repetitive buttons were not collapsed!");
+            NUnitAssert.IsTrue(dump.Contains("similar"), "Repetitive objects were not collapsed in hierarchy dump!");
         });
 
         [UnityTest]

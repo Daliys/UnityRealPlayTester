@@ -24,11 +24,25 @@ namespace RealPlayTester.Input
 
             RealPlayLog.Info($"[INPUT] Type text: \"{text}\"");
 
+#if UNITY_EDITOR
+            bool wasLocked = false;
+            if (RealPlaySettings.LockAssembliesDuringInteraction)
+            {
+                UnityEditor.EditorApplication.LockReloadAssemblies();
+                wasLocked = true;
+            }
+            try {
+#endif
             foreach (char c in text)
             {
                 await TypeCharacter(c);
                 if (delayBetweenChars > 0f) await Wait.Seconds(delayBetweenChars, unscaled: true);
             }
+#if UNITY_EDITOR
+            } finally {
+                if (wasLocked) UnityEditor.EditorApplication.UnlockReloadAssemblies();
+            }
+#endif
         }
 
         public static async Task TypeIntoField(string fieldName, string text, float delayBetweenChars = 0.05f)

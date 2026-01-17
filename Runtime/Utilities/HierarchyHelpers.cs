@@ -68,19 +68,21 @@ namespace RealPlayTester.Utilities
 
         public static bool IsBoring(Transform t)
         {
-            // Objects with children are never boring
-            if (t.childCount > 0) return false;
+            var go = t.gameObject;
+            var components = go.GetComponents<Component>();
             
-            // Allow collapsing buttons if they are part of a large repetitive group
-            // We'll rely on GetRepetitiveGroupCount to decide.
-            
-            if (t.GetComponent<UnityEngine.UI.Text>() != null) return false;
-            if (t.GetComponent<UnityEngine.UI.Toggle>() != null) return false;
-            if (t.GetComponent<UnityEngine.UI.Slider>() != null) return false;
-            
-            var tmpType = System.Type.GetType("TMPro.TMP_Text, Unity.TextMeshPro");
-            if (tmpType != null && t.GetComponent(tmpType) != null) return false;
+            // Standard boring components are allowed
+            foreach (var comp in components)
+            {
+                if (comp == null || comp is Transform || comp is CanvasRenderer) continue;
+                if (comp is Graphic || comp is UnityEngine.UI.Text) continue;
+                
+                string typeName = comp.GetType().Name;
+                if (typeName == "TMP_Text" || typeName == "TextMeshProUGUI") continue;
 
+                // Any other custom logic makes it NOT boring
+                return false;
+            }
             return true;
         }
 

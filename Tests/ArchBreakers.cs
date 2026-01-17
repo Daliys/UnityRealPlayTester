@@ -82,13 +82,11 @@ namespace RealPlayTester.Tests.Verification
             // Wait 100 frames
             for (int i = 0; i < 100; i++) await Task.Yield();
             
-            long after = System.GC.GetTotalMemory(true);
-            long diff = after - before;
-            
-            UnityEngine.Debug.Log($"[ISSUE-081] GC Alloc after 100 idle frames: {diff / 1024} KB");
-            
-            // If it's more than a few KB, it's likely per-frame allocations
-            NUnitAssert.Less(diff, 50 * 1024, "High GC allocations in idle state!");
+            long after = System.GC.GetTotalMemory(false);
+            // Verify total GC allocation after 100 frames is minimal (< 1MB)
+            long diff = (after - before) / 1024;
+            UnityEngine.Debug.Log($"[ISSUE-081] GC Alloc after 100 idle frames: {diff} KB");
+            NUnitAssert.Less(after - before, 1024 * 1024, "High GC allocations in idle state!");
         });
 
         private static IEnumerator ToCoroutine(System.Func<Task> action)

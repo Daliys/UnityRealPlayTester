@@ -84,20 +84,34 @@ namespace RealPlayTester.Input
             var data = RealInputUtility.GetPooledPointerData(es);
             data.position = screenPosition;
             data.button = button;
-            RealInputUtility.SimulateMouseMove(screenPosition);
 
+#if UNITY_EDITOR
+            bool wasLocked = false;
+            if (RealPlaySettings.LockAssembliesDuringInteraction)
+            {
+                UnityEditor.EditorApplication.LockReloadAssemblies();
+                wasLocked = true;
+            }
+            try {
+#endif
+            await InternalPerformClick(screenPosition, preferredTarget, es, cam, data);
+#if UNITY_EDITOR
+            } finally {
+                if (wasLocked) UnityEditor.EditorApplication.UnlockReloadAssemblies();
+            }
+#endif
+        }
+
+        private static async Task InternalPerformClick(Vector2 screenPosition, GameObject preferredTarget, EventSystem es, Camera cam, PointerEventData data)
+        {
+            RealInputUtility.SimulateMouseMove(screenPosition);
             var results = RealInputUtility.Raycasts(data);
             GameObject target = FindClickTarget(screenPosition, preferredTarget, results, es, cam);
 
-            if (target == null)
-            {
-                LogClickFailure(screenPosition, results);
-                return;
-            }
+            if (target == null) { LogClickFailure(screenPosition, results); return; }
 
             ExecuteClickEvents(target, data, screenPosition);
             
-            // PERFORMANCE FIX: Just execute Up/Click immediately after Down if paused
             if (Time.timeScale < 0.01f)
             {
                 ExecuteEvents.Execute(target, data, ExecuteEvents.pointerUpHandler);

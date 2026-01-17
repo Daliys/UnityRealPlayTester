@@ -72,10 +72,9 @@ namespace RealPlayTester.Core
         public static bool EnableNavigationLearning = false;
 
         /// <summary>If true, RealPlayTester will create a default EventSystem if none exists.</summary>
-        public static bool AutoCreateEventSystem = true;
- 
-        private static bool _isInitialized = false;
-        internal static float OriginalFixedDeltaTime { get; private set; } = 0.02f;
+                        public static bool AutoCreateEventSystem = true;
+                        internal static bool LockAssembliesDuringInteraction = true; 
+                        private static bool _isInitialized = false;        internal static float OriginalFixedDeltaTime { get; private set; } = 0.02f;
  
         /// <summary>
         /// Initialize settings based on environment.

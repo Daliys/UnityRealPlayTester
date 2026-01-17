@@ -18,7 +18,7 @@ namespace RealPlayTester.Core
                 return;
             }
 
-            _running = true;
+            SetRunning(true, "FullSuite");
             _cts = new CancellationTokenSource();
 
             var tests = BuildTestCases(Discover());
@@ -32,7 +32,7 @@ namespace RealPlayTester.Core
                 results.Add(result);
             }
 
-            _running = false;
+            SetRunning(false);
             OnAllTestsCompleted?.Invoke(results);
             GenerateJSONReport(results);
 
@@ -61,6 +61,7 @@ namespace RealPlayTester.Core
 
         public async Task<TestResult> RunSingleTest(TestCaseDescriptor testCase, CancellationToken token)
         {
+            SetRunning(true, testCase.DisplayName);
             var context = TestRunContextTracker.BeginTest(testCase.DisplayName, UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
             var sw = System.Diagnostics.Stopwatch.StartNew();
             bool passed = false;
@@ -84,6 +85,7 @@ namespace RealPlayTester.Core
                 sw.Stop();
                 TestRunContextTracker.EndTest();
                 NotifyProgress(testCase, passed, attempt, (float)sw.Elapsed.TotalSeconds);
+                if (!_running) SetRunning(false); // Only clear if not in a full suite run
             }
 
             return CreateResult(testCase, passed, (float)sw.Elapsed.TotalSeconds, error);

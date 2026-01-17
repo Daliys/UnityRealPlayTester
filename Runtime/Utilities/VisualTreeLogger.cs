@@ -52,29 +52,27 @@ namespace RealPlayTester.Utilities
 
         private static void DumpRecursive(Transform t, StringBuilder sb, int depth, int maxDepth)
         {
-            if (depth > maxDepth)
-            {
-                sb.Append(' ', (depth + 1) * 2).AppendLine("... (max depth reached)");
-                return;
-            }
+            if (depth > maxDepth) return;
 
             for (int i = 0; i < t.childCount; i++)
             {
                 Transform child = t.GetChild(i);
-                
+                if (!child.gameObject.activeInHierarchy) continue;
+
                 if (RealPlaySettings.CollapseRepetitiveSiblings)
                 {
                     int groupCount = HierarchyHelpers.GetRepetitiveGroupCount(t, i);
                     if (groupCount > 5)
                     {
-                        sb.Append(' ', (depth + 1) * 2).AppendLine($"... ({groupCount} similar '{HierarchyHelpers.GetBaseName(child.name)}' objects)");
+                        string indent = new string(' ', depth * 2);
+                        sb.AppendLine($"{indent}[...] {groupCount} similar '{HierarchyHelpers.GetBaseName(child.name)}' objects");
                         i += groupCount - 1;
                         continue;
                     }
                 }
 
                 AppendObjectLine(sb, child.gameObject, depth);
-                if (child.childCount > 0) DumpRecursive(child, sb, depth + 1, maxDepth);
+                DumpRecursive(child, sb, depth + 1, maxDepth);
             }
         }
 

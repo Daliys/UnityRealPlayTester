@@ -12,6 +12,12 @@ namespace RealPlayTester.Await
     {
         private static int _lastHierarchyHash;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetSteadyState()
+        {
+            _lastHierarchyHash = 0;
+        }
+
         private class TransformState
         {
             public Vector3 position;

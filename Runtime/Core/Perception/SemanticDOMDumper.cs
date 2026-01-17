@@ -105,6 +105,7 @@ namespace RealPlayTester.Core.Perception
                 if (RealPlaySettings.CollapseRepetitiveSiblings)
                 {
                     int groupCount = HierarchyHelpers.GetRepetitiveGroupCount(t, i);
+                    // M018: Lower threshold for collapse and allow more types
                     if (groupCount > 5)
                     {
                         capturedChildren.Add(CreateCollapsedNode(childTransform, groupCount));

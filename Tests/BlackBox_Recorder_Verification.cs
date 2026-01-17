@@ -92,7 +92,8 @@ namespace RealPlayTester.Tests.Verification
                 var ex = task.Exception.Flatten().InnerException as System.TimeoutException;
                 NUnit.Framework.Assert.IsNotNull(ex, "Exception should be TimeoutException");
                 NUnit.Framework.StringAssert.Contains("Visibility Trace:", ex.Message);
-                NUnit.Framework.StringAssert.Contains("HiddenPanel(Active, Alpha:0.00)", ex.Message);
+                NUnit.Framework.StringAssert.Contains("HiddenPanel", ex.Message);
+                NUnit.Framework.StringAssert.Contains("α:0.0", ex.Message);
             }
             finally
             {

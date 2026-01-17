@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.7.0] - 2026-01-17
+### Recompilation Resilience & Session Persistence
+### Added
+- **Assembly Reload Locking**: The library now uses `EditorApplication.LockReloadAssemblies()` during critical input phases (Click, Drag, Type). This prevents Unity from interrupting a multi-frame interaction with a compilation cycle, which would otherwise leave the editor in a half-finished 'zombie' state.
+- **Session Persistence Architecture**: Implemented `ISerializationCallbackReceiver` and `UnityEditor.SessionState` in the `TestRunner`. Test progress and execution flags now survive 'Hot Reloads' and recompilation events.
+- **Reload Recovery Engine**: Upon resuming after an assembly reload, the library proactively detects if a test was aborted and injects a detailed recovery error into the logs instead of hanging indefinitely.
+- **Chaos Script Poker**: Added an Editor tool (`RealPlayTester -> Chaos -> Script Poker`) that periodically 'touches' dummy files to stress test the library's resilience against unpredictable recompilation.
+
+### Fixed
+- **Input Atomicity**: Resolved a class of bugs where 'Hot Reloads' during a Click or Drag would leave the virtual mouse button held down permanently.
+- **Serialization Gaps**: Ensured that the `TestRunner` singleton and event subscriptions are properly restored after a domain wipe.
+
 ## [2.6.0] - 2026-01-17
 ### State Isolation & Persistence Resilience
 ### Added

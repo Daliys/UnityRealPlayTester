@@ -25,6 +25,16 @@ namespace RealPlayTester.Input
             var es = RealInputUtility.EnsureEventSystem();
             var data = RealInputUtility.GetPooledPointerData(es);
             data.position = start;
+
+#if UNITY_EDITOR
+            bool wasLocked = false;
+            if (RealPlaySettings.LockAssembliesDuringInteraction)
+            {
+                UnityEditor.EditorApplication.LockReloadAssemblies();
+                wasLocked = true;
+            }
+            try {
+#endif
             RealInputUtility.SimulateMouseMove(start);
             data.button = PointerEventData.InputButton.Left;
             Canvas.ForceUpdateCanvases();
@@ -41,6 +51,11 @@ namespace RealPlayTester.Input
             InitiateDrag(down, drag, data, start);
             yield return StartDragMotion(start, end, duration, drag, data);
             EndDrag(down, drag, data, end);
+#if UNITY_EDITOR
+            } finally {
+                if (wasLocked) UnityEditor.EditorApplication.UnlockReloadAssemblies();
+            }
+#endif
         }
 
         private static (GameObject down, GameObject drag) FindDragTargets(Vector2 pos, System.Collections.Generic.List<RaycastResult> results, EventSystem es)
