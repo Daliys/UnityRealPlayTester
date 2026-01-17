@@ -11,6 +11,15 @@ namespace RealPlayTester.Diagnostics
         private static bool _isSubscribed;
         private static readonly object _lock = new object();
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            _isSubscribed = false;
+            _isProcessing = false;
+            _lastMessage = null;
+            _lastIndex = -1;
+        }
+
         public static void Initialize()
         {
             if (_isSubscribed) return;

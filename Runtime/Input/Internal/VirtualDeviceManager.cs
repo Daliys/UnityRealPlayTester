@@ -15,6 +15,14 @@ namespace RealPlayTester.Input.Internal
         [ThreadStatic] private static object _threadMouse;
         [ThreadStatic] private static object _threadGamepad;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            _threadKeyboard = null;
+            _threadMouse = null;
+            _threadGamepad = null;
+        }
+
         public static object VirtualKeyboard { get => _threadKeyboard; set => _threadKeyboard = value; }
         public static object VirtualMouse { get => _threadMouse; set => _threadMouse = value; }
         public static object VirtualGamepad { get => _threadGamepad; set => _threadGamepad = value; }

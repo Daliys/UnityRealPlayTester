@@ -34,6 +34,13 @@ namespace RealPlayTester.Core.Perception
         private static int _nextVisualId = 1;
         private static char _nextVisualSeries = 'A';
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            _nextVisualId = 1;
+            _nextVisualSeries = 'A';
+        }
+
         public static string Dump(bool? filterToViewport = null)
         {
             _nextVisualId = 1; _nextVisualSeries = 'A'; // Reset series for each dump

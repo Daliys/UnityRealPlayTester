@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.6.0] - 2026-01-17
+### State Isolation & Persistence Resilience
+### Added
+- **State Isolation Architecture**: Implemented a library-wide manual state reset system. Using the `SubsystemRegistration` hook, the library now explicitly purges all static memory (collections, singletons, settings) every time Play Mode is entered.
+- **Domain Reload Resilience**: The library is now fully compatible with Unity's "Configurable Enter Play Mode" (Reload Domain = OFF). This ensures that stale data from previous test runs cannot pollute the current session.
+- **Chaos Domain Toggle**: Added an Editor tool (`RealPlayTester -> Chaos`) to programmatically disable/enable Domain Reload for stress testing.
+
+### Fixed
+- **Memory Integrity**: Resolved a class of bugs where destroyed native objects persisted as "fake nulls" in static fields across consecutive Play Mode sessions.
+- **Event Leakage**: Ensured that all static event subscriptions are cleared during the registration phase, preventing double-invocations in fast-iteration workflows.
+
 ## [2.5.2] - 2026-01-16
 ### Structural Integrity & Unified Vision
 ### Added

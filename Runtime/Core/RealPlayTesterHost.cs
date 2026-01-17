@@ -98,6 +98,25 @@ namespace RealPlayTester.Core
             _mainContext = SynchronizationContext.Current;
         }
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            _instance = null;
+            _mainContext = null;
+            _isInitialized = false;
+            RealPlayExecutionContext.Clear();
+            
+            // Cascade reset to all modules
+            RealPlaySettings.Initialize(true);
+            EventTracker.Clear();
+            RealPlayTester.Diagnostics.TestRunContextTracker.EndTest(); // Clear context
+            RealPlayTester.Diagnostics.LogInterceptor.Shutdown();
+            RealPlayTester.Input.Internal.VirtualDeviceManager.CleanupDevices();
+            RealPlayTester.Input.InputSystemShim.ClearEvents();
+            
+            RealPlayLog.Info("[HEALER] Global Static State Reset (SubsystemRegistration).");
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureHost()
         {

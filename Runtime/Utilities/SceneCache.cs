@@ -53,6 +53,13 @@ namespace RealPlayTester.Utilities
         public IReadOnlyList<Animator> Animators { get { RefreshIfStaleOnMain(); lock(_cacheLock) { return _animators; } } }
         public IReadOnlyList<ParticleSystem> ParticleSystems { get { RefreshIfStaleOnMain(); lock(_cacheLock) { return _particleSystems; } } }
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            _instance = null;
+            _mainThreadId = 0;
+        }
+
         public void Initialize()
         {
             _mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;

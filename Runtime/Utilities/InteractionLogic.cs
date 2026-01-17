@@ -23,13 +23,19 @@ namespace RealPlayTester.Utilities
     /// </summary>
     public static class InteractionLogic
     {
-        private static readonly Dictionary<string, MemberInfo> _memberCache = new Dictionary<string, MemberInfo>();
-        private const int MaxCacheSize = 1000;
-
         public struct LogicResult
         {
             public bool IsBlocked;
             public string Reason;
+        }
+
+        private const int MaxCacheSize = 1000;
+        private static readonly Dictionary<string, MemberInfo> _memberCache = new Dictionary<string, MemberInfo>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            _memberCache.Clear();
         }
 
         private static void CacheMember(string key, MemberInfo member)
