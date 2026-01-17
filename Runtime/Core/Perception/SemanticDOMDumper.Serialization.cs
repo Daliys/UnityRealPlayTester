@@ -23,7 +23,7 @@ namespace RealPlayTester.Core.Perception
             return _indentCache[indent];
         }
 
-        private static string SerializeNode(SemanticNode node)
+        internal static string SerializeNode(SemanticNode node)
         {
             var sb = new StringBuilder(1024); // Start with reasonable capacity
             SerializeRecursive(node, sb, 0);

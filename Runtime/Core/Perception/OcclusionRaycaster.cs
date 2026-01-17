@@ -15,7 +15,8 @@ namespace RealPlayTester.Core.Perception
 
         public static OcclusionResult CheckOcclusion(GameObject target, bool forceUpdateCanvas = true)
         {
-            if (target == null) return new OcclusionResult { IsOccluded = false }; // Can't occlude nothing
+            RealPlayTester.Input.SimulatedInputGuard.EnsureMainThread();
+            if (target == null) return new OcclusionResult { IsOccluded = true };
 
             if (Application.isBatchMode && Tester.Settings.ForceBatchmodeVisibility)
             {

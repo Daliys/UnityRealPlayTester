@@ -23,23 +23,24 @@ namespace RealPlayTester.Input
             public float score;
         }
 
-        public static GameObject Object(string fuzzyName)
+        public static GameObject Object(string query)
         {
-            if (string.IsNullOrEmpty(fuzzyName)) return null;
+            SimulatedInputGuard.EnsureMainThread();
+            if (string.IsNullOrEmpty(query)) return null;
             
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
             // Try tag match first (fast)
             try { 
-                var tagged = GameObject.FindWithTag(fuzzyName);
+                var tagged = GameObject.FindWithTag(query);
                 if (tagged != null) return tagged;
             } catch { }
 
-            var result = ScanAndRank(fuzzyName);
+            var result = ScanAndRank(query);
             if (result == null)
             {
                 SceneCache.Instance.ForceRefresh();
-                result = ScanAndRank(fuzzyName);
+                result = ScanAndRank(query);
             }
 
             return result;

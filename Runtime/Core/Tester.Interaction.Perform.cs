@@ -22,6 +22,7 @@ namespace RealPlayTester.Core
             /// </summary>
             public static async Task<string> Perform(string intent, string targetName)
             {
+                SimulatedInputGuard.EnsureMainThread();
                 if (!RealPlayEnvironment.IsEnabled) return "Environment Disabled";
                 var target = Perception.Find(targetName);
                 if (target == null)

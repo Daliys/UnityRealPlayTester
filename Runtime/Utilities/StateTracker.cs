@@ -46,6 +46,7 @@ namespace RealPlayTester.Utilities
         /// </summary>
         public static StateSnapshot Capture()
         {
+            RealPlayTester.Input.SimulatedInputGuard.EnsureMainThread();
             lock (_lock)
             {
                 var snap = new StateSnapshot { Timestamp = DateTime.Now };

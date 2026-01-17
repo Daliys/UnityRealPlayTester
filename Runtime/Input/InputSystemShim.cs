@@ -108,7 +108,12 @@ namespace RealPlayTester.Input
             VirtualDeviceManager.EnsureGamepad();
         }
 
-        public static void UpdateInput() => InputSimulator.UpdateInput();
+        public static void UpdateInput()
+        {
+            SimulatedInputGuard.EnsureMainThread();
+            if (!IsAvailable) return;
+        }
+
 
         public static Task QueueKeyState(KeyCode key, bool down)
         {

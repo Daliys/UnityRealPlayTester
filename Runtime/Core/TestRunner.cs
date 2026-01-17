@@ -279,14 +279,14 @@ namespace RealPlayTester.Core
         public readonly RealPlayTest Asset;
         public readonly object Data;
         public readonly string DataPropertyName;
-
-        public string DisplayName => Data == null ? Asset.name : $"{Asset.name} [{Data}]";
+        public readonly string DisplayName;
 
         public TestCaseDescriptor(RealPlayTest asset, object data, string dataPropertyName)
         {
             Asset = asset;
             Data = data;
             DataPropertyName = dataPropertyName;
+            DisplayName = Data == null ? (asset != null ? asset.name : "NullAsset") : $"{(asset != null ? asset.name : "NullAsset")} [{Data}]";
         }
     }
 }

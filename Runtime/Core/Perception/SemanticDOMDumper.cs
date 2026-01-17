@@ -9,6 +9,7 @@ using UnityEngine.EventSystems;
 
 namespace RealPlayTester.Core.Perception
 {
+    [Serializable]
     public class SemanticNode
     {
         public string Name;
@@ -65,6 +66,7 @@ namespace RealPlayTester.Core.Perception
 
         public static string Dump(bool? filterToViewport = null)
         {
+            RealPlayTester.Input.SimulatedInputGuard.EnsureMainThread();
             ResetIDSeries(); // Reset series for each dump
             // O016/O020: Force update once at start of dump to ensure layout accuracy 
             // while preventing redundant updates during recursion.

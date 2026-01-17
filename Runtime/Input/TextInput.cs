@@ -20,6 +20,7 @@ namespace RealPlayTester.Input
 
         public static async Task Type(string text, float delayBetweenChars = 0.05f)
         {
+            SimulatedInputGuard.EnsureMainThread();
             if (!RealPlayEnvironment.IsEnabled || string.IsNullOrEmpty(text)) return;
 
             RealPlayLog.Info($"[INPUT] Type text: \"{text}\"");
@@ -47,6 +48,7 @@ namespace RealPlayTester.Input
 
         public static async Task TypeIntoField(string fieldName, string text, float delayBetweenChars = 0.05f)
         {
+            SimulatedInputGuard.EnsureMainThread();
             if (!RealPlayEnvironment.IsEnabled) return;
 
             var go = GameObject.Find(fieldName);

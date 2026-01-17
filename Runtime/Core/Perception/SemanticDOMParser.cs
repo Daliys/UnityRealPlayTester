@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
@@ -18,26 +19,31 @@ namespace RealPlayTester.Core.Perception
 
             // Simple token-based parser for our specific schema
             int index = 0;
-            return ParseNode(json, ref index);
+            return ParseNode(json, ref index, 0);
         }
 
-        private static SemanticNode ParseNode(string json, ref int index)
+        private static SemanticNode ParseNode(string json, ref int index, int depth)
         {
-            var node = new SemanticNode();
+            if (depth > 2048) return null; // Hard limit to prevent StackOverflow
+
             index = json.IndexOf('{', index);
             if (index == -1) return null;
             index++;
 
+            var node = new SemanticNode();
             while (index < json.Length)
             {
                 index = SkipWhitespace(json, index);
+                if (index >= json.Length) break;
                 if (json[index] == '}') { index++; break; }
 
                 string key = ParseString(json, ref index);
-                index = json.IndexOf(':', index) + 1;
+                int colonIndex = json.IndexOf(':', index);
+                if (colonIndex == -1) break;
+                index = colonIndex + 1;
                 index = SkipWhitespace(json, index);
 
-                ParseProperty(node, key, json, ref index);
+                ParseProperty(node, key, json, ref index, depth);
 
                 index = SkipWhitespace(json, index);
                 if (index < json.Length && json[index] == ',') index++;
@@ -45,12 +51,15 @@ namespace RealPlayTester.Core.Perception
             return node;
         }
 
-        private static void ParseProperty(SemanticNode node, string key, string json, ref int index)
+        private static void ParseProperty(SemanticNode node, string key, string json, ref int index, int depth)
         {
+            if (index >= json.Length) return;
             switch (key)
             {
                 case "Name": node.Name = ParseString(json, ref index); break;
                 case "Role": node.Role = ParseString(json, ref index); break;
+                case "VisualID": node.VisualID = ParseString(json, ref index); break;
+                case "Command": node.Command = ParseString(json, ref index); break;
                 case "Active": node.Active = ParseBool(json, ref index); break;
                 case "Interactable": node.Interactable = ParseBool(json, ref index); break;
                 case "Text": node.Text = ParseString(json, ref index); break;
@@ -61,18 +70,49 @@ namespace RealPlayTester.Core.Perception
                 case "BlockedReason": node.BlockedReason = ParseString(json, ref index); break;
                 case "ScreenRect": node.ScreenRect = ParseRect(json, ref index); break;
                 case "Affordances": node.Affordances = ParseStringList(json, ref index); break;
-                case "Children": node.Children = ParseChildren(json, ref index); break;
+                case "Children": node.Children = ParseChildren(json, ref index, depth); break;
                 default: SkipValue(json, ref index); break;
             }
         }
 
         private static string ParseString(string json, ref int index)
         {
-            index = json.IndexOf('"', index) + 1;
-            int end = json.IndexOf('"', index);
-            string result = json.Substring(index, end - index);
-            index = end + 1;
-            return result.Replace("\\\\", "\\").Replace("\\\"", "\"");
+            index = json.IndexOf('"', index);
+            if (index == -1) return "";
+            index++;
+            
+            var sb = new System.Text.StringBuilder();
+            bool escaped = false;
+            while (index < json.Length)
+            {
+                char c = json[index++];
+                if (escaped)
+                {
+                    switch (c)
+                    {
+                        case 'n': sb.Append('\n'); break;
+                        case 'r': sb.Append('\r'); break;
+                        case 't': sb.Append('\t'); break;
+                        case '\\': sb.Append('\\'); break;
+                        case '"': sb.Append('"'); break;
+                        default: sb.Append(c); break;
+                    }
+                    escaped = false;
+                }
+                else if (c == '\\')
+                {
+                    escaped = true;
+                }
+                else if (c == '"')
+                {
+                    break;
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString();
         }
 
         private static bool ParseBool(string json, ref int index)
@@ -128,18 +168,21 @@ namespace RealPlayTester.Core.Perception
             return list;
         }
 
-        private static List<SemanticNode> ParseChildren(string json, ref int index)
+        private static List<SemanticNode> ParseChildren(string json, ref int index, int depth)
         {
             var list = new List<SemanticNode>();
+            int arrayEnd = json.IndexOf(']', index);
+            if (arrayEnd == -1) return list;
+
             index = json.IndexOf('[', index) + 1;
-            while(true)
+            while(index < json.Length)
             {
                 index = SkipWhitespace(json, index);
-                if (json[index] == ']') { index++; break; }
-                var child = ParseNode(json, ref index);
+                if (index >= json.Length || json[index] == ']') { index++; break; }
+                var child = ParseNode(json, ref index, depth + 1);
                 if (child != null) list.Add(child);
                 index = SkipWhitespace(json, index);
-                if (json[index] == ',') index++;
+                if (index < json.Length && json[index] == ',') index++;
             }
             return list;
         }

@@ -69,7 +69,7 @@ namespace RealPlayTester.Core.Perception
             ClearTexture(tex, Color.black);
 
             string domJson = RealPlaySemanticDOMDumper.Dump();
-            var root = JsonUtility.FromJson<SemanticNode>(domJson);
+            var root = SemanticDOMParser.Parse(domJson);
 
             if (root != null)
             {

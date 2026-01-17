@@ -7,6 +7,7 @@ using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 using RealPlayTester.Core;
 using RealPlayTester.Diagnostics;
+using RealPlayTester.Input;
 using InputShim = RealPlayTester.Input.InputSystemShim;
 
 namespace RealPlayTester.Await
@@ -24,6 +25,7 @@ namespace RealPlayTester.Await
         /// <param name="unscaled">If true, uses realtime (unaffected by Time.timeScale).</param>
         public static async Task Seconds(float seconds, bool unscaled = false, CancellationToken token = default)
         {
+            if (SimulatedInputGuard.IsThreadingSupported) SimulatedInputGuard.EnsureMainThread();
             if (!RealPlayEnvironment.IsEnabled || seconds <= 0f) return;
 
             var effectiveToken = GetEffectiveToken(token, out var linkedCts);
@@ -92,6 +94,7 @@ namespace RealPlayTester.Await
         /// <param name="frames">Number of frames to wait.</param>
         public static async Task Frames(int frames)
         {
+            SimulatedInputGuard.EnsureMainThread();
             if (!RealPlayEnvironment.IsEnabled || frames <= 0)
             {
                 return;
@@ -114,11 +117,16 @@ namespace RealPlayTester.Await
         /// <param name="description">Reason for waiting, used in timeout messages.</param>
         public static async Task Until(Func<bool> predicate, float? timeoutSeconds = null, string description = null)
         {
+            SimulatedInputGuard.EnsureMainThread();
             if (!RealPlayEnvironment.IsEnabled) return;
             if (predicate == null) return;
 
             float startTime = Time.realtimeSinceStartup;
+            // H062: Protect against reflection-mutated timeout (e.g. 0, negative, or NaN)
             float timeout = timeoutSeconds ?? float.MaxValue;
+            if (float.IsNaN(timeout)) timeout = 0.001f;
+            else timeout = Mathf.Max(0.001f, timeout);
+            
             var token = RealPlayExecutionContext.Token;
             float lastLogTime = startTime;
             

@@ -1,5 +1,19 @@
 # Changelog
 
+### [2.9.0] - 2026-01-18
+### Security & Resilience Hardening
+### Added
+- **Thread Safety Guards**: Implemented `SimulatedInputGuard.EnsureMainThread()` across all critical API entry points (`Wait`, `Interaction`, `SmartFind`, `SemanticDOMDumper`) to prevent background threads from crashing the Unity engine.
+- **WebGL Compatibility**: Added platform-aware threading checks. The library now correctly detects WebGL (Wasm) environments and bypasses thread checks while enforcing synchronous execution for `RunOnMainThread`.
+- **Input Flood Protection**: Introduced `RealPlaySettings.MaxInputEventsPerFrame` (default: 1000) to throttle excessive input events, preventing buffer overflows during fuzzing or rapid replay.
+- **Reflection hardening**: `RealPlayTesterHost` singleton now auto-recovers if its internal instance is nullified via reflection or memory corruption.
+- **Log Throttling**: Implemented rate limiting in `RealPlayLog` to prevent GC spikes from log spam (capped at 50 logs/frame).
+
+### Fixed
+- **Input Layout Mismatch**: Added strict type validation in `InputSimulator` to prevent native crashes when queuing mismatched state events (e.g., MouseState to Gamepad).
+- **Deadlock Prevention**: `Wait.Until` now clamps timeouts to a safe minimum and handles `NaN` values to prevent infinite loops.
+- **Configuration Sanity**: `TestRunner` retries are now clamped (0-100) to prevent infinite loops from malicious configuration injection.
+
 ### [2.8.1] - 2026-01-17
 - Relocated verification tests to the root project's `Assets/Tests/Verification` folder to maintain a pure library package.
 - Fixed systematic memory leaks by implementing `ResetStaticState` and `SubsystemRegistration` hooks across all core modules (`RealInputUtility`, `LogAssert`, `EventTracker`, `SemanticDOMDumper`, `SemanticProbe`).
@@ -244,7 +258,7 @@
     - `Tester.Await`: (Seconds, Frames, Until, Step) for flexible synchronization.
     - `Tester.Advanced`: (Drag, Scroll, ClickButtonWithText) for complex flows.
     - `Tester.Utility`: (GetScreenCenter, Raycast, PerformAndVerify) for common helpers.
-- **AI-Native JSON Perception**: Introduced `Tester.Perception.DumpHierarchyJson()` for coordinate-aware, LLM-optimized scene trees.
+    - `Tester.Perception`: Introduced `Tester.Perception.DumpHierarchyJson()` for coordinate-aware, LLM-optimized scene trees.
 - **Black Box Recorder**:
     - **Unified Diagnostic Stream**: Structured log categories (`[INPUT]`, `[BLOCKER]`, `[STEP]`) with real-time raycast occlusion detection.
     - **Failure Bundle v2**: Automated capture of state snapshots, hierarchy JSON, and categorized session logs on failure.

@@ -1,9 +1,16 @@
-# RealPlayTester (v2.8.1)
+# RealPlayTester (v2.9.0)
 Autonomous, AI-Native Automated Playtesting for Unity
 
 RealPlayTester is a lightweight, high-fidelity automation library designed for modern AI-native development. It allows you to write stable, human-like automated tests using a simple `async/await` API that interacts with Unity objects semantically.
 
 ## 🚀 Key Features
+
+### 🛡️ Security & Resilience (New in v2.9.0)
+Built for the chaos of production development. The library is now hardened against:
+- **Concurrency Attacks**: Strict `EnsureMainThread()` guards prevent background threads from crashing Unity.
+- **Input Flooding**: Throttled event queues (default 1000 events/frame) prevent buffer overflows during fuzzing.
+- **State Injection**: Auto-healing singletons and clamped configuration values protect against reflection-based sabotage.
+- **WebGL Support**: Fully compatible with single-threaded Wasm builds.
 
 ### 🐒 Autonomous Chaos Monkey
 Uncover edge-case crashes automatically. The Chaos Monkey discovers all interactables in the scene and performs random valid actions (clicks, moves, drags) while respecting logical game rules.

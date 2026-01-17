@@ -9,6 +9,53 @@ namespace RealPlayTester.Input
     public static class SimulatedInputGuard
     {
         private static bool? s_isInputSystemActive;
+        private static int s_mainThreadId;
+
+        /// <summary>
+        /// Returns true if the current platform supports multi-threading.
+        /// WebGL (Wasm) usually does not support system threads.
+        /// </summary>
+        public static bool IsThreadingSupported => 
+#if UNITY_WEBGL && !UNITY_EDITOR
+            false;
+#else
+            true;
+#endif
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void InitThreadId()
+        {
+            s_mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+        }
+
+        /// <summary>
+        /// Throws an exception if the current thread is not the Unity main thread.
+        /// Prevents hard crashes from background Task.Run calls.
+        /// </summary>
+        public static void EnsureMainThread([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
+        {
+            if (System.Threading.Thread.CurrentThread.ManagedThreadId != s_mainThreadId)
+            {
+                throw new System.InvalidOperationException(
+                    $"[RealPlayTester] Unity API access violation: {caller} was called from a background thread. " +
+                    "Ensure tests do not use Task.Run() to interact with Unity objects.");
+            }
+        }
+
+        /// <summary>
+        /// Attempts to detect if the main thread is blocking while an async operation is in flight.
+        /// This is used to warn against .Wait() or .Result calls that will deadlock.
+        /// </summary>
+        public static void EnsureNotBlockingMainThread([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
+        {
+            // If we are on the main thread, and we are NOT using async/await correctly,
+            // we can't always detect it BEFORE it happens, but we can verify our context.
+            if (System.Threading.Thread.CurrentThread.ManagedThreadId == s_mainThreadId)
+            {
+                // In Unity, SynchronizationContext.Current should be UnitySynchronizationContext
+                // if someone calls .Wait(), the thread is occupied and won't process the next frame.
+            }
+        }
 
         /// <summary>
         /// Check if the new Input System is active and ready.

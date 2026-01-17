@@ -68,11 +68,15 @@ namespace RealPlayTester.Core
             string error = null;
             int attempt = 0;
 
+            RealPlayTest instance = CreateProtectedInstance(testCase);
+
             try
             {
+                if (instance == null) throw new Exception("Test asset is null or was unloaded/destroyed before execution.");
+
                 await HardReset.Execute();
                 await PrepareEnvironment(testCase.Asset, token);
-                (passed, error, attempt) = await ExecuteWithRetries(testCase, token);
+                (passed, error, attempt) = await ExecuteWithInstance(instance, testCase, token);
             }
             catch (Exception ex)
             {
@@ -83,24 +87,40 @@ namespace RealPlayTester.Core
             finally
             {
                 sw.Stop();
-                TestRunContextTracker.EndTest();
-                NotifyProgress(testCase, passed, attempt, (float)sw.Elapsed.TotalSeconds);
-                if (!_running) SetRunning(false); // Only clear if not in a full suite run
+                if (instance != null) ScriptableObject.Destroy(instance);
+                CleanupTestRun(testCase, passed, attempt, (float)sw.Elapsed.TotalSeconds);
             }
 
             return CreateResult(testCase, passed, (float)sw.Elapsed.TotalSeconds, error);
         }
 
-        private async Task<(bool, string, int)> ExecuteWithRetries(TestCaseDescriptor testCase, CancellationToken token)
+        private RealPlayTest CreateProtectedInstance(TestCaseDescriptor testCase)
+        {
+            if (testCase.Asset == null) return null;
+            var instance = ScriptableObject.Instantiate(testCase.Asset);
+            instance.hideFlags |= HideFlags.HideAndDontSave;
+            return instance;
+        }
+
+        private void CleanupTestRun(TestCaseDescriptor testCase, bool passed, int attempt, float duration)
+        {
+            TestRunContextTracker.EndTest();
+            NotifyProgress(testCase, passed, attempt, duration);
+            if (!_running) SetRunning(false);
+        }
+
+        private async Task<(bool, string, int)> ExecuteWithInstance(RealPlayTest instance, TestCaseDescriptor testCase, CancellationToken token)
         {
             int attempt = 0;
             string error = null;
-            RealPlayTest instance = ScriptableObject.Instantiate(testCase.Asset);
             ApplyTestData(instance, testCase);
+
+            // H062: Clamp retries to valid range to prevent infinite loops from reflection
+            int safeRetries = Mathf.Clamp(maxRetries, 0, 100);
 
             try
             {
-                while (attempt <= maxRetries)
+                while (attempt <= safeRetries)
                 {
                     attempt++;
                     try
@@ -109,10 +129,10 @@ namespace RealPlayTester.Core
                         await instance.Execute();
                         return (true, null, attempt);
                     }
-                    catch (Exception ex) when (attempt <= maxRetries && !token.IsCancellationRequested)
+                    catch (Exception ex) when (attempt <= safeRetries && !token.IsCancellationRequested)
                     {
                         error = ex.ToString();
-                        RealPlayLog.Warn($"Retrying {testCase.DisplayName} ({attempt}/{maxRetries + 1})");
+                        RealPlayLog.Warn($"Retrying {testCase.DisplayName} ({attempt}/{safeRetries + 1})");
                         await HardReset.Execute();
                         await PrepareEnvironment(testCase.Asset, token);
                     }
@@ -123,11 +143,16 @@ namespace RealPlayTester.Core
                 error = finalEx.ToString();
                 await HandleFailure(testCase, TestRunContextTracker.Current, error);
             }
-            finally
-            {
-                ScriptableObject.Destroy(instance);
-            }
             return (false, error, attempt);
+        }
+
+        private async Task<(bool, string, int)> ExecuteWithRetries(TestCaseDescriptor testCase, CancellationToken token)
+        {
+            // This is now legacy/internal wrapper or can be removed if unused.
+            // For now, let's keep it but redirect or just rely on RunSingleTest.
+            var inst = ScriptableObject.Instantiate(testCase.Asset);
+            try { return await ExecuteWithInstance(inst, testCase, token); }
+            finally { ScriptableObject.Destroy(inst); }
         }
 
         private async Task HandleFailure(TestCaseDescriptor testCase, TestRunContext context, string error)

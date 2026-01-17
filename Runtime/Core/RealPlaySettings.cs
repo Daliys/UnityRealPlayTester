@@ -71,6 +71,12 @@ namespace RealPlayTester.Core
         /// <summary>If true, automatically learn navigation paths between game states during execution.</summary>
         public static bool EnableNavigationLearning = false;
 
+        /// <summary>
+        /// Maximum number of input events allowed per frame to prevent buffer overflows.
+        /// Default is 1000. Set to 0 to disable throttling (DANGEROUS).
+        /// </summary>
+        public static int MaxInputEventsPerFrame = 1000;
+
         /// <summary>If true, RealPlayTester will create a default EventSystem if none exists.</summary>
                         public static bool AutoCreateEventSystem = true;
                         internal static bool LockAssembliesDuringInteraction = true; 

@@ -39,23 +39,40 @@ namespace RealPlayTester.Core
     public static class RealPlayLog
     {
         private const string Prefix = "[RealPlayTester] ";
+        private static int _frameLogCount = 0;
+        private static int _lastFrame = -1;
+        private const int MaxLogsPerFrame = 50;
+        private const int MaxLogLength = 1000;
 
-        public static void Info(string message)
-        {
-            Debug.Log(Prefix + message);
-            if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(Prefix + message);
-        }
+        public static void Info(string message) => Log(LogType.Log, message);
+        public static void Warn(string message) => Log(LogType.Warning, message);
+        public static void Error(string message) => Log(LogType.Error, message);
 
-        public static void Warn(string message)
+        private static void Log(LogType type, string message)
         {
-            Debug.LogWarning(Prefix + message);
-            if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(Prefix + "WARN: " + message);
-        }
+            if (Time.frameCount != _lastFrame)
+            {
+                _lastFrame = Time.frameCount;
+                _frameLogCount = 0;
+            }
 
-        public static void Error(string message)
-        {
-            Debug.LogError(Prefix + message);
-            if (Tester.Settings.MirrorLogsToStdout) System.Console.WriteLine(Prefix + "ERROR: " + message);
+            if (_frameLogCount > MaxLogsPerFrame) return;
+            _frameLogCount++;
+
+            string finalMsg = message;
+            if (finalMsg.Length > MaxLogLength) finalMsg = finalMsg.Substring(0, MaxLogLength) + "... [TRUNCATED]";
+
+            string fullMsg = Prefix + finalMsg;
+
+            switch (type)
+            {
+                case LogType.Log: Debug.Log(fullMsg); break;
+                case LogType.Warning: Debug.LogWarning(fullMsg); break;
+                case LogType.Error: Debug.LogError(fullMsg); break;
+            }
+
+            if (Tester.Settings.MirrorLogsToStdout) 
+                System.Console.WriteLine(Prefix + (type != LogType.Log ? type.ToString().ToUpper() + ": " : "") + finalMsg);
         }
     }
 
@@ -71,7 +88,10 @@ namespace RealPlayTester.Core
         {
             get
             {
+                // H061: If instance was nullified via reflection, re-ensure it exists
                 if (_instance == null) EnsureHost();
+                // Ensure instance is still valid (not destroyed)
+                if (_instance != null && (_instance.gameObject == null)) EnsureHost();
                 return _instance;
             }
         }
@@ -246,6 +266,14 @@ namespace RealPlayTester.Core
         public void RunOnMainThread(Action action)
         {
             if (action == null) return;
+            
+            // WEBGL FALLBACK: If threading isn't supported, we are already on main thread
+            if (!RealPlayTester.Input.SimulatedInputGuard.IsThreadingSupported)
+            {
+                action();
+                return;
+            }
+
             if (SynchronizationContext.Current == MainContext)
             {
                 action();

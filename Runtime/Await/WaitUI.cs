@@ -11,6 +11,7 @@ namespace RealPlayTester.Await
     {
         public static async Task ForUIVisible(string name, float? timeoutSeconds = null)
         {
+            RealPlayTester.Input.SimulatedInputGuard.EnsureMainThread();
             if (!RealPlayEnvironment.IsEnabled) return;
 
             float startTime = Time.realtimeSinceStartup;

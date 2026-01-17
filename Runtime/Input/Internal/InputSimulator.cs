@@ -22,6 +22,33 @@ namespace RealPlayTester.Input.Internal
         private static FieldInfo _gamepadRightStickField;
 
         private static float _physicsAccumulator = 0f;
+        private static int _lastUpdateFrame = -1;
+        private static int _eventsThisFrame = 0;
+
+        private static bool ShouldThrottle()
+        {
+            if (Time.frameCount != _lastUpdateFrame)
+            {
+                _lastUpdateFrame = Time.frameCount;
+                _eventsThisFrame = 0;
+            }
+
+            int limit = RealPlaySettings.MaxInputEventsPerFrame;
+            if (limit <= 0) return false;
+
+            if (_eventsThisFrame >= limit)
+            {
+                if (_eventsThisFrame == limit)
+                {
+                    RealPlayLog.Warn($"[INPUT] Throttling triggered: Exceeded {limit} events this frame. Dropping excessive inputs to prevent overflow.");
+                }
+                _eventsThisFrame++;
+                return true;
+            }
+
+            _eventsThisFrame++;
+            return false;
+        }
 
         private static void EnsureKeyboardState()
         {
@@ -71,6 +98,7 @@ namespace RealPlayTester.Input.Internal
 
         public static Task QueueKeyState(int inputSystemKeyValue, bool down)
         {
+            if (ShouldThrottle()) return Task.CompletedTask;
             if (InputSystemReflector.Types.InputSystem == null || InputSystemReflector.QueueStateEventKeyboard == null) return Task.CompletedTask;
             object keyboard = VirtualDeviceManager.EnsureKeyboard();
             if (keyboard == null) return Task.CompletedTask;
@@ -90,6 +118,7 @@ namespace RealPlayTester.Input.Internal
 
         public static Task QueueMouseState(Vector2 position, int button, bool down, bool isMove)
         {
+            if (ShouldThrottle()) return Task.CompletedTask;
             if (InputSystemReflector.Types.InputSystem == null || InputSystemReflector.QueueStateEventMouse == null) return Task.CompletedTask;
             object mouse = VirtualDeviceManager.EnsureMouse();
             if (mouse == null) return Task.CompletedTask;
@@ -109,6 +138,7 @@ namespace RealPlayTester.Input.Internal
 
         public static Task QueueGamepadState(uint buttons, Vector2 leftStick, Vector2 rightStick)
         {
+            if (ShouldThrottle()) return Task.CompletedTask;
             if (InputSystemReflector.Types.InputSystem == null || InputSystemReflector.QueueStateEventGamepad == null) return Task.CompletedTask;
             object gamepad = VirtualDeviceManager.EnsureGamepad();
             if (gamepad == null) return Task.CompletedTask;
@@ -161,7 +191,20 @@ namespace RealPlayTester.Input.Internal
 
         private static void InvokeQueueMethod(MethodInfo queueMethod, object device, object state)
         {
-            if (queueMethod == null) return;
+            if (queueMethod == null || device == null || state == null) return;
+
+            // H052: Validate that the device layout matches the state type to prevent native corruption
+            // The queueMethod is already specialized (Generic) for the state type.
+            // We check if the device is compatible with that state type.
+            var stateType = state.GetType();
+            var deviceType = device.GetType();
+            
+            if (!IsDeviceCompatibleWithState(deviceType, stateType))
+            {
+                RealPlayLog.Error($"[INPUT] Layout Mismatch: Cannot queue {stateType.Name} for device {deviceType.Name}. Dropping event to prevent crash.");
+                return;
+            }
+
             var parameters = queueMethod.GetParameters();
             if (parameters.Length == 3)
                 queueMethod.Invoke(null, new[] { device, state, -1.0 });
@@ -169,6 +212,17 @@ namespace RealPlayTester.Input.Internal
                 queueMethod.Invoke(null, new[] { device, state });
             else
                 queueMethod.Invoke(null, new[] { device, state, -1.0, (object)null });
+        }
+
+        private static bool IsDeviceCompatibleWithState(Type deviceType, Type stateType)
+        {
+            if (stateType == InputSystemReflector.Types.KeyboardState)
+                return InputSystemReflector.Types.Keyboard.IsAssignableFrom(deviceType);
+            if (stateType == InputSystemReflector.Types.MouseState)
+                return InputSystemReflector.Types.Mouse.IsAssignableFrom(deviceType);
+            if (stateType == InputSystemReflector.Types.GamepadState)
+                return InputSystemReflector.Types.Gamepad.IsAssignableFrom(deviceType);
+            return true; // Unknown state types pass for now
         }
 
         public static void ClearMouseState() => _lastMouseState = null;
