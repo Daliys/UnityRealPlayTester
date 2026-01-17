@@ -70,27 +70,37 @@ namespace RealPlayTester.Utilities
                 ForceRefresh();
         }
 
-        private void OnSceneLoaded(Scene s, LoadSceneMode m) => _isDirty = true;
-        private void OnSceneUnloaded(Scene s) { _isDirty = true; Clear(); }
+        private void OnSceneLoaded(Scene s, LoadSceneMode m) 
+        { 
+            lock(_cacheLock) { _isDirty = true; } 
+        }
 
-        private void OnDestroy()
-        {
-            SceneManager.sceneLoaded -= OnSceneLoaded;
-            SceneManager.sceneUnloaded -= OnSceneUnloaded;
+        private void OnSceneUnloaded(Scene s) 
+        { 
+            lock(_cacheLock) 
+            {
+                _isDirty = true; 
+                ClearInternal(); 
+            }
         }
 
         public void Clear()
         {
             lock (_cacheLock)
             {
-                _allActiveObjects = new List<GameObject>();
-                _allObjects = new List<GameObject>();
-                _rigidbodies3D = new List<Rigidbody>();
-                _rigidbodies2D = new List<Rigidbody2D>();
-                _animators = new List<Animator>();
-                _particleSystems = new List<ParticleSystem>();
-                _lastRefreshFrame = -1;
+                ClearInternal();
             }
+        }
+
+        private void ClearInternal()
+        {
+            _allActiveObjects = new List<GameObject>();
+            _allObjects = new List<GameObject>();
+            _rigidbodies3D = new List<Rigidbody>();
+            _rigidbodies2D = new List<Rigidbody2D>();
+            _animators = new List<Animator>();
+            _particleSystems = new List<ParticleSystem>();
+            _lastRefreshFrame = -1;
         }
 
         private void ForceRefreshDelayed()

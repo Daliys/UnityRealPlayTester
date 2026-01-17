@@ -57,8 +57,7 @@ namespace RealPlayTester.Core.Perception
             return $"await Tester.Interaction.Perform(\"{action}\", \"{go.name}\")";
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStaticState()
+        private static void ResetIDSeries()
         {
             _nextVisualId = 1;
             _nextVisualSeries = 'A';
@@ -66,7 +65,7 @@ namespace RealPlayTester.Core.Perception
 
         public static string Dump(bool? filterToViewport = null)
         {
-            _nextVisualId = 1; _nextVisualSeries = 'A'; // Reset series for each dump
+            ResetIDSeries(); // Reset series for each dump
             // O016/O020: Force update once at start of dump to ensure layout accuracy 
             // while preventing redundant updates during recursion.
             RealPlayTester.Input.RealInputUtility.ThrottleCanvasUpdate();

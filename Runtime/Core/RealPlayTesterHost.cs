@@ -109,6 +109,7 @@ namespace RealPlayTester.Core
             // Cascade reset to all modules
             RealPlaySettings.Initialize(true);
             EventTracker.Clear();
+            RealPlayTester.Assert.FailureOverlay.Clear();
             RealPlayTester.Diagnostics.TestRunContextTracker.EndTest(); // Clear context
             RealPlayTester.Diagnostics.LogInterceptor.Shutdown();
             RealPlayTester.Input.Internal.VirtualDeviceManager.CleanupDevices();

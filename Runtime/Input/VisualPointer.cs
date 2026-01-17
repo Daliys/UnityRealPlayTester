@@ -32,6 +32,7 @@ namespace RealPlayTester.Input
             RealInputUtility.SimulateMouseMove(new Vector2(Screen.width / 2f, Screen.height / 2f));
 
             var canvasGo = new GameObject("PointerCanvas", typeof(Canvas), typeof(CanvasScaler));
+            canvasGo.hideFlags = HideFlags.HideAndDontSave;
             canvasGo.transform.SetParent(transform);
             _canvas = canvasGo.GetComponent<Canvas>();
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -90,7 +91,13 @@ namespace RealPlayTester.Input
             // Cleanup stale
             var toRemove = new System.Collections.Generic.List<int>();
             foreach (var id in _cursors.Keys) if (!active.ContainsKey(id)) toRemove.Add(id);
-            foreach (var id in toRemove) { Destroy(_cursors[id].Rect.gameObject); _cursors.Remove(id); }
+            foreach (var id in toRemove) 
+            { 
+                var go = _cursors[id].Rect.gameObject;
+                if (Application.isPlaying) Destroy(go);
+                else DestroyImmediate(go);
+                _cursors.Remove(id); 
+            }
 
             // Update active
             foreach (var kvp in active)
@@ -124,6 +131,19 @@ namespace RealPlayTester.Input
                 }
                 _lastSortTime = Time.unscaledTime;
             }
+        }
+
+        private void OnDestroy()
+        {
+            foreach(var c in _cursors.Values)
+            {
+                if (c != null && c.Rect != null)
+                {
+                    if (Application.isPlaying) Destroy(c.Rect.gameObject);
+                    else DestroyImmediate(c.Rect.gameObject);
+                }
+            }
+            _cursors.Clear();
         }
     }
 }

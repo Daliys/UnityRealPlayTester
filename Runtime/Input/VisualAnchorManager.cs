@@ -18,6 +18,12 @@ namespace RealPlayTester.Input
         private float _lastScanTime;
         private const float ScanInterval = 1.0f;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            // Instance members handled by host destruction, but we clear any shared logic here if added
+        }
+
         private class AnchorTag
         {
             public GameObject Root;
@@ -30,6 +36,7 @@ namespace RealPlayTester.Input
         public void Initialize()
         {
             var canvasGo = new GameObject("AnchorCanvas", typeof(Canvas), typeof(CanvasScaler));
+            canvasGo.hideFlags = HideFlags.HideAndDontSave;
             canvasGo.transform.SetParent(transform);
             _canvas = canvasGo.GetComponent<Canvas>();
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -102,9 +109,18 @@ namespace RealPlayTester.Input
             foreach (var tag in _activeTags)
             {
                 tag.Root.SetActive(false);
+                tag.Target = null; // Clear reference
                 _pool.Add(tag);
             }
             _activeTags.Clear();
+        }
+
+        private void OnDestroy()
+        {
+            foreach (var tag in _activeTags) if (tag != null) tag.Target = null;
+            foreach (var tag in _pool) if (tag != null) tag.Target = null;
+            _activeTags.Clear();
+            _pool.Clear();
         }
 
         private AnchorTag GetTag()

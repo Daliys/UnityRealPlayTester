@@ -14,6 +14,19 @@ namespace RealPlayTester.Input
         private static Vector2? _lastSimulatedPosition;
         private static readonly Dictionary<int, Vector2> PointerPositions = new Dictionary<int, Vector2>();
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            _pooledPointerData = null;
+            _lastSimulatedPosition = null;
+            PointerPositions.Clear();
+            _cachedEventSystem = null;
+            _lastLegacyHover = null;
+            _lastCanvasUpdateFrame = -1;
+            IsSimulatedButtonPressed = false;
+            IsSimulatedDragging = false;
+        }
+
         public static Vector2 LastSimulatedPosition 
         { 
             get => _lastSimulatedPosition ??= new Vector2(Screen.width / 2f, Screen.height / 2f);
@@ -67,6 +80,7 @@ namespace RealPlayTester.Input
         private static EventSystem CreateDefaultEventSystem()
         {
             var go = new GameObject("RealPlayTester_EventSystem");
+            go.hideFlags = HideFlags.HideAndDontSave;
             var es = go.AddComponent<EventSystem>();
 #if ENABLE_INPUT_SYSTEM
             if (InputSystemUIModuleType != null) go.AddComponent(InputSystemUIModuleType);

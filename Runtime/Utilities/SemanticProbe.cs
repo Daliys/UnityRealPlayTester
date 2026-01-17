@@ -32,6 +32,15 @@ namespace RealPlayTester.Utilities
         private static Type _tmpDropdownType;
         private static readonly System.Collections.Generic.Dictionary<Type, string> _roleAttributeCache = new System.Collections.Generic.Dictionary<Type, string>();
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            _tmpTextType = null;
+            _tmpInputFieldType = null;
+            _tmpDropdownType = null;
+            _roleAttributeCache.Clear();
+        }
+
         private static void EnsureTypes()
         {
             if (_tmpTextType == null) _tmpTextType = Type.GetType("TMPro.TMP_Text, Unity.TextMeshPro");

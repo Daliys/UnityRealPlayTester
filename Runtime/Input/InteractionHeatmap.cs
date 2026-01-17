@@ -28,6 +28,7 @@ namespace RealPlayTester.Input
             _pool.Clear();
 
             var canvasGo = new GameObject("HeatmapCanvas", typeof(Canvas), typeof(CanvasScaler));
+            canvasGo.hideFlags = HideFlags.HideAndDontSave;
             canvasGo.transform.SetParent(transform);
             _canvas = canvasGo.GetComponent<Canvas>();
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -103,6 +104,12 @@ namespace RealPlayTester.Input
             // but we'll stick to basic colors to avoid asset dependencies.
             
             return go;
+        }
+
+        private void OnDestroy()
+        {
+            _points.Clear();
+            _pool.Clear();
         }
     }
 }

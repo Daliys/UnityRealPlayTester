@@ -13,6 +13,15 @@ namespace RealPlayTester.Core.Perception
     {
         private static readonly Dictionary<Type, List<string>> _heuristicCache = new Dictionary<Type, List<string>>();
         private static Type _cachedTMPInputFieldType;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            _heuristicCache.Clear();
+            _cachedTMPInputFieldType = null;
+            ResetIDSeries();
+        }
+
         private static Type GetCachedTMPInputFieldType() => _cachedTMPInputFieldType ??= Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
 
         private static List<string> GetAffordances(GameObject go)

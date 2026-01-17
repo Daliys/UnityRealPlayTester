@@ -1,25 +1,23 @@
 # Changelog
 
-## [2.8.0] - 2026-01-17
-### Stability & Memory Optimization
-### Added
-- **Diagnostic I/O Throttling**: Implemented a 2-second cooldown for disk-based context snapshots. This eliminates the massive RAM spikes previously caused by redundant JSON serialization of the full test timeline during high-frequency events.
-- **Explicit Snapshot Control**: Added `TestRunContextTracker.ForceWriteSnapshot()` to allow tests to verify disk output without waiting for the throttle.
-- **Breadcrumb Cap**: Implemented a 2000-entry sliding window for breadcrumbs to prevent memory exhaustion during long-running endurance or stress tests.
+### [2.8.1] - 2026-01-17
+- Relocated verification tests to the root project's `Assets/Tests/Verification` folder to maintain a pure library package.
+- Fixed systematic memory leaks by implementing `ResetStaticState` and `SubsystemRegistration` hooks across all core modules (`RealInputUtility`, `LogAssert`, `EventTracker`, `SemanticDOMDumper`, `SemanticProbe`).
+- Added `HideFlags.HideAndDontSave` to internal library canvases (`PointerCanvas`, `AnchorCanvas`, `HeatmapCanvas`) and `EventSystem` to prevent scene pollution and persistence leaks.
+- Fortified resource cleanup in `VisualPointer`, `VisualAnchorManager`, and `InteractionHeatmap` using proper `OnDestroy` patterns and `SafeDestroy` logic for edit-mode compatibility.
+- Implemented `LeakDetectorTests` to verify clean library teardown and absence of stray static references.
+- Optimized `SceneCache` to prevent stale reference accumulation during rapid test execution.
 
-### Fixed
-- **Host Persistence Leak**: Resolved a bug where hidden `RealPlayTesterHost` instances could accumulate across scene loads, spawning redundant background coroutines and consuming cumulative memory.
-- **Log Double-Subscription**: Fixed a critical leak in `LogInterceptor` where static event handlers were re-subscribed during domain reloads, leading to exponential log processing.
-- **Scene Lifecycle Robustness**: Implemented defensive null checks and `MissingReferenceException` guards across all `Wait` predicates, `SmartFind`, and `OcclusionRaycaster`. The library now gracefully handles object destruction during rapid "Scene Thrashing" transitions.
-- **SceneCache Integrity**: Added immediate cache purging on `sceneUnloaded` and proper event unsubscription in `OnDestroy` to prevent "fake null" reference leaks.
-- **UI Hierarchy Interaction**: Refactored `ClickActions` to correctly identify nested UI elements (like labels or icons inside buttons). The engine now distinguishes between a "blocker" and a "child," ensuring clicks reach the intended button component.
-- **Invisible Blocker Suppression**: Occlusion detection now correctly ignores UI elements that are technically active but effectively invisible (alpha ~ 0).
-- **State Monitor Stability**: Added robustness to `PanelStateMonitor` to prevent crashes when querying UI state during active scene unloading.
-
-### Optimized
-- **Throttled Layout Updates**: Replaced direct `Canvas.ForceUpdateCanvases()` calls with a frame-aware throttle in the perception engine, significantly reducing GC pressure and frame spikes during semantic scans.
-- **String Allocation Reduction**: Optimized `EscapeJson` logic to avoid unnecessary string allocations when no escaping is required.
-- **Modular Data Models**: Refactored massive diagnostic classes into smaller, specialized files for better maintainability and reduced compilation overhead.
+### [2.8.0] - 2026-01-17
+- Added comprehensive Lifecycle Stability Test Suite (20 tests) covering:
+    - Interaction races during scene unloading.
+    - Async wait routine robustness against object destruction.
+    - Memory leak prevention and SceneCache purging.
+    - Multi-threaded state polling resilience.
+- Fortified `SceneCache` with redundant clearing logic on both `sceneUnloaded` and `sceneLoaded`.
+- Modularized `SmartFind` and `OcclusionRaycaster` for better maintainability and linter compliance.
+- Fixed `MissingReferenceException` in `Wait` routines when targets are destroyed mid-wait.
+- Standardized `HardReset` sequence to prevent deadlocks during rapid scene thrashing.
 
 ## [2.7.0] - 2026-01-17
 ### Recompilation Resilience & Session Persistence

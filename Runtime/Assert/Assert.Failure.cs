@@ -40,6 +40,22 @@ namespace RealPlayTester.Assert
     {
         private static GameObject _overlay;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            Clear();
+        }
+
+        public static void Clear()
+        {
+            if (_overlay != null)
+            {
+                if (Application.isPlaying) UnityEngine.Object.Destroy(_overlay);
+                else UnityEngine.Object.DestroyImmediate(_overlay);
+                _overlay = null;
+            }
+        }
+
         public static void Show(string message, string screenshotPath)
         {
             if (_overlay != null) return;
