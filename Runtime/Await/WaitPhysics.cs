@@ -22,14 +22,16 @@ namespace RealPlayTester.Await
                 var bodies = SceneCache.Instance.Rigidbodies3D;
                 foreach (var rb in bodies)
                 {
-                    if (rb == null || rb.isKinematic || rb.IsSleeping()) continue;
+                    if (rb == null) continue;
+                    if (rb.isKinematic || rb.IsSleeping()) continue;
                     if (rb.linearVelocity.sqrMagnitude > velocityThreshold * velocityThreshold) return false;
                 }
                 
                 var bodies2D = SceneCache.Instance.Rigidbodies2D;
                 foreach (var rb in bodies2D)
                 {
-                    if (rb == null || rb.bodyType == RigidbodyType2D.Kinematic || rb.IsSleeping()) continue;
+                    if (rb == null) continue;
+                    if (rb.bodyType == RigidbodyType2D.Kinematic || rb.IsSleeping()) continue;
                     if (rb.linearVelocity.sqrMagnitude > velocityThreshold * velocityThreshold) return false;
                 }
                 

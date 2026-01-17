@@ -71,15 +71,20 @@ namespace RealPlayTester.UI
 
         private static void ApplyParentCanvasGroups(GameObject panel, PanelState state)
         {
-            var parentGroups = panel.GetComponentsInParent<CanvasGroup>();
-            foreach (var group in parentGroups)
+            if (panel == null) return;
+            try
             {
-                if (group.gameObject == panel) continue;
-                // O025: Correct composition is multiplicative
-                state.Alpha *= group.alpha;
-                if (!group.interactable) state.Interactable = false;
-                if (group.ignoreParentGroups) break;
+                var parentGroups = panel.GetComponentsInParent<CanvasGroup>();
+                foreach (var group in parentGroups)
+                {
+                    if (group == null || group.gameObject == panel) continue;
+                    // O025: Correct composition is multiplicative
+                    state.Alpha *= group.alpha;
+                    if (!group.interactable) state.Interactable = false;
+                    if (group.ignoreParentGroups) break;
+                }
             }
+            catch (UnityEngine.MissingReferenceException) { state.IsVisible = false; state.Interactable = false; }
         }
 
         /// <summary>
@@ -87,6 +92,7 @@ namespace RealPlayTester.UI
         /// </summary>
         public static PanelState CheckPanelState(string panelName)
         {
+            if (string.IsNullOrEmpty(panelName)) return GetEmptyState();
             GameObject panel = GameObject.Find(panelName);
             return CheckPanelState(panel);
         }
@@ -96,58 +102,64 @@ namespace RealPlayTester.UI
         /// </summary>
         public static bool IsPanelReady(GameObject panel)
         {
+            if (panel == null) return false;
             var state = CheckPanelState(panel);
             return state.IsVisible && state.Interactable;
         }
 
         /// <summary>
-        /// Check if a panel is fully visible and interactable by name.
-        /// </summary>
-        /// <summary>
         /// Heuristic to determine current high-level game state name based on scene and top-most panel.
         /// </summary>
         public static string GetActiveStateName()
         {
-            string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-            
-            // 1. Check for explicit state components (high priority)
-            var explicitStates = UnityEngine.Object.FindObjectsByType<RealPlayState>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-            RealPlayState bestState = null;
-            int maxStateDepth = -1;
-            
-            foreach (var s in explicitStates)
+            try
             {
-                if (s.gameObject.activeInHierarchy)
+                string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                
+                // 1. Check for explicit state components (high priority)
+                var explicitStates = UnityEngine.Object.FindObjectsByType<RealPlayState>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+                RealPlayState bestState = null;
+                int maxStateDepth = -1;
+                
+                foreach (var s in explicitStates)
                 {
-                    int depth = GetHierarchyDepth(s.transform);
-                    // NEW: Prefer DEEPEST active state (most specific)
-                    if (depth > maxStateDepth) { maxStateDepth = depth; bestState = s; }
+                    if (s != null && s.gameObject.activeInHierarchy)
+                    {
+                        int depth = GetHierarchyDepth(s.transform);
+                        if (depth > maxStateDepth) { maxStateDepth = depth; bestState = s; }
+                    }
                 }
-            }
-            if (bestState != null) return $"{scene}.{bestState.GetFullName()}";
+                if (bestState != null) return $"{scene}.{bestState.GetFullName()}";
 
-            // 2. Fallback to top-most CanvasGroup heuristic
-            var panels = UnityEngine.Object.FindObjectsByType<CanvasGroup>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            CanvasGroup bestPanel = null;
-            int maxDepth = -1;
+                // 2. Fallback to top-most CanvasGroup heuristic
+                var panels = UnityEngine.Object.FindObjectsByType<CanvasGroup>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                CanvasGroup bestPanel = null;
+                int maxDepth = -1;
 
-            foreach (var p in panels)
-            {
-                if (p != null && p.isActiveAndEnabled && p.gameObject.activeInHierarchy && p.alpha > 0.5f)
+                foreach (var p in panels)
                 {
-                    int depth = GetHierarchyDepth(p.transform);
-                    if (depth > maxDepth) { maxDepth = depth; bestPanel = p; }
+                    if (p != null && p.isActiveAndEnabled && p.gameObject.activeInHierarchy && p.alpha > 0.5f)
+                    {
+                        int depth = GetHierarchyDepth(p.transform);
+                        if (depth > maxDepth) { maxDepth = depth; bestPanel = p; }
+                    }
                 }
+                
+                string topPanel = bestPanel != null ? bestPanel.gameObject.name : "Base";
+                return $"{scene}.{topPanel}";
             }
-            
-            string topPanel = bestPanel != null ? bestPanel.gameObject.name : "Base";
-            return $"{scene}.{topPanel}";
+            catch (UnityEngine.MissingReferenceException) { return "Transitioning"; }
         }
 
         private static int GetHierarchyDepth(Transform t)
         {
+            if (t == null) return 0;
             int d = 0;
-            while (t.parent != null) { d++; t = t.parent; }
+            try
+            {
+                while (t.parent != null) { d++; t = t.parent; }
+            }
+            catch (UnityEngine.MissingReferenceException) { }
             return d;
         }
     }

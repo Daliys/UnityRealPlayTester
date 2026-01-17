@@ -15,6 +15,8 @@ namespace RealPlayTester.Core.Perception
 
         public static OcclusionResult CheckOcclusion(GameObject target, bool forceUpdateCanvas = true)
         {
+            if (target == null) return new OcclusionResult { IsOccluded = false }; // Can't occlude nothing
+
             if (Application.isBatchMode && Tester.Settings.ForceBatchmodeVisibility)
             {
                 return new OcclusionResult { IsOccluded = false };
@@ -29,19 +31,27 @@ namespace RealPlayTester.Core.Perception
                 return new OcclusionResult { IsOccluded = true, BlockingObjectName = "UI Element" };
             }
 
-            // Skip world occlusion if target is on Overlay Canvas
-            var canvas = target.GetComponentInParent<Canvas>();
-            if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay)
+            try
             {
-                return new OcclusionResult { IsOccluded = false };
-            }
+                // Skip world occlusion if target is on Overlay Canvas
+                var canvas = target.GetComponentInParent<Canvas>();
+                if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay)
+                {
+                    return new OcclusionResult { IsOccluded = false };
+                }
 
-            // 2. Check World Occlusion
-            return CheckWorldOcclusion(target, cam, forceUpdateCanvas);
+                // 2. Check World Occlusion
+                return CheckWorldOcclusion(target, cam, forceUpdateCanvas);
+            }
+            catch (UnityEngine.MissingReferenceException)
+            {
+                return new OcclusionResult { IsOccluded = true, BlockingObjectName = "Destroyed During Check" };
+            }
         }
 
         private static bool IsOccludedByUI(GameObject target, bool forceUpdateCanvas)
         {
+            if (target == null) return false;
             if (forceUpdateCanvas) RealPlayTester.Input.RealInputUtility.ThrottleCanvasUpdate();
             
             // 1. Center Check (Primary)
@@ -50,10 +60,14 @@ namespace RealPlayTester.Core.Perception
                 return false;
 
             // 2. Corner/Surface Checks (Redundancy for partially obscured items)
-            if (target.transform is RectTransform rt)
+            try
             {
-                if (IsSurfaceVisible(rt, target, forceUpdateCanvas)) return false;
+                if (target.transform is RectTransform rt)
+                {
+                    if (IsSurfaceVisible(rt, target, forceUpdateCanvas)) return false;
+                }
             }
+            catch (UnityEngine.MissingReferenceException) { return true; }
 
             return true;
         }
@@ -63,6 +77,7 @@ namespace RealPlayTester.Core.Perception
 
         private static bool IsSurfaceVisible(RectTransform rt, GameObject target, bool forceUpdateCanvas)
         {
+            if (rt == null || target == null) return false;
             rt.GetWorldCorners(CornerBuffer);
             
             var canvas = rt.GetComponentInParent<Canvas>();
@@ -97,10 +112,10 @@ namespace RealPlayTester.Core.Perception
 
         private static OcclusionResult CheckWorldOcclusion(GameObject target, Camera cam, bool forceUpdateCanvas)
         {
+            if (target == null) return new OcclusionResult { IsOccluded = false };
             var screenPos = RealPlayTester.Input.RealInputUtility.GetScreenCenter(target, cam, forceUpdateCanvas);
             var ray = cam.ScreenPointToRay(screenPos);
             
-            // LAYER MASK FIX: Respect camera culling mask
             int mask = cam.cullingMask;
             
             // 3D Raycast
@@ -113,11 +128,14 @@ namespace RealPlayTester.Core.Perception
             float dist2D = hitInfo2D.collider != null ? Vector3.Distance(ray.origin, hitInfo2D.point) : float.MaxValue;
             GameObject go2D = hitInfo2D.collider != null ? hitInfo2D.collider.gameObject : null;
 
-            GameObject bestHit = null;
-            if (dist3D < dist2D) bestHit = go3D;
-            else if (go2D != null) bestHit = go2D;
+            GameObject bestHit = (dist3D < dist2D) ? go3D : go2D;
+            return ValidateHit(target, bestHit);
+        }
 
-            if (bestHit != null)
+        private static OcclusionResult ValidateHit(GameObject target, GameObject bestHit)
+        {
+            if (bestHit == null) return new OcclusionResult { IsOccluded = false };
+            try
             {
                 if (bestHit == target || bestHit.transform.IsChildOf(target.transform) || target.transform.IsChildOf(bestHit.transform))
                 {
@@ -125,8 +143,10 @@ namespace RealPlayTester.Core.Perception
                 }
                 return new OcclusionResult { IsOccluded = true, BlockingObjectName = bestHit.name };
             }
-
-            return new OcclusionResult { IsOccluded = false };
+            catch (UnityEngine.MissingReferenceException)
+            {
+                return new OcclusionResult { IsOccluded = false };
+            }
         }
     }
 }

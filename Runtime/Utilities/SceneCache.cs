@@ -63,11 +63,34 @@ namespace RealPlayTester.Utilities
         public void Initialize()
         {
             _mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
-            SceneManager.sceneLoaded += (s, m) => _isDirty = true;
-            SceneManager.sceneUnloaded += (s) => _isDirty = true;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
             
             if (System.Threading.Thread.CurrentThread.ManagedThreadId == _mainThreadId)
                 ForceRefresh();
+        }
+
+        private void OnSceneLoaded(Scene s, LoadSceneMode m) => _isDirty = true;
+        private void OnSceneUnloaded(Scene s) { _isDirty = true; Clear(); }
+
+        private void OnDestroy()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
+        }
+
+        public void Clear()
+        {
+            lock (_cacheLock)
+            {
+                _allActiveObjects = new List<GameObject>();
+                _allObjects = new List<GameObject>();
+                _rigidbodies3D = new List<Rigidbody>();
+                _rigidbodies2D = new List<Rigidbody2D>();
+                _animators = new List<Animator>();
+                _particleSystems = new List<ParticleSystem>();
+                _lastRefreshFrame = -1;
+            }
         }
 
         private void ForceRefreshDelayed()

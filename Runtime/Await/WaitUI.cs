@@ -64,7 +64,7 @@ namespace RealPlayTester.Await
                 foreach (var go in all)
                 {
                      if (go == null || !go.activeInHierarchy) continue;
-                     if (!go.TryGetComponent<T>(out var c)) continue;
+                     if (!go.TryGetComponent<T>(out var c) || c == null) continue;
                      if (!IsFullyVisibleAndInteractable(go)) continue;
                      
                      if (!string.IsNullOrEmpty(textFilter))
@@ -101,30 +101,33 @@ namespace RealPlayTester.Await
             if (obj == null || !obj.activeInHierarchy) return false;
 
             // 1. Cull check
-            var canvasRenderer = obj.GetComponent<CanvasRenderer>();
-            if (canvasRenderer != null && canvasRenderer.cull) return false;
-
-            // 2. Technical Check (CanvasGroups)
-            var groups = obj.GetComponentsInParent<CanvasGroup>();
-            foreach (var g in groups)
+            try
             {
-                if (g.ignoreParentGroups) break; 
-                
-                if (g.alpha <= 0.05f || !g.interactable)
-                {
-                    if (Tester.Settings.ForceBatchmodeVisibility && Application.isBatchMode)
-                    {
-                        // In batchmode, we might want to bypass alpha checks if forced, 
-                        // but we MUST NOT modify the actual component state.
-                        continue;
-                    }
-                    return false;
-                }
-            }
+                var canvasRenderer = obj.GetComponent<CanvasRenderer>();
+                if (canvasRenderer != null && canvasRenderer.cull) return false;
 
-            // 3. Logical Check (Custom Scripts)
-            var logic = RealPlayTester.Utilities.InteractionLogic.CheckLogicalInteractivity(obj);
-            if (logic.IsBlocked) return false;
+                // 2. Technical Check (CanvasGroups)
+                var groups = obj.GetComponentsInParent<CanvasGroup>();
+                foreach (var g in groups)
+                {
+                    if (g == null) continue;
+                    if (g.ignoreParentGroups) break; 
+                    
+                    if (g.alpha <= 0.05f || !g.interactable)
+                    {
+                        if (Tester.Settings.ForceBatchmodeVisibility && Application.isBatchMode)
+                        {
+                            continue;
+                        }
+                        return false;
+                    }
+                }
+
+                // 3. Logical Check (Custom Scripts)
+                var logic = RealPlayTester.Utilities.InteractionLogic.CheckLogicalInteractivity(obj);
+                if (logic.IsBlocked) return false;
+            }
+            catch (UnityEngine.MissingReferenceException) { return false; }
 
             return true;
         }

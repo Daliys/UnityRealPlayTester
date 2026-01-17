@@ -10,34 +10,37 @@ namespace RealPlayTester.Input
         public static Rect GetScreenRect(GameObject go)
         {
             if (go == null) return Rect.zero;
-            if (go.transform is RectTransform rt) return GetUIScreenRect(rt);
-            var renderer = go.GetComponent<Renderer>();
-            return (renderer != null) ? GetWorldScreenRect(renderer) : Rect.zero;
+            try
+            {
+                if (go.transform is RectTransform rt) return GetUIScreenRect(rt);
+                var renderer = go.GetComponent<Renderer>();
+                return (renderer != null) ? GetWorldScreenRect(renderer) : Rect.zero;
+            }
+            catch (UnityEngine.MissingReferenceException) { return Rect.zero; }
         }
 
         private static Rect GetUIScreenRect(RectTransform rt)
         {
+            if (rt == null) return Rect.zero;
             var canvas = rt.GetComponentInParent<Canvas>();
             if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay)
             {
-                Vector3[] corners = new Vector3[4];
-                rt.GetWorldCorners(corners);
-                float minX = Mathf.Min(corners[0].x, corners[2].x);
-                float minY = Mathf.Min(corners[0].y, corners[2].y);
-                float maxX = Mathf.Max(corners[0].x, corners[2].x);
-                float maxY = Mathf.Max(corners[0].y, corners[2].y);
+                rt.GetWorldCorners(WorldCornersCache);
+                float minX = Mathf.Min(WorldCornersCache[0].x, WorldCornersCache[2].x);
+                float minY = Mathf.Min(WorldCornersCache[0].y, WorldCornersCache[2].y);
+                float maxX = Mathf.Max(WorldCornersCache[0].x, WorldCornersCache[2].x);
+                float maxY = Mathf.Max(WorldCornersCache[0].y, WorldCornersCache[2].y);
                 return new Rect(minX, minY, maxX - minX, maxY - minY);
             }
 
             var cam = canvas?.worldCamera ?? Camera.main;
             if (cam == null) return Rect.zero;
 
-            Vector3[] c = new Vector3[4];
-            rt.GetWorldCorners(c);
+            rt.GetWorldCorners(WorldCornersCache);
             float xMin = float.MaxValue, yMin = float.MaxValue;
             float xMax = float.MinValue, yMax = float.MinValue;
 
-            foreach (var corner in c)
+            foreach (var corner in WorldCornersCache)
             {
                 Vector2 screenPos = cam.WorldToScreenPoint(corner);
                 xMin = Mathf.Min(xMin, screenPos.x);
@@ -50,6 +53,7 @@ namespace RealPlayTester.Input
 
         private static Rect GetWorldScreenRect(Renderer renderer)
         {
+            if (renderer == null) return Rect.zero;
             var cam = Camera.main;
             if (cam == null) return Rect.zero;
 
@@ -82,12 +86,17 @@ namespace RealPlayTester.Input
         public static Vector2 GetScreenCenter(GameObject go, Camera camera = null, bool forceUpdateCanvas = true)
         {
             if (go == null) return LastSimulatedPosition;
-            if (go.transform is RectTransform rect) return GetUIScreenCenter(rect, camera, forceUpdateCanvas);
-            return GetWorldScreenCenter(go, camera);
+            try
+            {
+                if (go.transform is RectTransform rect) return GetUIScreenCenter(rect, camera, forceUpdateCanvas);
+                return GetWorldScreenCenter(go, camera);
+            }
+            catch (UnityEngine.MissingReferenceException) { return LastSimulatedPosition; }
         }
 
         private static Vector2 GetUIScreenCenter(RectTransform rect, Camera camera, bool forceUpdateCanvas)
         {
+            if (rect == null) return LastSimulatedPosition;
             if (forceUpdateCanvas) ThrottleCanvasUpdate();
             var canvas = rect.GetComponentInParent<Canvas>();
             rect.GetWorldCorners(WorldCornersCache);
@@ -99,6 +108,7 @@ namespace RealPlayTester.Input
 
         private static Vector2 GetWorldScreenCenter(GameObject go, Camera camera)
         {
+            if (go == null) return LastSimulatedPosition;
             var cam = camera ?? GetCameraForObject(go);
             if (cam != null)
             {
@@ -110,10 +120,11 @@ namespace RealPlayTester.Input
 
         private static Camera GetCameraForObject(GameObject go)
         {
+            if (go == null) return Camera.main;
             var canvas = go.GetComponentInParent<Canvas>();
             if (canvas?.worldCamera != null) return canvas.worldCamera;
             int layer = go.layer;
-            foreach (var cam in Camera.allCameras) if (cam.enabled && (cam.cullingMask & (1 << layer)) != 0) return cam;
+            foreach (var cam in Camera.allCameras) if (cam != null && cam.enabled && (cam.cullingMask & (1 << layer)) != 0) return cam;
             return Camera.main ?? (Camera.allCamerasCount > 0 ? Camera.allCameras[0] : null);
         }
     }

@@ -10,8 +10,11 @@
 ### Fixed
 - **Host Persistence Leak**: Resolved a bug where hidden `RealPlayTesterHost` instances could accumulate across scene loads, spawning redundant background coroutines and consuming cumulative memory.
 - **Log Double-Subscription**: Fixed a critical leak in `LogInterceptor` where static event handlers were re-subscribed during domain reloads, leading to exponential log processing.
+- **Scene Lifecycle Robustness**: Implemented defensive null checks and `MissingReferenceException` guards across all `Wait` predicates, `SmartFind`, and `OcclusionRaycaster`. The library now gracefully handles object destruction during rapid "Scene Thrashing" transitions.
+- **SceneCache Integrity**: Added immediate cache purging on `sceneUnloaded` and proper event unsubscription in `OnDestroy` to prevent "fake null" reference leaks.
 - **UI Hierarchy Interaction**: Refactored `ClickActions` to correctly identify nested UI elements (like labels or icons inside buttons). The engine now distinguishes between a "blocker" and a "child," ensuring clicks reach the intended button component.
 - **Invisible Blocker Suppression**: Occlusion detection now correctly ignores UI elements that are technically active but effectively invisible (alpha ~ 0).
+- **State Monitor Stability**: Added robustness to `PanelStateMonitor` to prevent crashes when querying UI state during active scene unloading.
 
 ### Optimized
 - **Throttled Layout Updates**: Replaced direct `Canvas.ForceUpdateCanvases()` calls with a frame-aware throttle in the perception engine, significantly reducing GC pressure and frame spikes during semantic scans.
