@@ -71,7 +71,7 @@ namespace RealPlayTester.Diagnostics
             Info.TestId = Guid.NewGuid().ToString();
             Info.StartTime = DateTime.Now;
             Info.UnityVersion = Application.unityVersion;
-            Info.PackageVersion = "2.4.3"; 
+            Info.PackageVersion = "2.9.1"; 
             
 #if ENABLE_INPUT_SYSTEM
             Info.ActiveInputMode = "InputSystem";

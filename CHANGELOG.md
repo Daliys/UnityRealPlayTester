@@ -1,5 +1,14 @@
 # Changelog
 
+### [2.9.1] - 2026-01-19
+### Documentation & AI-Native Optimization
+### Added
+- **AI Documentation Overhaul**: Completely rewrote `AI_DOCS.md` to include all features from v2.0.0 through v2.9.0.
+- **AI Trigger Conditions**: Added explicit guidance for AI agents on when to use specific API primitives (Wait, Perform, Navigation, State).
+- **Master Testing Pattern**: Introduced a comprehensive "Golden Template" in documentation for standard test architecture.
+- **VLM Guidance**: Added detailed instructions for Vision-Language Models using VisualID (#A1) mappings.
+- **Version Synchronization**: Unified versioning across `package.json`, `AI_DOCS.md`, and `TestRunContext.cs`.
+
 ### [2.9.0] - 2026-01-18
 ### Security & Resilience Hardening
 ### Added
