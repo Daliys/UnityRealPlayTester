@@ -1,4 +1,4 @@
-# RealPlayTester (v2.9.1)
+# RealPlayTester (v2.9.2)
 Autonomous, AI-Native Automated Playtesting for Unity
 
 RealPlayTester is a lightweight, high-fidelity automation library designed for modern AI-native development. It allows you to write stable, human-like automated tests using a simple `async/await` API that interacts with Unity objects semantically.

@@ -44,7 +44,7 @@ namespace RealPlayTester.Core.Navigation
 
         public void RecordStateTransition(string from, string to, string intent, string targetName)
         {
-            if (!RealPlaySettings.EnableNavigationLearning || from == to) return;
+            if (!RealPlaySettings.Perception.EnableNavigationLearning || from == to) return;
 
             if (_graph.TryGetValue(from, out var paths))
             {
@@ -53,9 +53,6 @@ namespace RealPlayTester.Core.Navigation
 
             RealPlayLog.Info($"[Navigation] Learning path: {from} -> {to} via {intent}('{targetName}')");
             RegisterPathInternal(from, to, async () => await Tester.Interaction.Perform(intent, targetName), intent, targetName);
-            
-            // Auto-save when learning new paths if enabled? 
-            // For now let's keep it manual or add an auto-save setting later.
         }
 
         public async Task<bool> Navigate(string from, string to)

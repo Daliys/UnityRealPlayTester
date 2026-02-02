@@ -64,8 +64,10 @@ namespace RealPlayTester.Core
             /// <summary>Detailed JSON hierarchy dump (AI-Native Semantic DOM).</summary>
             public static string DumpHierarchyJson() => DumpSemanticDOM();
 
-            /// <summary>Captures a semantic DOM of the current scene.</summary>
-            public static string DumpSemanticDOM() => RealPlayEnvironment.IsEnabled ? RealPlayTester.Core.Perception.RealPlaySemanticDOMDumper.Dump(RealPlaySettings.FilterDOMToViewport) : string.Empty;
+        /// <summary> Dumps the current scene hierarchy as an AI-optimized JSON string. </summary>
+        public static string DumpSemanticDOM() => RealPlayEnvironment.IsEnabled ? RealPlayTester.Core.Perception.RealPlaySemanticDOMDumper.Dump(RealPlaySettings.Perception.FilterToViewport) : string.Empty;
+        
+        /// <summary> Dumps the current scene hierarchy as an AI-optimized Markdown string. </summary>
 
             /// <summary>Checks if a target object is occluded from the main camera view.</summary>
             public static bool IsOccluded(GameObject target, out string blocker)

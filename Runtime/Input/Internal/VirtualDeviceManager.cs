@@ -210,7 +210,7 @@ namespace RealPlayTester.Input.Internal
                 {
                     RealPlayLog.Info($"VirtualDeviceManager: Created virtual {name} of type {cache.GetType().FullName}.");
                     EnableDevice(cache);
-                    if (RealPlaySettings.VirtualDevicesMakeCurrent) MakeCurrent(cache);
+                    if (RealPlaySettings.Input.VirtualDevicesMakeCurrent) MakeCurrent(cache);
                 }
                 return cache;
             }

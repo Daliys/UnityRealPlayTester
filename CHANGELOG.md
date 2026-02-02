@@ -1,5 +1,28 @@
 # Changelog
 
+### [2.9.2] - 2026-02-02
+### Logging Efficiency & AI-Native Optimization
+### Added
+- **Aggressive Token Reduction**: Introduced `RealPlaySettings.CompactJSON` mode (enabled by default in batchmode).
+  - Minifies hierarchy JSON by removing all whitespace/newlines.
+  - Omits keys with default or empty values.
+  - Uses ultra-short 1-2 character keys (e.g., `n` for `Name`, `c` for `Children`).
+  - Packs `ScreenRect` into a primitive integer array `[x,y,w,h]` instead of an object.
+- **Global Log Silence**: Introduced `RealPlayLog.Silence` (and `RealPlaySettings.SilenceLogs`) to globally disable all non-error framework logs. This drastically improves performance and token efficiency for AI agents by removing "trash" logs from stdout.
+- **Console Log Deduplication**: `RealPlayLog` now automatically collapses identical consecutive log messages into a single "(Repeated X times)" summary, saving significant console space.
+- **CLI Quiet Mode**: Added `-realplay-silence` and `-realplay-compact` command-line arguments to enable optimized logging and perception from the start.
+- **Log Throttling Warning**: `RealPlayLog` now issues a single warning per frame when the 50-log limit is reached, instead of silently dropping logs.
+- **Throttled String Interpolation**: Optimized `HeartbeatRoutine`, `EventTracker`, and `Wait` routines to bypass string formatting when logging is silenced.
+- **Library Refactoring (Linter Compliance)**:
+  - Split `RealPlayTesterHost.cs` into `RealPlayEnvironment.cs`, `RealPlayLog.cs`, and `RealPlayTesterHost.cs` to satisfy file length limits.
+  - Modularized `RealPlaySettings` into `RealPlaySettings.Modules.cs` using partial classes and nested static classes to satisfy public member limits.
+  - Refactored `SemanticDOMDumper.Serialization` to use a `SerializationContext` struct, reducing method parameter counts and complexity below linter limits.
+
+### Fixed
+- **TestLog Respects Silence**: `TestLog` (used by test assets) now correctly respects the global `Silence` flag for non-error messages.
+- **Context Persistence**: Updated `TestRunContext` to v2.9.2 and optimized its JSON output for token efficiency.
+- **Escaping Robustness**: Hardened JSON string escaping against environment-specific backslash stripping using unicode escapes.
+
 ### [2.9.1] - 2026-01-19
 ### Documentation & AI-Native Optimization
 ### Added

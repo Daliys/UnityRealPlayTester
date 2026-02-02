@@ -9,10 +9,19 @@ namespace RealPlayTester.Core.Perception
     {
         private static readonly string[] _indentCache = GenerateIndentCache(100);
 
+        private struct SerializationContext
+        {
+            public bool Compact;
+            public string Tab;
+            public string Nl;
+            public string Space;
+            public int Indent;
+        }
+
         private static string[] GenerateIndentCache(int maxDepth)
         {
             var cache = new string[maxDepth];
-            for (int i = 0; i < maxDepth; i++) cache[i] = new string(' ', i * 2);
+            for (int i = 0; i < maxDepth; i++) cache[i] = new string(' ', i * 2); 
             return cache;
         }
 
@@ -25,70 +34,142 @@ namespace RealPlayTester.Core.Perception
 
         internal static string SerializeNode(SemanticNode node)
         {
-            var sb = new StringBuilder(1024); // Start with reasonable capacity
+            var sb = new StringBuilder(1024);
             SerializeRecursive(node, sb, 0);
             return sb.ToString();
         }
 
         private static void SerializeRecursive(SemanticNode node, StringBuilder sb, int indent)
         {
-            if (indent > 2048) return; // M002: Hard recursion limit
+            if (indent > 2048) return;
 
-            string tab = GetIndent(indent);
-            sb.AppendLine("{");
-            sb.AppendLine($"{tab}  \"Name\": \"{EscapeJson(node.Name)}\",");
-            sb.AppendLine($"{tab}  \"Role\": \"{EscapeJson(node.Role)}\",");
-            sb.AppendLine($"{tab}  \"VisualID\": \"{EscapeJson(node.VisualID)}\",");
-            sb.AppendLine($"{tab}  \"Command\": \"{EscapeJson(node.Command)}\",");
-            sb.AppendLine($"{tab}  \"Active\": {node.Active.ToString().ToLower()},");
-            sb.AppendLine($"{tab}  \"Interactable\": {node.Interactable.ToString().ToLower()},");
-            sb.AppendLine($"{tab}  \"ScreenRect\": {{ \"x\": {node.ScreenRect.x}, \"y\": {node.ScreenRect.y}, \"width\": {node.ScreenRect.width}, \"height\": {node.ScreenRect.height} }},");
-            sb.AppendLine($"{tab}  \"Text\": \"{EscapeJson(node.Text)}\",");
-            sb.AppendLine($"{tab}  \"ZDepth\": {node.ZDepth},");
-            sb.AppendLine($"{tab}  \"IsOccluded\": {node.IsOccluded.ToString().ToLower()},");
-            sb.AppendLine($"{tab}  \"BlockingObject\": \"{EscapeJson(node.BlockingObject)}\",");
-            sb.AppendLine($"{tab}  \"LogicalBlocked\": {node.LogicalBlocked.ToString().ToLower()},");
-            sb.AppendLine($"{tab}  \"BlockedReason\": \"{EscapeJson(node.BlockedReason)}\",");
-            sb.AppendLine($"{tab}  \"CollapsedCount\": {node.CollapsedCount},");
+            bool compact = RealPlaySettings.CompactJSON;
+            var ctx = new SerializationContext
+            {
+                Compact = compact,
+                Tab = compact ? "" : GetIndent(indent),
+                Nl = compact ? "" : "\n",
+                Space = compact ? "" : " ",
+                Indent = indent
+            };
+
+            sb.Append("{"); sb.Append(ctx.Nl);
+            sb.Append(ctx.Tab); sb.Append(ctx.Space);
+            sb.Append("\""); sb.Append(compact ? "n" : "Name"); sb.Append("\""); sb.Append(":\"");
+            sb.Append(EscapeJson(node.Name)); sb.Append("\"");
+
+            AppendMetadataFields(node, sb, ctx);
+            AppendGeometryFields(node, sb, ctx);
+            AppendOcclusionFields(node, sb, ctx);
+            AppendLogicFields(node, sb, ctx);
             
-            AppendAffordancesJson(node, sb, tab);
-            AppendChildrenJson(node, sb, indent, tab);
-            sb.Append("}");
+            if (node.CollapsedCount > 0) 
+            {
+                sb.Append(",\""); sb.Append(compact ? "cc" : "CollapsedCount");
+                sb.Append("\":"); sb.Append(node.CollapsedCount);
+            }
+            
+            AppendAffordances(node, sb, ctx);
+            AppendChildren(node, sb, ctx);
+            
+            sb.Append(ctx.Nl); sb.Append(ctx.Tab); sb.Append("}");
         }
 
-        private static void AppendAffordancesJson(SemanticNode node, StringBuilder sb, string tab)
+        private static void AppendMetadataFields(SemanticNode node, StringBuilder sb, SerializationContext ctx)
         {
-            sb.Append($"{tab}  \"Affordances\": [");
+            bool c = ctx.Compact;
+            if (!string.IsNullOrEmpty(node.Role)) { sb.Append(",\""); sb.Append(c ? "r" : "Role"); sb.Append("\":\""); sb.Append(EscapeJson(node.Role)); sb.Append("\""); }
+            if (!string.IsNullOrEmpty(node.VisualID)) { sb.Append(",\""); sb.Append(c ? "id" : "VisualID"); sb.Append("\":\""); sb.Append(EscapeJson(node.VisualID)); sb.Append("\""); }
+            if (!string.IsNullOrEmpty(node.Command)) { sb.Append(",\""); sb.Append(c ? "cmd" : "Command"); sb.Append("\":\""); sb.Append(EscapeJson(node.Command)); sb.Append("\""); }
+            if (!node.Active) { sb.Append(",\""); sb.Append(c ? "act" : "Active"); sb.Append("\":false"); }
+            if (node.Interactable) { sb.Append(",\""); sb.Append(c ? "int" : "Interactable"); sb.Append("\":true"); }
+        }
+
+        private static void AppendGeometryFields(SemanticNode node, StringBuilder sb, SerializationContext ctx)
+        {
+            bool c = ctx.Compact;
+            if (node.ScreenRect.width > 0 || node.ScreenRect.height > 0)
+            {
+                if (c)
+                {
+                    sb.Append(",\"rect\":["); sb.Append(Mathf.RoundToInt(node.ScreenRect.x)); sb.Append(",");
+                    sb.Append(Mathf.RoundToInt(node.ScreenRect.y)); sb.Append(",");
+                    sb.Append(Mathf.RoundToInt(node.ScreenRect.width)); sb.Append(",");
+                    sb.Append(Mathf.RoundToInt(node.ScreenRect.height)); sb.Append("]");
+                }
+                else
+                {
+                    sb.Append(", "); sb.Append(ctx.Nl); sb.Append(ctx.Tab); sb.Append(ctx.Space);
+                    sb.Append("\"ScreenRect\": { \"x\": "); sb.Append(node.ScreenRect.x);
+                    sb.Append(", \"y\": "); sb.Append(node.ScreenRect.y);
+                    sb.Append(", \"width\": "); sb.Append(node.ScreenRect.width);
+                    sb.Append(", \"height\": "); sb.Append(node.ScreenRect.height); sb.Append(" }");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(node.Text)) { sb.Append(",\""); sb.Append(c ? "txt" : "Text"); sb.Append("\":\""); sb.Append(EscapeJson(node.Text)); sb.Append("\""); }
+            if (Mathf.Abs(node.ZDepth) > 0.0001f) { sb.Append(",\""); sb.Append(c ? "z" : "ZDepth"); sb.Append("\":"); sb.Append(node.ZDepth.ToString("F2")); }
+        }
+
+        private static void AppendOcclusionFields(SemanticNode node, StringBuilder sb, SerializationContext ctx)
+        {
+            bool c = ctx.Compact;
+            if (node.IsOccluded)
+            {
+                sb.Append(",\""); sb.Append(c ? "occ" : "IsOccluded"); sb.Append("\":true");
+                if (!string.IsNullOrEmpty(node.BlockingObject)) { sb.Append(",\""); sb.Append(c ? "block" : "BlockingObject"); sb.Append("\":\""); sb.Append(EscapeJson(node.BlockingObject)); sb.Append("\""); }
+            }
+        }
+
+        private static void AppendLogicFields(SemanticNode node, StringBuilder sb, SerializationContext ctx)
+        {
+            bool c = ctx.Compact;
+            if (node.LogicalBlocked)
+            {
+                sb.Append(",\""); sb.Append(c ? "lblock" : "LogicalBlocked"); sb.Append("\":true");
+                if (!string.IsNullOrEmpty(node.BlockedReason)) { sb.Append(",\""); sb.Append(c ? "msg" : "BlockedReason"); sb.Append("\":\""); sb.Append(EscapeJson(node.BlockedReason)); sb.Append("\""); }
+            }
+        }
+
+        private static void AppendAffordances(SemanticNode node, StringBuilder sb, SerializationContext ctx)
+        {
+            bool c = ctx.Compact;
             if (node.Affordances != null && node.Affordances.Count > 0)
             {
+                sb.Append(",\""); sb.Append(c ? "aff" : "Affordances"); sb.Append("\":[");
                 for(int i=0; i<node.Affordances.Count; i++)
                 {
-                    sb.Append($"\"{node.Affordances[i]}\"");
-                    if (i < node.Affordances.Count - 1) sb.Append(", ");
+                    sb.Append("\""); sb.Append(node.Affordances[i]); sb.Append("\"");
+                    if (i < node.Affordances.Count - 1) sb.Append(c ? "," : ", ");
                 }
+                sb.Append("]");
             }
-            sb.AppendLine("],");
         }
 
-        private static void AppendChildrenJson(SemanticNode node, StringBuilder sb, int indent, string tab)
+        private static void AppendChildren(SemanticNode node, StringBuilder sb, SerializationContext ctx)
         {
-            sb.AppendLine($"{tab}  \"Children\": [");
-            if (node.Children != null && node.Children.Count > 0 && indent < 2048)
+            bool c = ctx.Compact; string nl = ctx.Nl; string t = ctx.Tab;
+            if (node.Children != null && node.Children.Count > 0 && ctx.Indent < 2048)
             {
+                sb.Append(",\""); sb.Append(c ? "c" : "Children"); sb.Append("\":["); sb.Append(nl);
                 for (int i = 0; i < node.Children.Count; i++)
                 {
-                    sb.Append($"{tab}    ");
-                    SerializeRecursive(node.Children[i], sb, indent + 2);
-                    if (i < node.Children.Count - 1) sb.AppendLine(","); else sb.AppendLine();
+                    if (!c) { sb.Append(t); sb.Append("    "); }
+                    SerializeRecursive(node.Children[i], sb, ctx.Indent + 2);
+                    if (i < node.Children.Count - 1) sb.Append(",");
+                    sb.Append(nl);
                 }
+                sb.Append(t); sb.Append(ctx.Space); sb.Append("]");
             }
-            sb.Append($"{tab}  ]");
         }
 
         private static string EscapeJson(string str)
         {
             if (string.IsNullOrEmpty(str)) return "";
-            return str.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+            return str.Replace("\u005C", "\u005C\u005C")
+                      .Replace("\u0022", "\u005C\u0022")
+                      .Replace("\n", "\u005Cn")
+                      .Replace("\r", "\u005Cr");
         }
     }
 }

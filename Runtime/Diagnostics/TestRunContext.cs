@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 using UnityEngine;
+using RealPlayTester.Core;
 
 namespace RealPlayTester.Diagnostics
 {
@@ -71,7 +72,7 @@ namespace RealPlayTester.Diagnostics
             Info.TestId = Guid.NewGuid().ToString();
             Info.StartTime = DateTime.Now;
             Info.UnityVersion = Application.unityVersion;
-            Info.PackageVersion = "2.9.1"; 
+            Info.PackageVersion = "2.9.2"; 
             
 #if ENABLE_INPUT_SYSTEM
             Info.ActiveInputMode = "InputSystem";
@@ -84,72 +85,85 @@ namespace RealPlayTester.Diagnostics
         {
             lock (_collectionLock)
             {
+                bool compact = RealPlaySettings.CompactJSON;
                 var sb = new StringBuilder();
-                sb.AppendLine("{");
-                AppendMetadataJson(sb);
-                AppendPlacementJson(sb);
-                AppendBreadcrumbsJson(sb);
-                AppendLogsJson(sb);
-                sb.AppendLine("}");
+                sb.Append("{"); if (!compact) sb.AppendLine();
+                AppendMetadataJson(sb, compact);
+                AppendPlacementJson(sb, compact);
+                AppendBreadcrumbsJson(sb, compact);
+                AppendLogsJson(sb, compact);
+                sb.Append("}"); if (!compact) sb.AppendLine();
                 return sb.ToString();
             }
         }
 
-        private void AppendMetadataJson(StringBuilder sb)
+        private void AppendMetadataJson(StringBuilder sb, bool compact)
         {
-            sb.AppendLine("  \"testName\": \"" + EscapeJson(Info.TestName) + "\",");
-            sb.AppendLine("  \"testId\": \"" + Info.TestId + "\",");
-            sb.AppendLine("  \"startTime\": \"" + Info.StartTime.ToString("O") + "\",");
-            sb.AppendLine("  \"endTime\": \"" + Info.EndTime.ToString("O") + "\",");
-            sb.AppendLine("  \"sceneName\": \"" + EscapeJson(Info.SceneName) + "\",");
-            sb.AppendLine("  \"unityVersion\": \"" + Info.UnityVersion + "\",");
-            sb.AppendLine("  \"packageVersion\": \"" + Info.PackageVersion + "\",");
-            sb.AppendLine("  \"activeInputMode\": \"" + Info.ActiveInputMode + "\",");
-            sb.AppendLine("  \"lastAction\": \"" + EscapeJson(State.LastAction) + "\",");
-            sb.AppendLine("  \"lastPanel\": \"" + EscapeJson(State.LastPanel) + "\",");
-            sb.AppendLine("  \"lastIntent\": \"" + EscapeJson(State.LastIntent) + "\",");
+            string t = compact ? "" : "  ";
+            string nl = compact ? "" : "\n";
+            sb.Append($"{t}\"testName\": \"{EscapeJson(Info.TestName)}\",{nl}");
+            sb.Append($"{t}\"testId\": \"{Info.TestId}\",{nl}");
+            sb.Append($"{t}\"startTime\": \"{Info.StartTime.ToString("O")}\",{nl}");
+            sb.Append($"{t}\"endTime\": \"{Info.EndTime.ToString("O")}\",{nl}");
+            sb.Append($"{t}\"sceneName\": \"{EscapeJson(Info.SceneName)}\",{nl}");
+            sb.Append($"{t}\"unityVersion\": \"{Info.UnityVersion}\",{nl}");
+            sb.Append($"{t}\"packageVersion\": \"{Info.PackageVersion}\",{nl}");
+            sb.Append($"{t}\"activeInputMode\": \"{Info.ActiveInputMode}\",{nl}");
+            sb.Append($"{t}\"lastAction\": \"{EscapeJson(State.LastAction)}\",{nl}");
+            sb.Append($"{t}\"lastPanel\": \"{EscapeJson(State.LastPanel)}\",{nl}");
+            sb.Append($"{t}\"lastIntent\": \"{EscapeJson(State.LastIntent)}\",{nl}");
         }
 
-        private void AppendPlacementJson(StringBuilder sb)
+        private void AppendPlacementJson(StringBuilder sb, bool compact)
         {
+            string t = compact ? "" : "  ";
+            string nl = compact ? "" : "\n";
             if (State.LastPlacementAttempt != null)
             {
-                sb.AppendLine("  \"lastPlacementAttempt\": {");
-                sb.AppendLine("    \"position\": \"" + State.LastPlacementAttempt.Position + "\",");
-                sb.AppendLine("    \"definitionId\": \"" + EscapeJson(State.LastPlacementAttempt.DefinitionId) + "\",");
-                sb.AppendLine("    \"result\": \"" + EscapeJson(State.LastPlacementAttempt.Result) + "\"");
-                sb.AppendLine("  },");
+                sb.Append($"{t}\"lastPlacementAttempt\": {{{nl}");
+                sb.Append($"{t}{(compact ? "" : "  ")}\"position\": \"{State.LastPlacementAttempt.Position}\",{nl}");
+                sb.Append($"{t}{(compact ? "" : "  ")}\"definitionId\": \"{EscapeJson(State.LastPlacementAttempt.DefinitionId)}\",{nl}");
+                sb.Append($"{t}{(compact ? "" : "  ")}\"result\": \"{EscapeJson(State.LastPlacementAttempt.Result)}\"{nl}");
+                sb.Append($"{t}}}, {nl}");
             }
-            else
+            else if (!compact)
             {
                 sb.AppendLine("  \"lastPlacementAttempt\": null,");
             }
         }
 
-        private void AppendBreadcrumbsJson(StringBuilder sb)
+        private void AppendBreadcrumbsJson(StringBuilder sb, bool compact)
         {
-            sb.AppendLine("  \"breadcrumbs\": [");
+            string t = compact ? "" : "  ";
+            string nl = compact ? "" : "\n";
+            if (compact && _breadcrumbs.Count == 0) return;
+
+            sb.Append($"{t}\"breadcrumbs\": ["); if (!compact) sb.AppendLine();
             for (int i = 0; i < _breadcrumbs.Count; i++)
             {
                 var crumb = _breadcrumbs[i];
-                sb.Append("    { \"frame\": " + crumb.Frame + ", \"time\": " + crumb.Timestamp.ToString("F3") + ", \"type\": \"" + crumb.Type + "\", \"message\": \"" + EscapeJson(crumb.Message) + "\" }");
+                sb.Append($"{(compact ? "" : "    ")}{{ \"frame\": {crumb.Frame}, \"time\": {crumb.Timestamp.ToString("F3")}, \"type\": \"{crumb.Type}\", \"message\": \"{EscapeJson(crumb.Message)}\" }}");
                 if (i < _breadcrumbs.Count - 1) sb.Append(",");
-                sb.AppendLine();
+                if (!compact) sb.AppendLine();
             }
-            sb.AppendLine("  ],");
+            sb.Append($"{t}],{nl}");
         }
 
-        private void AppendLogsJson(StringBuilder sb)
+        private void AppendLogsJson(StringBuilder sb, bool compact)
         {
-            sb.AppendLine("  \"logs\": [");
+            string t = compact ? "" : "  ";
+            string nl = compact ? "" : "\n";
+            if (compact && _logs.Count == 0) return;
+
+            sb.Append($"{t}\"logs\": ["); if (!compact) sb.AppendLine();
             for (int i = 0; i < _logs.Count; i++)
             {
                 var log = _logs[i];
-                sb.Append("    { \"frame\": " + log.Frame + ", \"time\": " + log.Timestamp.ToString("F3") + ", \"type\": \"" + log.Type + "\", \"severity\": \"" + log.Severity + "\", \"message\": \"" + EscapeJson(log.Message) + "\", \"repeats\": " + log.RepeatCount + " }");
+                sb.Append($"{(compact ? "" : "    ")}{{ \"frame\": {log.Frame}, \"time\": {log.Timestamp.ToString("F3")}, \"type\": \"{log.Type}\", \"severity\": \"{log.Severity}\", \"message\": \"{EscapeJson(log.Message)}\", \"repeats\": {log.RepeatCount} }}");
                 if (i < _logs.Count - 1) sb.Append(",");
-                sb.AppendLine();
+                if (!compact) sb.AppendLine();
             }
-            sb.AppendLine("  ]");
+            sb.Append($"{t}]{nl}");
         }
 
         public string ToMarkdown()

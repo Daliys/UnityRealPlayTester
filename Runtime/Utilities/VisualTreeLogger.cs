@@ -59,7 +59,7 @@ namespace RealPlayTester.Utilities
                 Transform child = t.GetChild(i);
                 if (!child.gameObject.activeInHierarchy) continue;
 
-                if (RealPlaySettings.CollapseRepetitiveSiblings)
+                if (RealPlaySettings.Perception.CollapseRepetitiveSiblings)
                 {
                     int groupCount = HierarchyHelpers.GetRepetitiveGroupCount(t, i);
                     if (groupCount > 5)

@@ -96,6 +96,14 @@ namespace RealPlayTester.Core
                     Tester.Settings.MirrorLogsToStdout = true;
                     RealPlayLog.Info("MirrorLogsToStdout enabled via CLI.");
                 }
+                if (arg.Equals("-realplay-silence", StringComparison.OrdinalIgnoreCase))
+                {
+                    Tester.Settings.SilenceLogs = true;
+                }
+                if (arg.Equals("-realplay-compact", StringComparison.OrdinalIgnoreCase))
+                {
+                    Tester.Settings.CompactJSON = true;
+                }
             }
         }
 

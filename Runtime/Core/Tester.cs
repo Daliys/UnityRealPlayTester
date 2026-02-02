@@ -19,23 +19,25 @@ namespace RealPlayTester.Core
         public static class Settings
         {
             public static PreferredInputMode PreferredMode { get => RealPlaySettings.PreferredMode; set => RealPlaySettings.PreferredMode = value; }
-            public static bool ShowVisualPointer { get => RealPlaySettings.ShowVisualPointer; set => RealPlaySettings.ShowVisualPointer = value; }
-            public static bool ShowVisualAnchors { get => RealPlaySettings.ShowVisualAnchors; set => RealPlaySettings.ShowVisualAnchors = value; }
-            public static bool ShowInteractionHeatmap { get => RealPlaySettings.ShowInteractionHeatmap; set => RealPlaySettings.ShowInteractionHeatmap = value; }
+            public static bool ShowVisualPointer { get => RealPlaySettings.Visual.ShowPointer; set => RealPlaySettings.Visual.ShowPointer = value; }
+            public static bool ShowVisualAnchors { get => RealPlaySettings.Visual.ShowAnchors; set => RealPlaySettings.Visual.ShowAnchors = value; }
+            public static bool ShowInteractionHeatmap { get => RealPlaySettings.Visual.ShowHeatmap; set => RealPlaySettings.Visual.ShowHeatmap = value; }
             public static bool ForceBatchmodeVisibility { get => RealPlaySettings.ForceBatchmodeVisibility; set => RealPlaySettings.ForceBatchmodeVisibility = value; }
-            public static bool EnableInputHeartbeat { get => RealPlaySettings.EnableInputHeartbeat; set => RealPlaySettings.EnableInputHeartbeat = value; }
+            public static bool EnableInputHeartbeat { get => RealPlaySettings.Input.EnableHeartbeat; set => RealPlaySettings.Input.EnableHeartbeat = value; }
             public static bool MirrorLogsToStdout { get => RealPlaySettings.MirrorLogsToStdout; set => RealPlaySettings.MirrorLogsToStdout = value; }
-            public static bool EnableNavigationLearning { get => RealPlaySettings.EnableNavigationLearning; set => RealPlaySettings.EnableNavigationLearning = value; }
-            public static bool FilterDOMToViewport { get => RealPlaySettings.FilterDOMToViewport; set => RealPlaySettings.FilterDOMToViewport = value; }
-            public static bool CollapseRepetitiveSiblings { get => RealPlaySettings.CollapseRepetitiveSiblings; set => RealPlaySettings.CollapseRepetitiveSiblings = value; }
+            public static bool SilenceLogs { get => RealPlaySettings.SilenceLogs; set => RealPlaySettings.SilenceLogs = value; }
+            public static bool CompactJSON { get => RealPlaySettings.CompactJSON; set => RealPlaySettings.CompactJSON = value; }
+            public static bool EnableNavigationLearning { get => RealPlaySettings.Perception.EnableNavigationLearning; set => RealPlaySettings.Perception.EnableNavigationLearning = value; }
+            public static bool FilterDOMToViewport { get => RealPlaySettings.Perception.FilterToViewport; set => RealPlaySettings.Perception.FilterToViewport = value; }
+            public static bool CollapseRepetitiveSiblings { get => RealPlaySettings.Perception.CollapseRepetitiveSiblings; set => RealPlaySettings.Perception.CollapseRepetitiveSiblings = value; }
             
             public static bool AutoSimulatePhysics 
             { 
-                get => RealPlaySettings.AutoSimulatePhysics2D && RealPlaySettings.AutoSimulatePhysics3D; 
-                set { RealPlaySettings.AutoSimulatePhysics2D = value; RealPlaySettings.AutoSimulatePhysics3D = value; } 
+                get => RealPlaySettings.Physics.AutoSimulate2D && RealPlaySettings.Physics.AutoSimulate3D; 
+                set { RealPlaySettings.Physics.AutoSimulate2D = value; RealPlaySettings.Physics.AutoSimulate3D = value; } 
             }
-            public static bool AutoSimulatePhysics2D { get => RealPlaySettings.AutoSimulatePhysics2D; set => RealPlaySettings.AutoSimulatePhysics2D = value; }
-            public static bool AutoSimulatePhysics3D { get => RealPlaySettings.AutoSimulatePhysics3D; set => RealPlaySettings.AutoSimulatePhysics3D = value; }
+            public static bool AutoSimulatePhysics2D { get => RealPlaySettings.Physics.AutoSimulate2D; set => RealPlaySettings.Physics.AutoSimulate2D = value; }
+            public static bool AutoSimulatePhysics3D { get => RealPlaySettings.Physics.AutoSimulate3D; set => RealPlaySettings.Physics.AutoSimulate3D = value; }
         }
 
         // ===== NESTED API GROUPS =====

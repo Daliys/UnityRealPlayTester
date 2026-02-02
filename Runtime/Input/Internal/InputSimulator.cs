@@ -33,7 +33,7 @@ namespace RealPlayTester.Input.Internal
                 _eventsThisFrame = 0;
             }
 
-            int limit = RealPlaySettings.MaxInputEventsPerFrame;
+            int limit = RealPlaySettings.Input.MaxEventsPerFrame;
             if (limit <= 0) return false;
 
             if (_eventsThisFrame >= limit)
@@ -78,13 +78,13 @@ namespace RealPlayTester.Input.Internal
 
                     while (_physicsAccumulator >= step)
                     {
-                        if (RealPlaySettings.AutoSimulatePhysics3D)
+                        if (RealPlaySettings.Physics.AutoSimulate3D)
                         {
                             try { if (Physics.simulationMode != SimulationMode.Script) Physics.simulationMode = SimulationMode.Script; } catch { }
                             Physics.Simulate(step);
                         }
 
-                        if (RealPlaySettings.AutoSimulatePhysics2D)
+                        if (RealPlaySettings.Physics.AutoSimulate2D)
                         {
                             try { if (Physics2D.simulationMode != SimulationMode2D.Script) Physics2D.simulationMode = SimulationMode2D.Script; } catch { }
                             Physics2D.Simulate(step);

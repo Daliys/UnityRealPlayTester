@@ -59,7 +59,7 @@ namespace RealPlayTester.Input
                 return _cachedEventSystem;
             }
 
-            if (!RealPlaySettings.AutoCreateEventSystem)
+            if (!RealPlaySettings.Input.AutoCreateEventSystem)
             {
                 // Only log if we REALLY can't find one and can't create one
                 return null;

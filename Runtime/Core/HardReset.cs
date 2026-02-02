@@ -20,7 +20,7 @@ namespace RealPlayTester.Core
 
             // 1. Reset Time state (Critical for tests that use slow-mo or pause)
             Time.timeScale = 1.0f;
-            Time.fixedDeltaTime = RealPlaySettings.OriginalFixedDeltaTime; // M018: Use project-specific default
+            Time.fixedDeltaTime = RealPlaySettings.Physics.OriginalFixedDeltaTime; // M018: Use project-specific default
 
             // 2. Kill Tweens (Attempt to find DOTween via reflection)
             KillAllTweens();

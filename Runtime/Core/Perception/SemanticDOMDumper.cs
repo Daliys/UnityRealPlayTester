@@ -72,7 +72,7 @@ namespace RealPlayTester.Core.Perception
             // while preventing redundant updates during recursion.
             RealPlayTester.Input.RealInputUtility.ThrottleCanvasUpdate();
 
-            bool viewportFilter = filterToViewport ?? RealPlaySettings.FilterDOMToViewport;
+            bool viewportFilter = filterToViewport ?? RealPlaySettings.Perception.FilterToViewport;
             var root = new SemanticNode { Name = "Root", Role = "Universe", Active = true };
             Plane[] planes = (viewportFilter && Camera.main != null) ? GeometryUtility.CalculateFrustumPlanes(Camera.main) : null;
 
@@ -124,7 +124,7 @@ namespace RealPlayTester.Core.Perception
             {
                 Transform childTransform = t.GetChild(i);
 
-                if (RealPlaySettings.CollapseRepetitiveSiblings)
+                if (RealPlaySettings.Perception.CollapseRepetitiveSiblings)
                 {
                     int groupCount = HierarchyHelpers.GetRepetitiveGroupCount(t, i);
                     // M018: Lower threshold for collapse and allow more types

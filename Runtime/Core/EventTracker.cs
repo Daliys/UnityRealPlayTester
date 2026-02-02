@@ -18,7 +18,7 @@ namespace RealPlayTester.Core
             if (!_events.ContainsKey(eventName)) _events[eventName] = 0;
             _events[eventName]++;
             _history.Add(eventName);
-            RealPlayLog.Info($"[EventTracker] Recorded: {eventName}");
+            if (!RealPlayLog.Silence) RealPlayLog.Info($"[EventTracker] Recorded: {eventName}");
         }
 
         public static void Clear()

@@ -125,8 +125,11 @@ namespace RealPlayTester.Core
                 bool isUi = target.GetComponent<RectTransform>() != null;
                 if (isUi)
                 {
-                    if (EventSystem.current == null && !RealPlaySettings.AutoCreateEventSystem)
-                        return "No EventSystem found. UI is unclickable.";
+            // Ensure EventSystem exists
+            if (EventSystem.current == null && !RealPlaySettings.Input.AutoCreateEventSystem)
+            {
+                return "[Interaction] Failed: No EventSystem found and AutoCreateEventSystem is disabled.";
+            }
 
                     var canvas = target.GetComponentInParent<Canvas>();
                     if (canvas != null && canvas.GetComponent<GraphicRaycaster>() == null)

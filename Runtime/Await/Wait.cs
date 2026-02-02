@@ -144,7 +144,7 @@ namespace RealPlayTester.Await
                 }
 
                 // Periodic logging for long waits (every 2s)
-                if (elapsed > 2f && Time.realtimeSinceStartup - lastLogTime > 2f && !string.IsNullOrEmpty(description))
+                if (!RealPlayLog.Silence && elapsed > 2f && Time.realtimeSinceStartup - lastLogTime > 2f && !string.IsNullOrEmpty(description))
                 {
                     RealPlayLog.Info($"[Wait] Still waiting for: {description} ({elapsed:F1}s elapsed)");
                     lastLogTime = Time.realtimeSinceStartup;

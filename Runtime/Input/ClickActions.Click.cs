@@ -87,7 +87,7 @@ namespace RealPlayTester.Input
 
 #if UNITY_EDITOR
             bool wasLocked = false;
-            if (RealPlaySettings.LockAssembliesDuringInteraction)
+            if (RealPlaySettings.Input.LockAssemblies)
             {
                 UnityEditor.EditorApplication.LockReloadAssemblies();
                 wasLocked = true;

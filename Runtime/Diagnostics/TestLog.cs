@@ -87,6 +87,7 @@ namespace RealPlayTester.Diagnostics
         private static void Log(string level, string message)
         {
             if (!RealPlayEnvironment.IsEnabled) return;
+            if (RealPlayLog.Silence && level != "ERROR") return;
             EnsureInitialized();
 
             string formattedMessage = $"[RealPlayTest] [{level}] {message}";

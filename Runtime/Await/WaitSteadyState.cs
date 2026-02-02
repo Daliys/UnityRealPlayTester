@@ -33,7 +33,7 @@ namespace RealPlayTester.Await
         {
             if (!RealPlayEnvironment.IsEnabled) return;
 
-            float epsilon = velocityEpsilon ?? RealPlaySettings.IdleVelocityEpsilon;
+            float epsilon = velocityEpsilon ?? RealPlaySettings.Physics.IdleVelocityEpsilon;
             float startTime = Time.realtimeSinceStartup;
             int currentStableFrames = 0;
             _lastHierarchyHash = 0;
@@ -56,7 +56,7 @@ namespace RealPlayTester.Await
                 else 
                 {
                     currentStableFrames = 0;
-                    if (elapsed > 2f && Time.realtimeSinceStartup - lastLogTime > 2f)
+                    if (!RealPlayLog.Silence && elapsed > 2f && Time.realtimeSinceStartup - lastLogTime > 2f)
                     {
                         RealPlayLog.Info($"[Wait] Still waiting for Steady State. Reason: {lastReason}");
                         lastLogTime = Time.realtimeSinceStartup;
@@ -177,7 +177,7 @@ namespace RealPlayTester.Await
                         return false;
                     }
                     
-                    if (!RealPlaySettings.IgnoreLoopingAnimations)
+                    if (!RealPlaySettings.Perception.IgnoreLoopingAnimations)
                     {
                         var state = anim.GetCurrentAnimatorStateInfo(layer);
                         if (state.length > 0 && !state.loop) 
@@ -209,7 +209,7 @@ namespace RealPlayTester.Await
         {
             if (go == null) return false;
             string name = go.name;
-            foreach (var tag in RealPlaySettings.AmbientTags)
+            foreach (var tag in RealPlaySettings.Perception.AmbientTags)
             {
                 if (name.IndexOf(tag, StringComparison.OrdinalIgnoreCase) >= 0) return true;
             }
