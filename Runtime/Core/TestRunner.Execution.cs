@@ -8,6 +8,11 @@ using RealPlayTester.Diagnostics;
 
 namespace RealPlayTester.Core
 {
+    public class FatalAutomationException : Exception
+    {
+        public FatalAutomationException(string message) : base(message) { }
+    }
+
     public sealed partial class TestRunner
     {
         public async Task RunAll(bool quitOnFinish)
@@ -127,6 +132,12 @@ namespace RealPlayTester.Core
                     {
                         RealPlayLog.Info($"Running: {testCase.DisplayName} (attempt {attempt})");
                         await instance.Execute();
+
+                        if (RealPlayEnvironment.GlobalDisable)
+                        {
+                            throw new FatalAutomationException("Automation was GLOBALLY DISABLED during test execution (likely due to a thread violation).");
+                        }
+
                         return (true, null, attempt);
                     }
                     catch (Exception ex) when (attempt <= safeRetries && !token.IsCancellationRequested)

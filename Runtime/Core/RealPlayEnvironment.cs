@@ -4,11 +4,31 @@ namespace RealPlayTester.Core
 {
     public static class RealPlayEnvironment
     {
+        private static bool _globalDisable = false;
+
+        /// <summary>
+        /// Globally disables all RealPlayTester functionality at runtime.
+        /// </summary>
+        public static bool GlobalDisable
+        {
+            get => _globalDisable;
+            set
+            {
+                if (_globalDisable == value) return;
+                _globalDisable = value;
+                if (_globalDisable) RealPlayLog.Warn("RealPlayTester has been GLOBALLY DISABLED.");
+            }
+        }
+
         public static bool IsEnabled
         {
             get
             {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (_globalDisable) return false;
+
+#if DISABLE_REALPLAY
+                return false;
+#elif UNITY_EDITOR || DEVELOPMENT_BUILD
                 return true;
 #else
                 return false;

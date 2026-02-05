@@ -11,6 +11,8 @@ namespace RealPlayTester.Input
         private static bool? s_isInputSystemActive;
         private static int s_mainThreadId;
 
+        public static int MainThreadId => s_mainThreadId;
+
         /// <summary>
         /// Returns true if the current platform supports multi-threading.
         /// WebGL (Wasm) usually does not support system threads.
@@ -21,24 +23,29 @@ namespace RealPlayTester.Input
 #else
             true;
 #endif
+        static SimulatedInputGuard()
+        {
+            InitThreadId();
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void InitThreadId()
+        public static void InitThreadId()
         {
+            if (s_mainThreadId != 0) return; 
             s_mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
         }
 
         /// <summary>
-        /// Throws an exception if the current thread is not the Unity main thread.
-        /// Prevents hard crashes from background Task.Run calls.
+        /// Ensures the current thread is the Unity main thread.
+        /// If a violation occurs, it triggers Safe Mode and logs a one-time error.
         /// </summary>
         public static void EnsureMainThread([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
         {
             if (System.Threading.Thread.CurrentThread.ManagedThreadId != s_mainThreadId)
             {
-                throw new System.InvalidOperationException(
-                    $"[RealPlayTester] Unity API access violation: {caller} was called from a background thread. " +
-                    "Ensure tests do not use Task.Run() to interact with Unity objects.");
+                string error = $"Unity API access violation: {caller} was called from a background thread.";
+                RealPlayTester.Core.RealPlayLog.SystemErrorOnce(error);
+                RealPlayTester.Core.RealPlayEnvironment.GlobalDisable = true;
             }
         }
 

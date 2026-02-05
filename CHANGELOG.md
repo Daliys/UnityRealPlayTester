@@ -1,5 +1,18 @@
 # Changelog
 
+### [2.9.3] - 2026-02-05
+### Resilience Phase 2: Stability & Error Hardening
+### Added
+- **Explicit Thread Violation Failures**: Tests now explicitly fail with `FatalAutomationException` when a thread violation is detected (e.g., background thread calling Unity APIs), preventing misleading "silent passes".
+- **Background Log Capping**: Implemented a hard limit of 100 logs per session for background threads in `RealPlayLog`. This prevents console flooding and performance degradation when background tasks go haywire.
+- **Dispatcher Throughput Limiting**: `RealPlayTesterHost` now limits the main-thread action queue to 50 actions per frame, preventing massive CPU spikes and ensuring smoother frame rates during heavy automation.
+- **Early Thread ID Capture**: Added a static constructor to `SimulatedInputGuard` to ensure the main thread ID is captured as early as possible in the engine lifecycle, mitigating race conditions during initialization.
+- **Improved Test Isolation**: Added `ResetInternalState()` to `RealPlayTesterHost` and `RealPlayLog` to allow for complete state purging between tests, ensuring clean execution and no log leakage.
+
+### Fixed
+- **Dispatcher Resilience**: Refactored the dispatcher loop to catch and log individual action exceptions, ensuring a single failing action doesn't block the rest of the queue.
+- **Log Leakage**: Resolved an issue where unhandled logs from one test could be caught by Unity's `LogAssert` in a subsequent test.
+
 ### [2.9.2] - 2026-02-02
 ### Logging Efficiency & AI-Native Optimization
 ### Added

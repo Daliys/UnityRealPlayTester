@@ -3,6 +3,7 @@ using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using RealPlayTester.Input;
 
 namespace RealPlayTester.Core
 {
@@ -44,6 +45,7 @@ namespace RealPlayTester.Core
         private static void CaptureMainThread()
         {
             _mainContext = SynchronizationContext.Current;
+            SimulatedInputGuard.InitThreadId();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -54,6 +56,9 @@ namespace RealPlayTester.Core
             _isInitialized = false;
             RealPlayExecutionContext.Clear();
             
+            // Clear main thread queue
+            while (_mainThreadQueue != null && _mainThreadQueue.TryDequeue(out _)) { }
+
             RealPlaySettings.Initialize(true);
             EventTracker.Clear();
             RealPlayTester.Assert.FailureOverlay.Clear();
@@ -62,6 +67,7 @@ namespace RealPlayTester.Core
             RealPlayTester.Input.Internal.VirtualDeviceManager.CleanupDevices();
             RealPlayTester.Input.InputSystemShim.ClearEvents();
             
+            RealPlayLog.ResetInternalState();
             RealPlayLog.Info("[HEALER] Global Static State Reset (SubsystemRegistration).");
         }
 
@@ -164,15 +170,35 @@ namespace RealPlayTester.Core
             return tcs.Task;
         }
 
+        private static readonly System.Collections.Concurrent.ConcurrentQueue<Action> _mainThreadQueue = new System.Collections.Concurrent.ConcurrentQueue<Action>();
+
+        public void Update()
+        {
+            int processedCount = 0;
+            const int MaxActionsPerFrame = 50;
+
+            while (processedCount < MaxActionsPerFrame && _mainThreadQueue.TryDequeue(out var action))
+            {
+                processedCount++;
+                try { action?.Invoke(); }
+                catch (Exception ex) { RealPlayLog.Error($"[DISPATCHER] Error executing action on main thread: {ex.Message}"); }
+            }
+        }
+
+        internal static void ResetInternalState()
+        {
+            while (_mainThreadQueue.TryDequeue(out _)) { }
+        }
+
         public void RunOnMainThread(Action action)
         {
             if (action == null) return;
-            if (!RealPlayTester.Input.SimulatedInputGuard.IsThreadingSupported || SynchronizationContext.Current == MainContext)
+            if (!RealPlayTester.Input.SimulatedInputGuard.IsThreadingSupported || System.Threading.Thread.CurrentThread.ManagedThreadId == SimulatedInputGuard.MainThreadId)
             {
                 action();
                 return;
             }
-            MainContext.Post(_ => action(), null);
+            _mainThreadQueue.Enqueue(action);
         }
 
         private IEnumerator WrapRoutine(IEnumerator routine, TaskCompletionSource<bool> tcs, CancellationToken token)
