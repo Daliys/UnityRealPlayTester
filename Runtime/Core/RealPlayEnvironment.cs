@@ -11,12 +11,21 @@ namespace RealPlayTester.Core
         /// </summary>
         public static bool GlobalDisable
         {
-            get => _globalDisable;
+            get
+            {
+#if DISABLE_REALPLAY
+                return true;
+#else
+                return _globalDisable;
+#endif
+            }
             set
             {
+#if !DISABLE_REALPLAY
                 if (_globalDisable == value) return;
                 _globalDisable = value;
                 if (_globalDisable) RealPlayLog.Warn("RealPlayTester has been GLOBALLY DISABLED.");
+#endif
             }
         }
 

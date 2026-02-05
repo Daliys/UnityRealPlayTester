@@ -174,6 +174,8 @@ namespace RealPlayTester.Core
 
         public void Update()
         {
+            if (!RealPlayEnvironment.IsEnabled) return;
+
             int processedCount = 0;
             const int MaxActionsPerFrame = 50;
 
