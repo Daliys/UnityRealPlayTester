@@ -187,7 +187,7 @@ namespace RealPlayTester.Core
             }
         }
 
-        internal static void ResetInternalState()
+        public static void ResetInternalState()
         {
             while (_mainThreadQueue.TryDequeue(out _)) { }
         }

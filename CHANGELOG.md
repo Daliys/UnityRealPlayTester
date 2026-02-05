@@ -1,5 +1,16 @@
 # Changelog
 
+### [2.9.5] - 2026-02-05
+### Complexity Resilience & Stress Finalization
+### Added
+- **10 Complexity Stress Tests**: Implemented and verified a 100% pass rate for the `ComplexityResilienceTests` suite, covering dispatcher concurrency, deep nesting, background violations, and high-frequency state changes.
+- **Stable Test Coroutines**: Migrated resilience tests to `[UnityTest]` coroutines with hard thread joins and isolation padding to ensure reliable execution in varied environments.
+- **Strict Violation Enforcement**: Corrected the priority of architectural violations (e.g., background API access) to ensure tests fail immediately and accurately when systemic issues are detected.
+
+### Fixed
+- **Log Crosstalk & Leakage**: Resolved subtle timing issues where background logs from previous tests could bleed into subsequent test results.
+- **ManualResetEvent Synchronization**: Replaced fragile `Task.Delay` logic with robust `ManualResetEventSlim` and `Thread.Join` for critical thread synchronization during stress testing.
+
 ### [2.9.3] - 2026-02-05
 ### Resilience Phase 2: Stability & Error Hardening
 ### Added

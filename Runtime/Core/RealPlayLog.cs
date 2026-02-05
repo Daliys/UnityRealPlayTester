@@ -114,7 +114,7 @@ namespace RealPlayTester.Core
             _repeatCount = 0;
         }
 
-        internal static void ResetInternalState()
+        public static void ResetInternalState()
         {
             _hasLoggedSystemError = false;
             _backgroundLogCount = 0;
